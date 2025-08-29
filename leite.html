@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analisador de Leiteira</title>
+    <title>Analisador de Produção Leiteira</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -56,6 +56,7 @@
                     Entrar com Microsoft
                 </button>
             </div>
+            <p class="text-xs text-center text-gray-500 mt-4">Se o login não funcionar, verifique o console do desenvolvedor (tecla F12) para mensagens de erro.</p>
         </div>
 
         <main id="mainContent" class="hidden">
@@ -183,15 +184,29 @@
 
         // --- Event Listeners ---
         googleSignInBtn.addEventListener('click', () => {
-            loginError.classList.add('hidden');
-            const provider = new GoogleAuthProvider();
-            signInWithRedirect(auth, provider);
+            try {
+                console.log("Botão do Google clicado. Iniciando o processo de autenticação por redirecionamento.");
+                loginError.classList.add('hidden');
+                const provider = new GoogleAuthProvider();
+                signInWithRedirect(auth, provider);
+            } catch (e) {
+                console.error("Erro inesperado ao tentar iniciar o login com Google:", e);
+                loginError.textContent = `Ocorreu um erro inesperado ao clicar no botão. Verifique o console. (${e.message})`;
+                loginError.classList.remove('hidden');
+            }
         });
 
         microsoftSignInBtn.addEventListener('click', () => {
-            loginError.classList.add('hidden');
-            const provider = new MicrosoftAuthProvider();
-            signInWithRedirect(auth, provider);
+            try {
+                console.log("Botão da Microsoft clicado. Iniciando o processo de autenticação por redirecionamento.");
+                loginError.classList.add('hidden');
+                const provider = new MicrosoftAuthProvider();
+                signInWithRedirect(auth, provider);
+            } catch (e) {
+                console.error("Erro inesperado ao tentar iniciar o login com Microsoft:", e);
+                loginError.textContent = `Ocorreu um erro inesperado ao clicar no botão. Verifique o console. (${e.message})`;
+                loginError.classList.remove('hidden');
+            }
         });
 
         csvFileInput.addEventListener('change', () => {
@@ -594,5 +609,4 @@
     </script>
 </body>
 </html>
-
 
