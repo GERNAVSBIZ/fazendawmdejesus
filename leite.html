@@ -124,7 +124,7 @@
             firebaseConfig = localFirebaseConfig;
         }
         
-        const appId = typeof __app_id !== 'undefined' ? __app_id : (firebaseConfig.projectId || 'default-app-id');
+        const appId = firebaseConfig.projectId || 'default-app-id';
 
         if (!firebaseConfig || !firebaseConfig.apiKey) {
              statusText.textContent = "Ação necessária: Adicione a configuração do seu projeto Firebase no código para testes locais.";
