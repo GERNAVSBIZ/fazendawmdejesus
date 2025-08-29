@@ -38,11 +38,26 @@
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Dashboard de Análise Leiteira</h1>
-            <p class="mt-2 text-lg text-gray-600 dark:text-gray-400">Carregue um arquivo CSV para atualizar os dados para todos os usuários.</p>
-            <div id="userInfo" class="mt-2 text-sm text-gray-500 dark:text-gray-400"></div>
+            <p id="header-subtitle" class="mt-2 text-lg text-gray-600 dark:text-gray-400">Faça login para acessar e gerenciar os dados.</p>
+            <div id="userInfo" class="mt-4 text-sm text-gray-500 dark:text-gray-400"></div>
         </header>
 
-        <main>
+        <!-- Login Screen -->
+        <div id="loginScreen" class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 border border-gray-200 dark:border-gray-700">
+            <h2 class="text-2xl font-bold text-center mb-6">Acessar Painel</h2>
+            <div class="space-y-4">
+                 <button id="googleSignInBtn" class="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                    <svg class="w-6 h-6" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
+                    Entrar com Google
+                </button>
+                 <button id="microsoftSignInBtn" class="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                     <svg class="w-6 h-6" viewBox="0 0 21 21"><path fill="#f25022" d="M1 1h9v9H1z"></path><path fill="#00a4ef" d="M1 11h9v9H1z"></path><path fill="#7fba00" d="M11 1h9v9h-9z"></path><path fill="#ffb900" d="M11 11h9v9h-9z"></path></svg>
+                    Entrar com Microsoft
+                </button>
+            </div>
+        </div>
+
+        <main id="mainContent" class="hidden">
             <!-- File Upload Section -->
             <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
                 <div class="flex items-center justify-center w-full">
@@ -62,7 +77,7 @@
             </div>
 
             <!-- Status/Loader -->
-            <div id="status" class="text-center my-8">
+            <div id="status" class="text-center my-8 hidden">
                 <div id="loader" class="flex justify-center items-center">
                     <svg class="animate-spin h-8 w-8 text-blue-600 dark:text-blue-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -82,9 +97,10 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, MicrosoftAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, writeBatch, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+        // DOM Elements
         const csvFileInput = document.getElementById('csvFile');
         const analyzeBtn = document.getElementById('analyzeBtn');
         const fileNameDisplay = document.getElementById('fileName');
@@ -92,15 +108,20 @@
         const statusText = document.getElementById('statusText');
         const statusContainer = document.getElementById('status');
         const reportContainer = document.getElementById('reportContainer');
+        const loginScreen = document.getElementById('loginScreen');
+        const mainContent = document.getElementById('mainContent');
+        const googleSignInBtn = document.getElementById('googleSignInBtn');
+        const microsoftSignInBtn = document.getElementById('microsoftSignInBtn');
+        const userInfo = document.getElementById('userInfo');
+        const headerSubtitle = document.getElementById('header-subtitle');
         
         let chartInstances = {};
         let db, auth;
         let productionCollectionRef;
-        let unsubscribeFromData; // To detach listener later if needed
+        let unsubscribeFromData;
         
-        // --- Firebase Initialization and Auth ---
-        
-        const localFirebaseConfig = {
+        // --- Firebase Initialization ---
+        const firebaseConfig = {
             apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
             authDomain: "fazendawm-83f34.firebaseapp.com",
             projectId: "fazendawm-83f34",
@@ -110,68 +131,56 @@
             measurementId: "G-QQVTP0CQ4H"
         };
         
-        let firebaseConfig;
-        
-        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-            try {
-                firebaseConfig = JSON.parse(__firebase_config);
-            } catch(e) {
-                 console.error("Firebase config (from environment) is not valid JSON:", __firebase_config);
-                 statusText.textContent = "Erro: Configuração do Firebase do ambiente é inválida.";
-                 loader.classList.add('hidden');
-            }
-        } else {
-            firebaseConfig = localFirebaseConfig;
-        }
-        
         const appId = firebaseConfig.projectId || 'default-app-id';
 
-        if (!firebaseConfig || !firebaseConfig.apiKey) {
-             statusText.textContent = "Ação necessária: Adicione a configuração do seu projeto Firebase no código para testes locais.";
-             loader.classList.add('hidden');
-        } else {
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                const performSignIn = async () => {
-                    try {
-                        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                        if (token) {
-                            await signInWithCustomToken(auth, token);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch (error) {
-                        console.error("Authentication failed:", error);
-                        statusText.textContent = "Falha na autenticação.";
-                        loader.classList.add('hidden');
-                        throw error;
-                    }
-                };
-
-                onAuthStateChanged(auth, user => {
-                    if (user) {
-                        console.log("User is signed in with UID:", user.uid);
-                        const userInfo = document.getElementById('userInfo');
-                        userInfo.textContent = `ID de Usuário Conectado: ${user.uid}`;
-                        productionCollectionRef = collection(db, `artifacts/${appId}/public/data/production_records`);
-                        listenForProductionData();
-                    }
-                });
-
-                performSignIn();
-
-            } catch(e) {
-                console.error("Firebase initialization error:", e);
-                statusText.textContent = "Erro ao inicializar o Firebase. Verifique sua configuração.";
-                loader.classList.add('hidden');
-            }
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch(e) {
+            console.error("Firebase initialization error:", e);
+            loginScreen.innerHTML = `<p class="text-red-500 text-center">Erro ao inicializar o Firebase. Verifique a configuração.</p>`;
         }
 
+        // --- Auth State Management ---
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                // User is signed in
+                loginScreen.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                headerSubtitle.textContent = 'Carregue um arquivo CSV para atualizar os dados para todos os usuários.';
+                
+                userInfo.innerHTML = `
+                    <span class="font-semibold">Bem-vindo, ${user.displayName || user.email}!</span>
+                    <button id="logoutBtn" class="ml-4 bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">Sair</button>
+                `;
+                document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+                productionCollectionRef = collection(db, `artifacts/${appId}/public/data/production_records`);
+                listenForProductionData();
+            } else {
+                // User is signed out
+                loginScreen.classList.remove('hidden');
+                mainContent.classList.add('hidden');
+                reportContainer.classList.add('hidden');
+                statusContainer.classList.add('hidden');
+                headerSubtitle.textContent = 'Faça login para acessar e gerenciar os dados.';
+                userInfo.innerHTML = '';
+                if (unsubscribeFromData) unsubscribeFromData();
+            }
+        });
 
         // --- Event Listeners ---
+        googleSignInBtn.addEventListener('click', () => {
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider).catch(error => console.error("Google Sign-In Error", error));
+        });
+
+        microsoftSignInBtn.addEventListener('click', () => {
+            const provider = new MicrosoftAuthProvider();
+            signInWithPopup(auth, provider).catch(error => console.error("Microsoft Sign-In Error", error));
+        });
+
         csvFileInput.addEventListener('change', () => {
             if (csvFileInput.files.length > 0) {
                 const file = csvFileInput.files[0];
@@ -188,17 +197,16 @@
         // --- Core Functions ---
         
         function listenForProductionData() {
+            statusContainer.classList.remove('hidden');
+            loader.classList.remove('hidden');
             statusText.textContent = "Buscando dados salvos...";
-            if (unsubscribeFromData) {
-                unsubscribeFromData(); // Detach any existing listener
-            }
+            
+            if (unsubscribeFromData) unsubscribeFromData();
 
             unsubscribeFromData = onSnapshot(productionCollectionRef, (snapshot) => {
                 const data = [];
                 snapshot.forEach(doc => {
-                    const docData = doc.data();
-                    // Convert Firestore Timestamp back to JS Date
-                    data.push({ ...docData, Data: docData.Data.toDate() });
+                    data.push({ ...doc.data(), Data: doc.data().Data.toDate() });
                 });
 
                 if (data.length > 0) {
@@ -232,27 +240,17 @@
                 const parsedData = parseCSV(fileContent);
 
                 if (parsedData.length > 0) {
-                    // Batch write to replace all data
                     const batch = writeBatch(db);
-                    
-                    // 1. Delete all existing documents
                     const existingDocsSnapshot = await getDocs(productionCollectionRef);
-                    existingDocsSnapshot.forEach(doc => {
-                        batch.delete(doc.ref);
-                    });
+                    existingDocsSnapshot.forEach(doc => batch.delete(doc.ref));
                     
-                    // 2. Add new documents
                     parsedData.forEach(row => {
-                        // Use date as YYYY-MM-DD for a unique ID
                         const docId = row.Data.toISOString().split('T')[0];
                         const docRef = doc(productionCollectionRef, docId);
                         batch.set(docRef, row);
                     });
 
                     await batch.commit();
-
-                    // Directly call generateReport instead of waiting for the listener.
-                    // This provides immediate feedback and ensures the UI updates.
                     console.log("Data saved, now generating report directly.");
                     generateReport(parsedData);
                     statusContainer.classList.add('hidden');
