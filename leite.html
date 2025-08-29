@@ -250,8 +250,13 @@
                     });
 
                     await batch.commit();
-                    statusText.textContent = "Dados salvos com sucesso! O painel será atualizado.";
-                    // The onSnapshot listener will automatically refresh the report
+
+                    // Directly call generateReport instead of waiting for the listener.
+                    // This provides immediate feedback and ensures the UI updates.
+                    console.log("Data saved, now generating report directly.");
+                    generateReport(parsedData);
+                    statusContainer.classList.add('hidden');
+
                 } else {
                      const errorP = document.createElement('p');
                      errorP.textContent = "Não foi possível processar o arquivo. Verifique o formato.";
