@@ -98,7 +98,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, onAuthStateChanged, GoogleAuthProvider, MicrosoftAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, MicrosoftAuthProvider, signInWithRedirect, getRedirectResult, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, writeBatch, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // DOM Elements
@@ -145,6 +145,15 @@
         }
 
         // --- Auth State Management ---
+        
+        // Handle the redirect result when the page loads
+        getRedirectResult(auth)
+            .catch((error) => {
+                console.error("Error processing redirect result:", error);
+                loginError.textContent = `Erro ao processar o login: ${error.message}`;
+                loginError.classList.remove('hidden');
+            });
+            
         onAuthStateChanged(auth, user => {
             if (user) {
                 // User is signed in
@@ -176,33 +185,13 @@
         googleSignInBtn.addEventListener('click', () => {
             loginError.classList.add('hidden');
             const provider = new GoogleAuthProvider();
-            signInWithPopup(auth, provider).catch(error => {
-                console.error("Google Sign-In Error", error);
-                let errorMessage = `Ocorreu um erro: ${error.message}`;
-                if (error.code === 'auth/popup-blocked') {
-                    errorMessage = 'O pop-up de login foi bloqueado. Por favor, habilite os pop-ups para este site e tente novamente.';
-                } else if (error.code === 'auth/cancelled-popup-request') {
-                    return; // User closed the popup, not an error to display
-                }
-                loginError.textContent = errorMessage;
-                loginError.classList.remove('hidden');
-            });
+            signInWithRedirect(auth, provider);
         });
 
         microsoftSignInBtn.addEventListener('click', () => {
             loginError.classList.add('hidden');
             const provider = new MicrosoftAuthProvider();
-            signInWithPopup(auth, provider).catch(error => {
-                console.error("Microsoft Sign-In Error", error);
-                let errorMessage = `Ocorreu um erro: ${error.message}`;
-                if (error.code === 'auth/popup-blocked') {
-                    errorMessage = 'O pop-up de login foi bloqueado. Por favor, habilite os pop-ups para este site e tente novamente.';
-                } else if (error.code === 'auth/cancelled-popup-request') {
-                    return; // User closed the popup, not an error to display
-                }
-                loginError.textContent = errorMessage;
-                loginError.classList.remove('hidden');
-            });
+            signInWithRedirect(auth, provider);
         });
 
         csvFileInput.addEventListener('change', () => {
