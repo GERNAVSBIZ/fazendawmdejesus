@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisador de Produção Leiteira</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 400px;
+            width: 100%;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Dashboard de Análise Leiteira</h1>
+            <p class="mt-2 text-lg text-gray-600 dark:text-gray-400">Carregue seu arquivo CSV para gerar uma análise instantânea.</p>
+        </header>
+
+        <main>
+            <!-- File Upload Section -->
+            <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-center w-full">
+                    <label for="csvFile" class="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 dark:hover:border-gray-500 dark:hover:bg-gray-600 transition-colors">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            <p class="mb-2 text-sm text-gray-500 dark:text-gray-400"><span class="font-semibold">Clique para carregar</span> ou arraste e solte</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Arquivo CSV</p>
+                        </div>
+                        <input id="csvFile" type="file" class="hidden" accept=".csv" />
+                    </label>
+                </div>
+                <div id="fileName" class="mt-4 text-center text-gray-500 dark:text-gray-400">Nenhum arquivo selecionado.</div>
+                <button id="analyzeBtn" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-all duration-300 transform hover:scale-105 disabled:bg-gray-400 disabled:dark:bg-gray-600 disabled:cursor-not-allowed disabled:transform-none" disabled>
+                    Analisar Dados
+                </button>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="loader" class="hidden text-center my-8">
+                <svg class="animate-spin h-8 w-8 text-blue-600 dark:text-blue-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2">Analisando dados...</p>
+            </div>
+
+            <!-- Report Container -->
+            <div id="reportContainer" class="hidden mt-10 space-y-8">
+                <!-- Report will be generated here -->
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const csvFileInput = document.getElementById('csvFile');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const fileNameDisplay = document.getElementById('fileName');
+        const loader = document.getElementById('loader');
+        const reportContainer = document.getElementById('reportContainer');
+        let parsedData = [];
+        let chartInstances = {};
+
+        // Event Listeners
+        csvFileInput.addEventListener('change', () => {
+            if (csvFileInput.files.length > 0) {
+                const file = csvFileInput.files[0];
+                fileNameDisplay.textContent = `Arquivo: ${file.name}`;
+                analyzeBtn.disabled = false;
+            } else {
+                fileNameDisplay.textContent = 'Nenhum arquivo selecionado.';
+                analyzeBtn.disabled = true;
+            }
+        });
+
+        analyzeBtn.addEventListener('click', handleFile);
+
+        // --- Core Functions ---
+
+        async function handleFile() {
+            const file = csvFileInput.files[0];
+            if (!file) {
+                alert("Por favor, selecione um arquivo CSV.");
+                return;
+            }
+
+            loader.classList.remove('hidden');
+            reportContainer.classList.add('hidden');
+            reportContainer.innerHTML = ''; // Clear previous report
+            Object.values(chartInstances).forEach(chart => chart.destroy()); // Destroy old charts
+            chartInstances = {};
+
+            try {
+                const fileContent = await file.text();
+                parsedData = parseCSV(fileContent);
+                if (parsedData.length > 0) {
+                    generateReport(parsedData);
+                } else {
+                     alert("Não foi possível processar o arquivo. Verifique se o formato está correto.");
+                }
+            } catch (error) {
+                console.error("Erro ao processar o arquivo:", error);
+                alert("Ocorreu um erro. Verifique o console para mais detalhes.");
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function parseCSV(content) {
+            const lines = content.split(/\r\n|\n/).slice(2); // Skip first two rows
+            const data = [];
+            const headerLine = lines[0];
+            if (!headerLine) return [];
+            
+            const headers = [
+                'Data', 'Manha', 'Tarde', 'Joza', 'Preco_Venda',
+                'Total_Venda', 'Total_Laticinio', 'Observacoes', 'Unnamed'
+            ];
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line.trim()) continue;
+
+                const values = line.split(';');
+                let row = {};
+
+                // Basic validation for date field
+                if (!values[0] || values[0].split('/').length !== 3) continue;
+
+                headers.forEach((header, index) => {
+                    row[header] = values[index] ? values[index].trim() : '';
+                });
+
+                // --- Data Cleaning and Type Conversion ---
+                const dateParts = row.Data.split('/');
+                row.Data = new Date(dateParts[2], dateParts[1] - 1, dateParts[0]);
+                if (isNaN(row.Data.getTime())) continue; // Skip if date is invalid
+
+                const numericCols = ['Manha', 'Tarde', 'Preco_Venda', 'Total_Venda'];
+                numericCols.forEach(col => {
+                    let value = row[col] || '0';
+                    value = value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+                    row[col] = parseFloat(value) || 0;
+                });
+                
+                row.Producao_Total = row.Manha + row.Tarde;
+                row.Ano = row.Data.getFullYear();
+                row.Mes = row.Data.getMonth() + 1; // 1-12
+
+                data.push(row);
+            }
+            return data.sort((a, b) => a.Data - b.Data);
+        }
+        
+        // --- Report and Chart Generation ---
+        
+        function generateReport(data) {
+            reportContainer.classList.remove('hidden');
+
+            // 1. Evolução e Tendência
+            createSection('Evolução e Tendência da Produção', 'evolutionChart',
+                `O gráfico de linhas mostra a produção diária. A linha de tendência (média móvel de 30 dias) suaviza as flutuações, revelando uma <strong>tendência geral de crescimento da produção</strong> ao longo do tempo. Picos e vales podem indicar eventos específicos que merecem atenção.`
+            );
+            createEvolutionChart(data);
+            
+            // 2. Sazonalidade
+            createSection('Análise de Sazonalidade', 'seasonalityChart',
+                `Este gráfico de barras exibe a média de produção diária para cada mês. Tipicamente, certos meses apresentam maior produtividade devido a fatores climáticos e de pastagem. Identificar esse padrão ajuda no planejamento anual e na gestão de suplementação.`
+            );
+            createSeasonalityChart(data);
+
+            // 3. Comparativo Anual
+            if (new Set(data.map(d => d.Ano)).size > 1) {
+                createSection('Comparativo Mensal entre Anos', 'comparisonChart',
+                `A comparação da produção média mensal entre diferentes anos é crucial para avaliar o crescimento do negócio. Um aumento consistente ano a ano, como observado, confirma a eficácia das melhorias de manejo e gestão.`
+                );
+                createComparisonChart(data);
+            }
+
+            // 4. Produção vs. Receita
+            createSection('Relação Produção vs. Receita', 'revenueChart',
+                `Este gráfico demonstra a forte correlação positiva entre o volume de leite produzido e a receita gerada. Os picos de faturamento correspondem diretamente aos picos de produção, ressaltando que maximizar a produção é a chave para o crescimento financeiro.`
+            );
+            createRevenueChart(data);
+
+            // 5. Proporção Manhã vs. Tarde
+            createSection('Proporção da Produção: Manhã vs. Tarde', 'proportionChart',
+                `Entender a distribuição da produção entre os turnos é útil para o planejamento da mão de obra e da rotina de ordenha. Uma distribuição equilibrada, como a que vemos, indica uma rotina de manejo consistente.`
+            );
+            createProportionChart(data);
+
+            // 6. Destaques
+            createHighlightsSection(data);
+        }
+
+        function createSection(title, canvasId, conclusionText) {
+            const section = document.createElement('div');
+            section.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700';
+            section.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-blue-600 dark:text-blue-400">${title}</h2>
+                <div class="chart-container mb-4">
+                    <canvas id="${canvasId}"></canvas>
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 leading-relaxed">${conclusionText}</p>
+            `;
+            reportContainer.appendChild(section);
+        }
+        
+        function createHighlightsSection(data) {
+            const productionDays = data.filter(d => d.Producao_Total > 0);
+            if (productionDays.length === 0) return;
+
+            const meanProd = data.reduce((acc, row) => acc + row.Producao_Total, 0) / data.length;
+            const maxProdRow = data.reduce((max, row) => row.Producao_Total > max.Producao_Total ? row : max, data[0]);
+            const minProdRow = productionDays.reduce((min, row) => row.Producao_Total < min.Producao_Total ? row : min, productionDays[0]);
+
+            const section = document.createElement('div');
+            section.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700';
+            section.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-blue-600 dark:text-blue-400">Destaques e Dias Atípicos</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
+                        <h3 class="font-semibold text-lg">Média Diária</h3>
+                        <p class="text-2xl font-bold text-blue-500">${meanProd.toFixed(2)} L</p>
+                    </div>
+                    <div class="bg-green-100 dark:bg-green-900 p-4 rounded-lg">
+                        <h3 class="font-semibold text-lg">Pico de Produção</h3>
+                        <p class="text-2xl font-bold text-green-500">${maxProdRow.Producao_Total.toFixed(0)} L</p>
+                        <p class="text-sm text-gray-500">${maxProdRow.Data.toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    <div class="bg-red-100 dark:bg-red-900 p-4 rounded-lg">
+                        <h3 class="font-semibold text-lg">Menor Produção</h3>
+                        <p class="text-2xl font-bold text-red-500">${minProdRow.Producao_Total.toFixed(0)} L</p>
+                        <p class="text-sm text-gray-500">${minProdRow.Data.toLocaleDateString('pt-BR')}</p>
+                    </div>
+                </div>
+                 <p class="mt-4 text-gray-600 dark:text-gray-400 leading-relaxed">Estes dias atípicos são pontos importantes para investigação. O que aconteceu no dia de pico que pode ser replicado? E o que causou a baixa produtividade no dia de menor produção?</p>
+            `;
+            reportContainer.appendChild(section);
+        }
+
+        // --- Chart Implementations ---
+
+        function calculateRollingAverage(data, windowSize) {
+            let result = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < windowSize - 1) {
+                    result.push(null);
+                } else {
+                    let sum = 0;
+                    for (let j = 0; j < windowSize; j++) {
+                        sum += data[i - j];
+                    }
+                    result.push(sum / windowSize);
+                }
+            }
+            return result;
+        }
+
+        function createEvolutionChart(data) {
+            const ctx = document.getElementById('evolutionChart').getContext('2d');
+            const labels = data.map(d => d.Data.toLocaleDateString('pt-BR'));
+            const rollingAvg = calculateRollingAverage(data.map(d => d.Producao_Total), 30);
+
+            chartInstances.evolution = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Produção Total',
+                        data: data.map(d => d.Producao_Total),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.1,
+                        pointRadius: 0
+                    }, {
+                        label: 'Tendência (Média Móvel 30 dias)',
+                        data: rollingAvg,
+                        borderColor: '#1f2937',
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function createSeasonalityChart(data) {
+            const monthlyAvg = Array(12).fill(0).map(() => ({ total: 0, count: 0 }));
+            data.forEach(row => {
+                const monthIndex = row.Mes - 1;
+                monthlyAvg[monthIndex].total += row.Producao_Total;
+                monthlyAvg[monthIndex].count++;
+            });
+            const averages = monthlyAvg.map(m => m.count > 0 ? m.total / m.count : 0);
+            
+            const ctx = document.getElementById('seasonalityChart').getContext('2d');
+            const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+            chartInstances.seasonality = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthNames,
+                    datasets: [{
+                        label: 'Produção Média Diária',
+                        data: averages,
+                        backgroundColor: '#10b981'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function createComparisonChart(data) {
+            const yearlyData = {};
+            data.forEach(row => {
+                if (!yearlyData[row.Ano]) {
+                    yearlyData[row.Ano] = Array(12).fill(0).map(() => ({ total: 0, count: 0 }));
+                }
+                const monthIndex = row.Mes - 1;
+                yearlyData[row.Ano][monthIndex].total += row.Producao_Total;
+                yearlyData[row.Ano][monthIndex].count++;
+            });
+            
+            const datasets = Object.keys(yearlyData).map(year => {
+                const averages = yearlyData[year].map(m => m.count > 0 ? m.total / m.count : 0);
+                return {
+                    label: `Ano ${year}`,
+                    data: averages,
+                    // You can add different colors here if you wish
+                };
+            });
+
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            
+            chartInstances.comparison = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: monthNames, datasets: datasets },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function createRevenueChart(data) {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            const labels = data.map(d => d.Data.toLocaleDateString('pt-BR'));
+            
+            chartInstances.revenue = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Produção Total (Litros)',
+                        data: data.map(d => d.Producao_Total),
+                        borderColor: '#3b82f6',
+                        yAxisID: 'y',
+                        pointRadius: 0
+                    }, {
+                        label: 'Receita (R$)',
+                        data: data.map(d => d.Total_Venda),
+                        borderColor: '#f97316',
+                        yAxisID: 'y1',
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Litros' } },
+                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'R$' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        function createProportionChart(data) {
+            const totalManha = data.reduce((sum, row) => sum + row.Manha, 0);
+            const totalTarde = data.reduce((sum, row) => sum + row.Tarde, 0);
+            
+            const ctx = document.getElementById('proportionChart').getContext('2d');
+            
+            chartInstances.proportion = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Manhã', 'Tarde'],
+                    datasets: [{
+                        data: [totalManha, totalTarde],
+                        backgroundColor: ['#60a5fa', '#fb923c']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+    </script>
+</body>
+</html>
