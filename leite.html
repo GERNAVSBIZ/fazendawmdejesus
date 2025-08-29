@@ -38,7 +38,7 @@
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Dashboard de Análise Leiteira</h1>
-            <p class="mt-2 text-lg text-gray-600 dark:text-gray-400">Carregue seu arquivo CSV para gerar uma análise instantânea.</p>
+            <p class="mt-2 text-lg text-gray-600 dark:text-gray-400">Carregue um arquivo CSV para atualizar os dados para todos os usuários.</p>
         </header>
 
         <main>
@@ -56,17 +56,19 @@
                 </div>
                 <div id="fileName" class="mt-4 text-center text-gray-500 dark:text-gray-400">Nenhum arquivo selecionado.</div>
                 <button id="analyzeBtn" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-all duration-300 transform hover:scale-105 disabled:bg-gray-400 disabled:dark:bg-gray-600 disabled:cursor-not-allowed disabled:transform-none" disabled>
-                    Analisar Dados
+                    Substituir Dados na Nuvem
                 </button>
             </div>
 
-            <!-- Loading Spinner -->
-            <div id="loader" class="hidden text-center my-8">
-                <svg class="animate-spin h-8 w-8 text-blue-600 dark:text-blue-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="mt-2">Analisando dados...</p>
+            <!-- Status/Loader -->
+            <div id="status" class="text-center my-8">
+                <div id="loader" class="flex justify-center items-center">
+                    <svg class="animate-spin h-8 w-8 text-blue-600 dark:text-blue-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                <p id="statusText" class="mt-2">Conectando ao banco de dados...</p>
             </div>
 
             <!-- Report Container -->
@@ -76,16 +78,97 @@
         </main>
     </div>
 
-    <script>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, writeBatch, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
         const csvFileInput = document.getElementById('csvFile');
         const analyzeBtn = document.getElementById('analyzeBtn');
         const fileNameDisplay = document.getElementById('fileName');
         const loader = document.getElementById('loader');
+        const statusText = document.getElementById('statusText');
+        const statusContainer = document.getElementById('status');
         const reportContainer = document.getElementById('reportContainer');
-        let parsedData = [];
+        
         let chartInstances = {};
+        let db, auth;
+        let productionCollectionRef;
+        let unsubscribeFromData; // To detach listener later if needed
+        
+        // --- Firebase Initialization and Auth ---
+        
+        const localFirebaseConfig = {
+            apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
+            authDomain: "fazendawm-83f34.firebaseapp.com",
+            projectId: "fazendawm-83f34",
+            storageBucket: "fazendawm-83f34.firebasestorage.app",
+            messagingSenderId: "40894938435",
+            appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
+            measurementId: "G-QQVTP0CQ4H"
+        };
+        
+        let firebaseConfig;
+        
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+            try {
+                firebaseConfig = JSON.parse(__firebase_config);
+            } catch(e) {
+                 console.error("Firebase config (from environment) is not valid JSON:", __firebase_config);
+                 statusText.textContent = "Erro: Configuração do Firebase do ambiente é inválida.";
+                 loader.classList.add('hidden');
+            }
+        } else {
+            firebaseConfig = localFirebaseConfig;
+        }
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : (firebaseConfig.appId || 'default-app-id');
 
-        // Event Listeners
+        if (!firebaseConfig || !firebaseConfig.apiKey) {
+             statusText.textContent = "Ação necessária: Adicione a configuração do seu projeto Firebase no código para testes locais.";
+             loader.classList.add('hidden');
+        } else {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                const performSignIn = async () => {
+                    try {
+                        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                        if (token) {
+                            await signInWithCustomToken(auth, token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Authentication failed:", error);
+                        statusText.textContent = "Falha na autenticação.";
+                        loader.classList.add('hidden');
+                        throw error;
+                    }
+                };
+
+                onAuthStateChanged(auth, user => {
+                    if (user) {
+                        console.log("User is signed in with UID:", user.uid);
+                        productionCollectionRef = collection(db, `artifacts/${appId}/public/data/production_records`);
+                        listenForProductionData();
+                    }
+                });
+
+                performSignIn();
+
+            } catch(e) {
+                console.error("Firebase initialization error:", e);
+                statusText.textContent = "Erro ao inicializar o Firebase. Verifique sua configuração.";
+                loader.classList.add('hidden');
+            }
+        }
+
+
+        // --- Event Listeners ---
         csvFileInput.addEventListener('change', () => {
             if (csvFileInput.files.length > 0) {
                 const file = csvFileInput.files[0];
@@ -97,42 +180,97 @@
             }
         });
 
-        analyzeBtn.addEventListener('click', handleFile);
+        analyzeBtn.addEventListener('click', handleFileUploadAndSave);
 
         // --- Core Functions ---
-
-        async function handleFile() {
-            const file = csvFileInput.files[0];
-            if (!file) {
-                alert("Por favor, selecione um arquivo CSV.");
-                return;
+        
+        function listenForProductionData() {
+            statusText.textContent = "Buscando dados salvos...";
+            if (unsubscribeFromData) {
+                unsubscribeFromData(); // Detach any existing listener
             }
 
-            loader.classList.remove('hidden');
-            reportContainer.classList.add('hidden');
-            reportContainer.innerHTML = ''; // Clear previous report
-            Object.values(chartInstances).forEach(chart => chart.destroy()); // Destroy old charts
-            chartInstances = {};
+            unsubscribeFromData = onSnapshot(productionCollectionRef, (snapshot) => {
+                const data = [];
+                snapshot.forEach(doc => {
+                    const docData = doc.data();
+                    // Convert Firestore Timestamp back to JS Date
+                    data.push({ ...docData, Data: docData.Data.toDate() });
+                });
 
+                if (data.length > 0) {
+                    const sortedData = data.sort((a, b) => a.Data - b.Data);
+                    generateReport(sortedData);
+                    statusContainer.classList.add('hidden');
+                } else {
+                    statusText.textContent = "Nenhum dado encontrado. Carregue um arquivo CSV para começar.";
+                    loader.classList.add('hidden');
+                    reportContainer.classList.add('hidden');
+                }
+            }, (error) => {
+                console.error("Error listening to data:", error);
+                statusText.textContent = "Erro ao buscar dados do banco de dados.";
+                loader.classList.add('hidden');
+            });
+        }
+
+
+        async function handleFileUploadAndSave() {
+            const file = csvFileInput.files[0];
+            if (!file) return;
+
+            statusContainer.classList.remove('hidden');
+            loader.classList.remove('hidden');
+            statusText.textContent = "Processando e salvando dados...";
+            reportContainer.classList.add('hidden');
+            
             try {
                 const fileContent = await file.text();
-                parsedData = parseCSV(fileContent);
+                const parsedData = parseCSV(fileContent);
+
                 if (parsedData.length > 0) {
-                    generateReport(parsedData);
+                    // Batch write to replace all data
+                    const batch = writeBatch(db);
+                    
+                    // 1. Delete all existing documents
+                    const existingDocsSnapshot = await getDocs(productionCollectionRef);
+                    existingDocsSnapshot.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+                    
+                    // 2. Add new documents
+                    parsedData.forEach(row => {
+                        // Use date as YYYY-MM-DD for a unique ID
+                        const docId = row.Data.toISOString().split('T')[0];
+                        const docRef = doc(productionCollectionRef, docId);
+                        batch.set(docRef, row);
+                    });
+
+                    await batch.commit();
+                    statusText.textContent = "Dados salvos com sucesso! O painel será atualizado.";
+                    // The onSnapshot listener will automatically refresh the report
                 } else {
-                     alert("Não foi possível processar o arquivo. Verifique se o formato está correto.");
+                     const errorP = document.createElement('p');
+                     errorP.textContent = "Não foi possível processar o arquivo. Verifique o formato.";
+                     errorP.className = 'text-red-500 text-center mt-2';
+                     analyzeBtn.parentElement.appendChild(errorP);
+                     setTimeout(() => errorP.remove(), 5000);
+                     statusText.textContent = "Falha ao processar o arquivo.";
+                     loader.classList.add('hidden');
                 }
             } catch (error) {
-                console.error("Erro ao processar o arquivo:", error);
-                alert("Ocorreu um erro. Verifique o console para mais detalhes.");
-            } finally {
+                console.error("Erro ao salvar os dados:", error);
+                statusText.textContent = "Erro ao salvar os dados na nuvem.";
                 loader.classList.add('hidden');
-            }
+            } 
         }
 
         function parseCSV(content) {
-            const lines = content.split(/\r\n|\n/).slice(2); // Skip first two rows
+            const lines = content.split(/\r\n|\n/).slice(2);
             const data = [];
+            
+            if (lines.length < 2) return [];
+
             const headerLine = lines[0];
             if (!headerLine) return [];
             
@@ -148,17 +286,32 @@
                 const values = line.split(';');
                 let row = {};
 
-                // Basic validation for date field
                 if (!values[0] || values[0].split('/').length !== 3) continue;
 
                 headers.forEach((header, index) => {
                     row[header] = values[index] ? values[index].trim() : '';
                 });
 
-                // --- Data Cleaning and Type Conversion ---
-                const dateParts = row.Data.split('/');
-                row.Data = new Date(dateParts[2], dateParts[1] - 1, dateParts[0]);
-                if (isNaN(row.Data.getTime())) continue; // Skip if date is invalid
+                try {
+                    const dateParts = row.Data.split('/');
+                    const day = parseInt(dateParts[0], 10);
+                    const month = parseInt(dateParts[1], 10) - 1;
+                    const year = parseInt(dateParts[2], 10);
+                    
+                    if (isNaN(day) || isNaN(month) || isNaN(year) || day < 1 || day > 31 || month < 0 || month > 11) {
+                        console.warn("Skipping invalid date format:", row.Data);
+                        continue;
+                    }
+                    
+                    row.Data = new Date(year, month, day);
+                    if (isNaN(row.Data.getTime())) {
+                        console.warn("Skipping invalid date after creation:", row.Data);
+                        continue;
+                    }
+                } catch(e) {
+                    console.error("Error parsing date for row:", line, e);
+                    continue;
+                }
 
                 const numericCols = ['Manha', 'Tarde', 'Preco_Venda', 'Total_Venda'];
                 numericCols.forEach(col => {
@@ -168,53 +321,57 @@
                 });
                 
                 row.Producao_Total = row.Manha + row.Tarde;
-                row.Ano = row.Data.getFullYear();
-                row.Mes = row.Data.getMonth() + 1; // 1-12
+                
+                delete row.Joza;
+                delete row.Total_Laticinio;
+                delete row.Observacoes;
+                delete row.Unnamed;
 
                 data.push(row);
             }
-            return data.sort((a, b) => a.Data - b.Data);
+            return data;
         }
         
-        // --- Report and Chart Generation ---
-        
         function generateReport(data) {
+            const processedData = data.map(d => ({
+                ...d,
+                Ano: d.Data.getFullYear(),
+                Mes: d.Data.getMonth() + 1
+            }));
+
+            reportContainer.innerHTML = '';
+            Object.values(chartInstances).forEach(chart => chart.destroy());
+            chartInstances = {};
             reportContainer.classList.remove('hidden');
 
-            // 1. Evolução e Tendência
             createSection('Evolução e Tendência da Produção', 'evolutionChart',
                 `O gráfico de linhas mostra a produção diária. A linha de tendência (média móvel de 30 dias) suaviza as flutuações, revelando uma <strong>tendência geral de crescimento da produção</strong> ao longo do tempo. Picos e vales podem indicar eventos específicos que merecem atenção.`
             );
-            createEvolutionChart(data);
+            createEvolutionChart(processedData);
             
-            // 2. Sazonalidade
             createSection('Análise de Sazonalidade', 'seasonalityChart',
                 `Este gráfico de barras exibe a média de produção diária para cada mês. Tipicamente, certos meses apresentam maior produtividade devido a fatores climáticos e de pastagem. Identificar esse padrão ajuda no planejamento anual e na gestão de suplementação.`
             );
-            createSeasonalityChart(data);
+            createSeasonalityChart(processedData);
 
-            // 3. Comparativo Anual
-            if (new Set(data.map(d => d.Ano)).size > 1) {
+            if (new Set(processedData.map(d => d.Ano)).size > 1) {
                 createSection('Comparativo Mensal entre Anos', 'comparisonChart',
                 `A comparação da produção média mensal entre diferentes anos é crucial para avaliar o crescimento do negócio. Um aumento consistente ano a ano, como observado, confirma a eficácia das melhorias de manejo e gestão.`
                 );
-                createComparisonChart(data);
+                createComparisonChart(processedData);
             }
 
-            // 4. Produção vs. Receita
             createSection('Relação Produção vs. Receita', 'revenueChart',
                 `Este gráfico demonstra a forte correlação positiva entre o volume de leite produzido e a receita gerada. Os picos de faturamento correspondem diretamente aos picos de produção, ressaltando que maximizar a produção é a chave para o crescimento financeiro.`
             );
-            createRevenueChart(data);
+            createRevenueChart(processedData);
 
-            // 5. Proporção Manhã vs. Tarde
             createSection('Proporção da Produção: Manhã vs. Tarde', 'proportionChart',
                 `Entender a distribuição da produção entre os turnos é útil para o planejamento da mão de obra e da rotina de ordenha. Uma distribuição equilibrada, como a que vemos, indica uma rotina de manejo consistente.`
             );
-            createProportionChart(data);
+            createProportionChart(processedData);
 
-            // 6. Destaques
-            createHighlightsSection(data);
+            createHighlightsSection(processedData);
         }
 
         function createSection(title, canvasId, conclusionText) {
@@ -262,8 +419,6 @@
             `;
             reportContainer.appendChild(section);
         }
-
-        // --- Chart Implementations ---
 
         function calculateRollingAverage(data, windowSize) {
             let result = [];
@@ -353,7 +508,6 @@
                 return {
                     label: `Ano ${year}`,
                     data: averages,
-                    // You can add different colors here if you wish
                 };
             });
 
@@ -418,7 +572,7 @@
                 options: { responsive: true, maintainAspectRatio: false }
             });
         }
-
     </script>
 </body>
 </html>
+
