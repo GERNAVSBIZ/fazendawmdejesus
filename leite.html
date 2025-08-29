@@ -99,7 +99,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, onAuthStateChanged, GoogleAuthProvider, MicrosoftAuthProvider, signInWithRedirect, getRedirectResult, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, OAuthProvider, signInWithRedirect, getRedirectResult, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, writeBatch, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // DOM Elements
@@ -200,7 +200,7 @@
             try {
                 console.log("Botão da Microsoft clicado. Iniciando o processo de autenticação por redirecionamento.");
                 loginError.classList.add('hidden');
-                const provider = new MicrosoftAuthProvider();
+                const provider = new OAuthProvider('microsoft.com');
                 signInWithRedirect(auth, provider);
             } catch (e) {
                 console.error("Erro inesperado ao tentar iniciar o login com Microsoft:", e);
