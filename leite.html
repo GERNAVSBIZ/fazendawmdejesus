@@ -39,6 +39,7 @@
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Dashboard de Análise Leiteira</h1>
             <p class="mt-2 text-lg text-gray-600 dark:text-gray-400">Carregue um arquivo CSV para atualizar os dados para todos os usuários.</p>
+            <div id="userInfo" class="mt-2 text-sm text-gray-500 dark:text-gray-400"></div>
         </header>
 
         <main>
@@ -153,6 +154,8 @@
                 onAuthStateChanged(auth, user => {
                     if (user) {
                         console.log("User is signed in with UID:", user.uid);
+                        const userInfo = document.getElementById('userInfo');
+                        userInfo.textContent = `ID de Usuário Conectado: ${user.uid}`;
                         productionCollectionRef = collection(db, `artifacts/${appId}/public/data/production_records`);
                         listenForProductionData();
                     }
