@@ -106,7 +106,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, writeBatch, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // DOM Elements
@@ -164,12 +164,10 @@
 
                 if (result) {
                     // User successfully signed in via redirect.
-                    // onAuthStateChanged will handle the UI update.
                     console.log("Redirect sign-in successful:", result.user);
                 } else if (loginRedirectPending) {
-                     // A redirect was expected, but we didn't get a result. This indicates a likely failure/loop.
                      console.warn("Redirect was pending, but no result was found. This might be a login loop.");
-                     loginError.textContent = "Falha ao completar o login. Tente novamente. Se o erro persistir, tente em outro navegador.";
+                     loginError.textContent = "Falha ao completar o login. Tente novamente. Se o erro persistir, verifique as configurações do seu navegador (ex: cookies, anti-rastreamento).";
                      loginError.classList.remove('hidden');
                 }
 
@@ -182,7 +180,6 @@
             onAuthStateChanged(auth, user => {
                 authLoadingScreen.classList.add('hidden');
                 if (user) {
-                    // User is signed in
                     loginScreen.classList.add('hidden');
                     mainContent.classList.remove('hidden');
                     headerSubtitle.textContent = 'Carregue um arquivo CSV para atualizar os dados para todos os usuários.';
@@ -196,7 +193,6 @@
                     productionCollectionRef = collection(db, `artifacts/${appId}/public/data/production_records`);
                     listenForProductionData();
                 } else {
-                    // User is signed out
                     loginScreen.classList.remove('hidden');
                     mainContent.classList.add('hidden');
                     reportContainer.classList.add('hidden');
@@ -208,7 +204,19 @@
             });
         }
         
-        handleAuth(); // Start the authentication process on page load
+        // Set persistence to session, then start the auth flow. This is more reliable for redirects.
+        setPersistence(auth, browserSessionPersistence)
+            .then(() => {
+                console.log("Auth persistence set to session storage.");
+                return handleAuth();
+            })
+            .catch((error) => {
+                console.error("Error setting persistence:", error);
+                loginError.textContent = "Erro ao configurar a sessão de login. Tentando mesmo assim...";
+                loginError.classList.remove('hidden');
+                handleAuth(); // Attempt to continue even if persistence fails.
+            });
+
 
         // --- Event Listeners ---
         googleSignInBtn.addEventListener('click', () => {
