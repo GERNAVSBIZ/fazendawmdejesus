@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analisador de Produção ra</title>
+    <title>Analisador de Produção Leiteira</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -52,7 +52,7 @@
                     Entrar com Google
                 </button>
             </div>
-            <p class="text-xs text-center text-gray-500 mt-4">Se o login não funcionar, verifique o console do desenvolvedor (tecla F12 ) para mensagens de erro.</p>
+            <p class="text-xs text-center text-gray-500 mt-4">Se o login não funcionar, verifique o console do desenvolvedor (tecla F12) para mensagens de erro.</p>
         </div>
 
         <main id="mainContent" class="hidden">
@@ -99,7 +99,7 @@
         import { getFirestore, collection, onSnapshot, writeBatch, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // DOM Elements
-        const csvFileInput = document.getElementById('csvFile' );
+        const csvFileInput = document.getElementById('csvFile');
         const analyzeBtn = document.getElementById('analyzeBtn');
         const fileNameDisplay = document.getElementById('fileName');
         const loader = document.getElementById('loader');
@@ -123,12 +123,15 @@
             apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
             authDomain: "fazendawm-83f34.firebaseapp.com",
             projectId: "fazendawm-83f34",
-            storageBucket: "fazendawm-83f34.appspot.com", // Corrigido para .appspot.com
+            storageBucket: "fazendawm-83f34.firebasestorage.app",
             messagingSenderId: "40894938435",
             appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
             measurementId: "G-QQVTP0CQ4H"
         };
         
+        // Force the use of the projectId to ensure a consistent path across all environments
+        const appId = firebaseConfig.projectId;
+
         try {
             const app = initializeApp(firebaseConfig);
             db = getFirestore(app);
@@ -161,13 +164,7 @@
                 `;
                 document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
 
-                // ==================================================================
-                // CORREÇÃO PRINCIPAL APLICADA AQUI
-                // O caminho para a coleção de dados agora é fixo e correto, garantindo
-                // que todos os usuários acessem o mesmo local no banco de dados.
-                // ==================================================================
-                productionCollectionRef = collection(db, 'artifacts/fazendawm-83f34/public/data/production_records');
-                
+                productionCollectionRef = collection(db, `artifacts/${appId}/public/data/production_records`);
                 listenForProductionData();
             } else {
                 // User is signed out
@@ -220,12 +217,7 @@
             unsubscribeFromData = onSnapshot(productionCollectionRef, (snapshot) => {
                 const data = [];
                 snapshot.forEach(doc => {
-                    // Garante que o campo de data existe e é um timestamp do Firestore
-                    if (doc.data().Data && typeof doc.data().Data.toDate === 'function') {
-                        data.push({ ...doc.data(), Data: doc.data().Data.toDate() });
-                    } else {
-                        console.warn("Documento ignorado por não conter um campo de data válido:", doc.id);
-                    }
+                    data.push({ ...doc.data(), Data: doc.data().Data.toDate() });
                 });
 
                 if (data.length > 0) {
@@ -264,7 +256,6 @@
                     existingDocsSnapshot.forEach(doc => batch.delete(doc.ref));
                     
                     parsedData.forEach(row => {
-                        // Usa a data no formato YYYY-MM-DD como ID para evitar duplicatas e facilitar a ordenação
                         const docId = row.Data.toISOString().split('T')[0];
                         const docRef = doc(productionCollectionRef, docId);
                         batch.set(docRef, row);
@@ -272,8 +263,8 @@
 
                     await batch.commit();
                     console.log("Data saved, now generating report directly.");
-                    // Não precisa chamar generateReport aqui, o 'onSnapshot' vai detectar a mudança e fazer isso.
-                    statusText.textContent = "Dados salvos com sucesso! Gerando relatório...";
+                    generateReport(parsedData);
+                    statusContainer.classList.add('hidden');
 
                 } else {
                      const errorP = document.createElement('p');
@@ -538,4 +529,67 @@
             });
 
             const ctx = document.getElementById('comparisonChart').getContext('2d');
-            const monthNames = ['Jan', 'Fev', 'Mar', 'Abr',
+            const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            
+            chartInstances.comparison = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: monthNames, datasets: datasets },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function createRevenueChart(data) {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            const labels = data.map(d => d.Data.toLocaleDateString('pt-BR'));
+            
+            chartInstances.revenue = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Produção Total (Litros)',
+                        data: data.map(d => d.Producao_Total),
+                        borderColor: '#3b82f6',
+                        yAxisID: 'y',
+                        pointRadius: 0
+                    }, {
+                        label: 'Receita (R$)',
+                        data: data.map(d => d.Total_Venda),
+                        borderColor: '#f97316',
+                        yAxisID: 'y1',
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Litros' } },
+                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'R$' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        function createProportionChart(data) {
+            const totalManha = data.reduce((sum, row) => sum + row.Manha, 0);
+            const totalTarde = data.reduce((sum, row) => sum + row.Tarde, 0);
+            
+            const ctx = document.getElementById('proportionChart').getContext('2d');
+            
+            chartInstances.proportion = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Manhã', 'Tarde'],
+                    datasets: [{
+                        data: [totalManha, totalTarde],
+                        backgroundColor: ['#60a5fa', '#fb923c']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    </script>
+</body>
+</html>
+
