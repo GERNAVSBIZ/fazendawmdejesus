@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Financeiro - Fazenda WM de Jesus</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .chart-container { position: relative; margin: auto; height: 400px; width: 100%; }
+        .kpi-card { transition: all 0.3s ease; }
+        .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
+            authDomain: "fazendawm-83f34.firebaseapp.com",
+            projectId: "fazendawm-83f34",
+            storageBucket: "fazendawm-83f34.firebasestorage.app",
+            messagingSenderId: "40894938435",
+            appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
+            measurementId: "G-QQVTP0CQ4H"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        let chartInstances = {};
+        let allData = { receitas: [], despesas: [], leite: [] };
+
+        function signIn() { auth.signInWithPopup(provider).catch(e => console.error("Auth Error:", e)); }
+        function signOut() { auth.signOut().catch(e => console.error("Sign Out Error:", e)); }
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                loadAllData();
+            } else {
+                document.getElementById('auth-container').classList.remove('hidden');
+                document.getElementById('dashboard').classList.add('hidden');
+            }
+        });
+
+        const parseDate = (dateStr) => {
+            if (!dateStr || typeof dateStr !== 'string') return null;
+            const parts = dateStr.split('/');
+            if (parts.length !== 3) return null;
+            return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+        };
+        const parseCurrency = (val) => Number(String(val).replace('R$', '').trim().replace(/\./g, '').replace(',', '.')) || 0;
+        const parseNumber = (val) => Number(String(val).replace(',', '.')) || 0;
+
+        async function loadAllData() {
+            try {
+                const [receitasSnap, despesasSnap, leiteSnap] = await Promise.all([
+                    db.collection("receitas").get(),
+                    db.collection("despesas").get(),
+                    db.collection("artifacts/fazendawm-83f34/public/data").get()
+                ]);
+
+                allData.receitas = receitasSnap.docs.map(doc => ({ ...doc.data(), Data: parseDate(doc.data().Data), Total: parseCurrency(doc.data().Total) }));
+                allData.despesas = despesasSnap.docs.map(doc => ({ ...doc.data(), Data: parseDate(doc.data().Data), Total: parseCurrency(doc.data().Total) }));
+                allData.leite = leiteSnap.docs.map(doc => ({ ...doc.data(), Data: parseDate(doc.data().Data), Total_Litros: parseNumber(doc.data().Total_Litros) }));
+                
+                document.getElementById('yearFilter').addEventListener('change', updateDashboard);
+                populateYearFilter();
+                updateDashboard();
+
+            } catch (error) {
+                console.error("Erro ao carregar dados consolidados: ", error);
+                alert("Erro ao carregar um dos conjuntos de dados. Verifique as permissões e nomes das coleções no Firestore.");
+            }
+        }
+        
+        function populateYearFilter() {
+            const years = [...new Set([
+                ...allData.receitas.map(d => d.Data?.getFullYear()),
+                ...allData.despesas.map(d => d.Data?.getFullYear())
+            ])].filter(Boolean).sort((a,b) => b-a);
+            const select = document.getElementById('yearFilter');
+            select.innerHTML = '<option value="all">Todos os Anos</option>';
+            years.forEach(year => select.add(new Option(year, year)));
+        }
+
+        function updateDashboard() {
+            const selectedYear = document.getElementById('yearFilter').value;
+            let filteredReceitas = selectedYear === 'all' ? allData.receitas : allData.receitas.filter(d => d.Data?.getFullYear() == selectedYear);
+            let filteredDespesas = selectedYear === 'all' ? allData.despesas : allData.despesas.filter(d => d.Data?.getFullYear() == selectedYear);
+            let filteredLeite = selectedYear === 'all' ? allData.leite : allData.leite.filter(d => d.Data?.getFullYear() == selectedYear);
+
+            const totalReceita = filteredReceitas.reduce((sum, item) => sum + item.Total, 0);
+            const totalDespesa = filteredDespesas.reduce((sum, item) => sum + item.Total, 0);
+            const totalLeite = filteredLeite.reduce((sum, item) => sum + item.Total_Litros, 0);
+            const lucroLiquido = totalReceita - totalDespesa;
+
+            document.getElementById('kpi-receita').textContent = totalReceita.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+            document.getElementById('kpi-despesa').textContent = totalDespesa.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+            document.getElementById('kpi-lucro').textContent = lucroLiquido.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+            document.getElementById('kpi-lucro').className = `text-3xl font-bold ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`;
+            document.getElementById('kpi-leite').textContent = `${(totalLeite / 1000).toFixed(2)} mil litros`;
+            document.getElementById('kpi-receita-litro').textContent = totalLeite > 0 ? (totalReceita / totalLeite).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}) : 'N/A';
+            
+            createProfitChart(filteredReceitas, filteredDespesas);
+        }
+        
+        function createProfitChart(receitas, despesas) {
+            const monthlyReceitas = Array(12).fill(0);
+            const monthlyDespesas = Array(12).fill(0);
+            receitas.forEach(d => { if (d.Data) monthlyReceitas[d.Data.getMonth()] += d.Total; });
+            despesas.forEach(d => { if (d.Data) monthlyDespesas[d.Data.getMonth()] += d.Total; });
+
+            const ctx = document.getElementById('profitChart').getContext('2d');
+            if (chartInstances.profit) chartInstances.profit.destroy();
+            chartInstances.profit = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+                    datasets: [
+                        { label: 'Receita', data: monthlyReceitas, backgroundColor: '#22c55e' },
+                        { label: 'Despesa', data: monthlyDespesas, backgroundColor: '#ef4444' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+    </script>
+    
+    <div id="auth-container" class="min-h-screen flex items-center justify-center">
+        <!-- ... (código de autenticação) ... -->
+    </div>
+
+    <div id="dashboard" class="hidden">
+        <header class="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center sticky top-0 z-10">
+            <h1 class="text-2xl font-bold">Dashboard Financeiro Geral</h1>
+            <div class="flex items-center">
+                <label for="yearFilter" class="mr-2">Ano:</label>
+                <select id="yearFilter" class="p-2 border rounded-md"></select>
+                <button onclick="signOut()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg ml-4">Sair</button>
+            </div>
+        </header>
+
+        <main class="p-6">
+            <!-- KPIs -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+                <div class="kpi-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-medium text-gray-500 dark:text-gray-400">Receita Total</h3>
+                    <p id="kpi-receita" class="text-3xl font-bold text-green-500">R$ 0,00</p>
+                </div>
+                <div class="kpi-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-medium text-gray-500 dark:text-gray-400">Despesa Total</h3>
+                    <p id="kpi-despesa" class="text-3xl font-bold text-red-500">R$ 0,00</p>
+                </div>
+                <div class="kpi-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-medium text-gray-500 dark:text-gray-400">Lucro Líquido</h3>
+                    <p id="kpi-lucro" class="text-3xl font-bold">R$ 0,00</p>
+                </div>
+                 <div class="kpi-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-medium text-gray-500 dark:text-gray-400">Produção de Leite</h3>
+                    <p id="kpi-leite" class="text-3xl font-bold text-blue-500">0 L</p>
+                </div>
+                 <div class="kpi-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-medium text-gray-500 dark:text-gray-400">Receita por Litro</h3>
+                    <p id="kpi-receita-litro" class="text-3xl font-bold text-purple-500">N/A</p>
+                </div>
+            </div>
+
+            <!-- Gráfico Principal -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                <h2 class="text-lg font-semibold mb-2 text-center">Receitas vs. Despesas Mensais</h2>
+                <div class="chart-container"><canvas id="profitChart"></canvas></div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
