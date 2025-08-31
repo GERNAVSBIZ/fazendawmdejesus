@@ -3,71 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel de Controle - Fazenda WM de Jesus</title>
+    <title>Dashboard Financeiro - Fazenda WM de Jesus</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
+        body { font-family: 'Inter', sans-serif; }
+        .chart-container { position: relative; margin: auto; height: 400px; width: 100%; }
+        .kpi-card { transition: all 0.3s ease; }
+        .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.1); }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-    <div class="min-h-screen flex flex-col items-center justify-center p-4">
-        <header class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-gray-900 dark:text-white">Painel de Controle</h1>
-            <p class="text-lg text-gray-600 dark:text-gray-400 mt-2">Fazenda WM de Jesus</p>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
+            authDomain: "fazendawm-83f34.firebaseapp.com",
+            projectId: "fazendawm-83f34",
+            storageBucket: "fazendawm-83f34.firebasestorage.app",
+            messagingSenderId: "40894938435",
+            appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
+            measurementId: "G-QQVTP0CQ4H"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        let chartInstances = {};
+        const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+        function signIn() { auth.signInWithPopup(provider).catch(e => console.error("Auth Error:", e)); }
+        function signOut() { auth.signOut().catch(e => console.error("Sign Out Error:", e)); }
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                loadAllData();
+            } else {
+                document.getElementById('auth-container').classList.remove('hidden');
+                document.getElementById('dashboard').classList.add('hidden');
+            }
+        });
+        
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            if (dateStr.toDate) return dateStr.toDate();
+            if (typeof dateStr !== 'string') return null;
+            if (dateStr.includes('-')) return new Date(dateStr + "T00:00:00");
+            const parts = dateStr.split('/');
+            if (parts.length !== 3) return null;
+            const [day, month, year] = parts;
+            return new Date(Number(year), Number(month) - 1, Number(day));
+        }
+
+        function parseCurrency(currencyStr) {
+            if (typeof currencyStr !== 'string') return Number(currencyStr) || 0;
+            return Number(String(currencyStr).replace('R$', '').trim().replace(/\./g, '').replace(',', '.')) || 0;
+        }
+
+        async function loadAllData() {
+            try {
+                const [receitasSnap, despesasSnap] = await Promise.all([
+                    db.collection("receitas").get(),
+                    db.collection("despesas").get()
+                ]);
+
+                let receitas = receitasSnap.docs.map(doc => ({ ...doc.data(), Data: parseDate(doc.data().Data), Total: parseCurrency(doc.data().Total) }));
+                let despesas = despesasSnap.docs.map(doc => ({ ...doc.data(), Data: parseDate(doc.data().Data), Total: parseCurrency(doc.data().Total) }));
+                
+                // Remove invalid date entries
+                receitas = receitas.filter(r => r.Data && !isNaN(r.Data));
+                despesas = despesas.filter(d => d.Data && !isNaN(d.Data));
+
+                populateYearFilter([...receitas, ...despesas]);
+                document.getElementById('yearFilter').addEventListener('change', () => runAnalysis(receitas, despesas));
+                runAnalysis(receitas, despesas);
+
+            } catch (error) {
+                console.error("Erro ao carregar dados consolidados:", error);
+                alert("Erro ao carregar os dados. Verifique as permissões das coleções 'receitas' e 'despesas'.");
+            }
+        }
+        
+        function populateYearFilter(allData) {
+            const yearFilter = document.getElementById('yearFilter');
+            const years = [...new Set(allData.map(item => item.Data.getFullYear()))].sort((a,b) => b-a);
+            yearFilter.innerHTML = '<option value="all">Todos os Anos</option>';
+            years.forEach(year => yearFilter.add(new Option(year, year)));
+        }
+
+        function runAnalysis(allReceitas, allDespesas) {
+            const year = document.getElementById('yearFilter').value;
+            
+            const receitas = (year === 'all') ? allReceitas : allReceitas.filter(r => r.Data.getFullYear() == year);
+            const despesas = (year === 'all') ? allDespesas : allDespesas.filter(d => d.Data.getFullYear() == year);
+
+            const totalReceitas = receitas.reduce((sum, item) => sum + item.Total, 0);
+            const totalDespesas = despesas.reduce((sum, item) => sum + item.Total, 0);
+            const lucroLiquido = totalReceitas - totalDespesas;
+
+            document.getElementById('kpi-receita').textContent = totalReceitas.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+            document.getElementById('kpi-despesa').textContent = totalDespesas.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+            const lucroEl = document.getElementById('kpi-lucro');
+            lucroEl.textContent = lucroLiquido.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+            lucroEl.className = 'text-3xl font-bold ' + (lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500');
+
+            createFinancialEvolutionChart(receitas, despesas);
+            createRevenueSourceChart(receitas);
+            createExpenseCategoryChart(despesas);
+            generateInsights(receitas, despesas);
+        }
+
+        function createFinancialEvolutionChart(receitas, despesas) {
+            const monthlyReceitas = Array(12).fill(0);
+            const monthlyDespesas = Array(12).fill(0);
+            const monthlyLucro = Array(12).fill(0);
+
+            receitas.forEach(item => { monthlyReceitas[item.Data.getMonth()] += item.Total; });
+            despesas.forEach(item => { monthlyDespesas[item.Data.getMonth()] += item.Total; });
+            for(let i=0; i<12; i++) { monthlyLucro[i] = monthlyReceitas[i] - monthlyDespesas[i]; }
+
+            const ctx = document.getElementById('financialEvolutionChart').getContext('2d');
+            if(chartInstances.evolution) chartInstances.evolution.destroy();
+            chartInstances.evolution = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: meses,
+                    datasets: [
+                        { label: 'Receitas', data: monthlyReceitas, backgroundColor: '#22c55e' },
+                        { label: 'Despesas', data: monthlyDespesas, backgroundColor: '#ef4444' },
+                        { label: 'Saldo Líquido', data: monthlyLucro, type: 'line', borderColor: '#3b82f6', tension: 0.1, borderWidth: 3 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+        
+        function createRevenueSourceChart(data){const ctx=document.getElementById('revenueSourceChart').getContext('2d');if(chartInstances.source)chartInstances.source.destroy();const sourceTotals=data.reduce((acc,cur)=>{const type=cur['Tipo de Receita']||'Outros';const total=cur.Total;acc[type]=(acc[type]||0)+total;return acc},{});const sortedSources=Object.entries(sourceTotals).sort((a,b)=>b[1]-a[1]);chartInstances.source=new Chart(ctx,{type:'pie',data:{labels:sortedSources.map(s=>s[0]),datasets:[{data:sortedSources.map(s=>s[1]),backgroundColor:['#22c55e','#84cc16','#f97316','#3b82f6','#8b5cf6']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}}}})}
+        function createExpenseCategoryChart(data){const ctx=document.getElementById('expenseCategoryChart').getContext('2d');if(chartInstances.expense)chartInstances.expense.destroy();const categoryTotals=data.reduce((acc,cur)=>{const type=cur.Categoria||'Outras';const total=cur.Total;acc[type]=(acc[type]||0)+total;return acc},{});const sortedCategories=Object.entries(categoryTotals).sort((a,b)=>b[1]-a[1]);chartInstances.expense=new Chart(ctx,{type:'pie',data:{labels:sortedCategories.map(c=>c[0]),datasets:[{data:sortedCategories.map(c=>c[1]),backgroundColor:['#ef4444','#f97316','#eab308','#60a5fa','#d946ef']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}}}})}
+        function generateInsights(receitas, despesas) {
+            const insightsList = document.getElementById('insights-list');
+            insightsList.innerHTML = '';
+            
+            const addInsight = (text, color = 'text-gray-300') => {
+                const li = document.createElement('li');
+                li.className = `flex items-start gap-3 ${color}`;
+                li.innerHTML = `<svg class="w-5 h-5 mt-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg><span>${text}</span>`;
+                insightsList.appendChild(li);
+            };
+
+            const monthlyResults = meses.map((_, i) => {
+                const r = receitas.filter(rec => rec.Data.getMonth() === i).reduce((sum, rec) => sum + rec.Total, 0);
+                const d = despesas.filter(des => des.Data.getMonth() === i).reduce((sum, des) => sum + des.Total, 0);
+                return { mes: meses[i], saldo: r - d };
+            }).filter(m => m.saldo !== 0);
+
+            if (monthlyResults.length > 0) {
+                const bestMonth = monthlyResults.reduce((max, month) => month.saldo > max.saldo ? month : max, monthlyResults[0]);
+                addInsight(`Mês de maior lucro foi <strong>${bestMonth.mes}</strong> com saldo de <strong>${bestMonth.saldo.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</strong>.`, 'text-green-400');
+                
+                const worstMonth = monthlyResults.reduce((min, month) => month.saldo < min.saldo ? month : min, monthlyResults[0]);
+                if (worstMonth.saldo < 0) {
+                     addInsight(`Mês de maior prejuízo foi <strong>${worstMonth.mes}</strong> com saldo de <strong>${worstMonth.saldo.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</strong>.`, 'text-red-400');
+                }
+            } else {
+                 addInsight('Não há dados suficientes para analisar o desempenho mensal.');
+                 return;
+            }
+
+            const revenueSources = receitas.reduce((acc, cur) => { acc[cur['Tipo de Receita']] = (acc[cur['Tipo de Receita']] || 0) + cur.Total; return acc; }, {});
+            if (Object.keys(revenueSources).length === 1) {
+                addInsight(`Atenção: A fazenda depende de uma <strong>única fonte de receita</strong> (${Object.keys(revenueSources)[0]}). Considere diversificar.`, 'text-yellow-400');
+            }
+        }
+    </script>
+    
+    <div id="auth-container" class="min-h-screen flex items-center justify-center">
+        <div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+            <h1 class="text-2xl font-bold mb-4">Dashboard Financeiro</h1>
+            <p class="mb-6">Por favor, faça login para acessar a análise consolidada.</p>
+            <button onclick="signIn()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Entrar com Google</button>
+        </div>
+    </div>
+
+    <div id="dashboard" class="hidden">
+        <header class="bg-white dark:bg-gray-800 shadow p-4 flex justify-between items-center">
+             <h1 class="text-2xl font-bold">Dashboard Financeiro Geral</h1>
+             <div><label for="yearFilter" class="mr-2">Ano:</label><select id="yearFilter" class="p-2 rounded-md bg-gray-200 dark:bg-gray-700"></select></div>
         </header>
 
-        <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <!-- Análise de Leite -->
-            <a href="leite_colaborativo.html" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-sm text-center hover:shadow-2xl transition-shadow duration-300">
-                <div class="text-blue-500 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.002 0M6 7l3 9M6 7l6-2m6 2l-6-2m0 0l6 2m-6 2v7m0 0l6-2" />
-                    </svg>
+        <main class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="kpi-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-medium text-gray-500 dark:text-gray-400">Receita Total</h3>
+                    <p id="kpi-receita" class="text-3xl font-bold text-green-500">R$ 0,00</p>
                 </div>
-                <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Análise de Leite</h2>
-                <p class="text-gray-500 dark:text-gray-400 mt-2">Acompanhe a produção, vendas e performance do rebanho.</p>
-            </a>
+                <div class="kpi-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-medium text-gray-500 dark:text-gray-400">Despesa Total</h3>
+                    <p id="kpi-despesa" class="text-3xl font-bold text-red-500">R$ 0,00</p>
+                </div>
+                <div class="kpi-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-medium text-gray-500 dark:text-gray-400">Saldo Líquido</h3>
+                    <p id="kpi-lucro" class="text-3xl font-bold">R$ 0,00</p>
+                </div>
+            </div>
 
-            <!-- Análise de Despesas -->
-            <a href="despesas_colaborativo.html" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-sm text-center hover:shadow-2xl transition-shadow duration-300">
-                <div class="text-orange-500 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01M12 6v-1m0-1V4m0 2.01M12 18v-2m0-2v-2m0-2v-2m0-2V8m0 0h.01M12 12h.01M12 10h.01M12 8h.01M12 6h.01M12 4h.01M16 12h-2m2 0h2m-2 0v2m0-2v-2m-4 4h2m-2 0H8m2 0v2m0-2v-2" />
-                    </svg>
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
+                <h2 class="text-xl font-semibold mb-4 text-center">Evolução Financeira Mensal</h2>
+                <div class="chart-container"><canvas id="financialEvolutionChart"></canvas></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                    <h2 class="text-xl font-semibold mb-2 text-center">Composição das Receitas</h2>
+                    <div class="chart-container"><canvas id="revenueSourceChart"></canvas></div>
                 </div>
-                <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Análise de Despesas</h2>
-                <p class="text-gray-500 dark:text-gray-400 mt-2">Controle os custos, identifique gastos e otimize suas finanças.</p>
-            </a>
+                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                    <h2 class="text-xl font-semibold mb-2 text-center">Composição das Despesas</h2>
+                    <div class="chart-container"><canvas id="expenseCategoryChart"></canvas></div>
+                </div>
+            </div>
             
-            <!-- Análise de Receitas -->
-            <a href="receitas_colaborativo.html" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-sm text-center hover:shadow-2xl transition-shadow duration-300">
-                <div class="text-green-500 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                </div>
-                <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Análise de Receitas</h2>
-                <p class="text-gray-500 dark:text-gray-400 mt-2">Cadastre e analise as fontes de renda da fazenda.</p>
-            </a>
-
-            <!-- Dashboard Geral -->
-            <a href="dashboard_geral.html" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-sm text-center hover:shadow-2xl transition-shadow duration-300">
-                <div class="text-purple-500 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                </div>
-                <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard Financeiro</h2>
-                <p class="text-gray-500 dark:text-gray-400 mt-2">Visão consolidada de receitas, despesas e lucro.</p>
-            </a>
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Insights Automáticos</h2>
+                <ul id="insights-list" class="space-y-3">
+                    <!-- Insights serão gerados aqui -->
+                </ul>
+            </div>
         </main>
-
-        <footer class="text-center mt-12 text-gray-500 dark:text-gray-400">
-            <p>&copy; 2024 Fazenda WM de Jesus. Todos os direitos reservados.</p>
-        </footer>
     </div>
 </body>
 </html>
