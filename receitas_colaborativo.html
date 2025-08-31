@@ -52,7 +52,7 @@
 
         async function loadAndProcessData() {
             try {
-                const snapshot = await db.collection("receitas").orderBy("Data", "desc").get();
+                const snapshot = await db.collection("receitas").orderBy("Timestamp", "desc").get();
                 originalData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
                 initializeDashboard(originalData);
             } catch (error) {
@@ -62,9 +62,13 @@
         }
 
         function parseDate(dateStr) {
-            if (!dateStr || typeof dateStr !== 'string') return new Date();
-             if (dateStr.includes('-')) { // Formato YYYY-MM-DD
-                return new Date(dateStr + "T00:00:00"); // Adiciona T00 para evitar problemas de fuso
+            if (!dateStr) return new Date();
+             if (dateStr.toDate) { // Check if it's a Firestore Timestamp
+                return dateStr.toDate();
+            }
+            if (typeof dateStr !== 'string') return new Date();
+             if (dateStr.includes('-')) { 
+                return new Date(dateStr + "T00:00:00");
             }
             const parts = dateStr.split('/');
             if (parts.length !== 3) return new Date();
@@ -92,9 +96,6 @@
             document.getElementById('manual-entry-form').addEventListener('submit', handleManualEntry);
         }
         
-        function handleFileSelect(event) { /* ... (código existente, sem alterações) ... */ }
-        function parseCSV(text) { /* ... (código existente, sem alterações) ... */ }
-        
         async function handleManualEntry(event) {
             event.preventDefault();
             const user = auth.currentUser;
@@ -104,7 +105,7 @@
             }
 
             const newEntry = {
-                Data: document.getElementById('entry-data').value.split('-').reverse().join('/'), // Converte de YYYY-MM-DD para DD/MM/YYYY
+                Data: document.getElementById('entry-data').value, // Mantém YYYY-MM-DD
                 'Tipo de Receita': document.getElementById('entry-tipo').value,
                 Total: document.getElementById('entry-total').value,
                 Observações: document.getElementById('entry-obs').value,
@@ -123,8 +124,6 @@
                 alert("Ocorreu um erro ao adicionar a receita.");
             }
         }
-
-        function populateFilters(data){ /* ... (código existente, sem alterações) ... */ }
         
         function filterAndDisplay() {
             let filteredData = originalData;
@@ -141,27 +140,42 @@
             createRevenueSourceChart(filteredData);
         }
 
-        function displayData(data) { /* ... (código existente, adaptado para receitas) ... */ }
-        function createMonthlyRevenueChart(data) { /* ... (código existente, adaptado para receitas) ... */ }
-        function createRevenueSourceChart(data) { /* ... (código existente, adaptado para receitas) ... */ }
-
         // --- Funções colapsadas para economizar espaço ---
         function handleFileSelect(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=function(e){const parsedData=parseCSV(e.target.result);if(parsedData.length>0)uploadCSVData(parsedData,file.name)};reader.readAsText(file,'ISO-8859-1')}
         function parseCSV(text){const lines=text.split(/\r?\n/).filter(line=>line.trim()!=='');let headerIndex=-1;for(let i=0;i<lines.length;i++){if(lines[i].toLowerCase().includes('data')){headerIndex=i;break}}if(headerIndex===-1){alert("Erro: Cabeçalho 'Data' não encontrado.");return[]}const headers=lines[headerIndex].split(';').map(h=>h.trim());const dataLines=lines.slice(headerIndex+1);return dataLines.map(line=>{const values=line.split(';');let obj={};headers.forEach((header,i)=>{if(header)obj[header]=values[i]||''});return obj}).filter(obj=>obj.Data)}
         async function uploadCSVData(data,fileName){const user=auth.currentUser;if(!user){alert("Você precisa estar logado.");return}if(!confirm(`Deseja enviar ${data.length} registros do arquivo ${fileName}?`))return;const batch=db.batch();const collectionRef=db.collection("receitas");data.forEach(item=>{const docRef=collectionRef.doc();batch.set(docRef,{...item,Usuario:user.displayName,uid:user.uid,Timestamp:firebase.firestore.FieldValue.serverTimestamp()})});try{await batch.commit();alert("Dados do CSV enviados com sucesso!");loadAndProcessData()}catch(error){console.error("Erro ao enviar CSV:",error);alert("Erro ao enviar dados.")}}
-        function populateFilters(data){const types=[...new Set(data.map(item=>item['Tipo de Receita']))].filter(Boolean).sort();const years=[...new Set(data.map(item=>parseDate(item.Data).getFullYear()))].sort((a,b)=>b-a);const populateSelect=(elementId,options,isMonth=false)=>{const select=document.getElementById(elementId);select.innerHTML=`<option value="all">${isMonth?'Todos os Meses':'Todos'}</option>`;if(isMonth){options.forEach((opt,i)=>select.add(new Option(opt,i)))}else{options.forEach(opt=>select.add(new Option(opt,opt)))}};populateSelect('typeFilter',types);populateSelect('yearFilter',years);populateSelect('monthFilter',meses,true)}
+        function populateFilters(data){const types=[...new Set(data.map(item=>item['Tipo de Receita']))].filter(Boolean).sort();const years=[...new Set(data.map(item=>parseDate(item.Data).getFullYear()))].filter(Boolean).sort((a,b)=>b-a);const populateSelect=(elementId,options,isMonth=false)=>{const select=document.getElementById(elementId);select.innerHTML=`<option value="all">${isMonth?'Todos os Meses':'Todos'}</option>`;if(isMonth){options.forEach((opt,i)=>select.add(new Option(opt,i)))}else{options.forEach(opt=>select.add(new Option(opt,opt)))}};populateSelect('typeFilter',types);populateSelect('yearFilter',years);populateSelect('monthFilter',meses,true)}
         function displayData(data){const tableBody=document.getElementById('revenueTableBody');tableBody.innerHTML='';let totalGeral=0;if(!data||data.length===0){tableBody.innerHTML=`<tr><td colspan="5" class="text-center py-4">Nenhum dado encontrado.</td></tr>`}else{data.forEach(row=>{const tr=document.createElement('tr');tr.className='border-b border-gray-200 dark:border-gray-700';tr.innerHTML=`<td class="py-3 px-4">${parseDate(row.Data).toLocaleDateString('pt-BR')}</td><td class="py-3 px-4">${row['Tipo de Receita']||'N/A'}</td><td class="py-3 px-4 text-right">${parseCurrency(row.Total).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td><td class="py-3 px-4">${row.Observações||''}</td><td class="py-3 px-4">${row.Usuario||'N/A'}</td>`;tableBody.appendChild(tr);totalGeral+=parseCurrency(row.Total)})};document.getElementById('total-geral').textContent=totalGeral.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
         function createMonthlyRevenueChart(data){const ctx=document.getElementById('monthlyRevenueChart').getContext('2d');if(chartInstances.monthly)chartInstances.monthly.destroy();const monthlyTotals=Array(12).fill(0);const yearFilter=document.getElementById('yearFilter').value;let filteredData=data;if(yearFilter!=='all'){filteredData=data.filter(d=>parseDate(d.Data).getFullYear()==yearFilter)}filteredData.forEach(row=>{monthlyTotals[parseDate(row.Data).getMonth()]+=parseCurrency(row.Total)});const label=`Receita Mensal (${yearFilter==='all'?'Geral':yearFilter})`;chartInstances.monthly=new Chart(ctx,{type:'bar',data:{labels:meses,datasets:[{label:label,data:monthlyTotals,backgroundColor:'rgba(34, 197, 94, 0.7)'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}}}})}
         function createRevenueSourceChart(data){const ctx=document.getElementById('revenueSourceChart').getContext('2d');if(chartInstances.source)chartInstances.source.destroy();const sourceTotals=data.reduce((acc,cur)=>{const type=cur['Tipo de Receita'];const total=parseCurrency(cur.Total);acc[type]=(acc[type]||0)+total;return acc},{});const sortedSources=Object.entries(sourceTotals).sort((a,b)=>b[1]-a[1]);chartInstances.source=new Chart(ctx,{type:'doughnut',data:{labels:sortedSources.map(s=>s[0]),datasets:[{data:sortedSources.map(s=>s[1]),backgroundColor:['#22c55e','#84cc16','#f97316','#3b82f6','#8b5cf6']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}}}})}
     </script>
     
-    <div id="auth-container" class="hidden min-h-screen flex items-center justify-center">
-        <!-- ... (código de autenticação, igual aos outros módulos) ... -->
+    <div id="auth-container" class="min-h-screen flex items-center justify-center">
+        <div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+            <h1 class="text-2xl font-bold mb-4">Análise de Receitas da Fazenda</h1>
+            <p class="mb-6">Por favor, faça login para continuar.</p>
+            <button onclick="signIn()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center mx-auto">
+                <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
+                Entrar com Google
+            </button>
+        </div>
     </div>
 
     <div id="dashboard" class="hidden">
         <header class="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center sticky top-0 z-10">
-             <!-- ... (código do header, igual aos outros módulos) ... -->
+            <div class="flex items-center gap-4">
+                <h1 class="text-xl font-bold">Análise de Receitas</h1>
+                <input type="file" id="csv-upload-input" class="hidden" accept=".csv">
+                <button id="upload-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                    Carregar CSV
+                </button>
+            </div>
+            <div class="flex items-center">
+                <span id="user-name" class="mr-4 hidden sm:block"></span>
+                <img id="user-img" class="w-10 h-10 rounded-full mr-4" alt="User Avatar">
+                <button onclick="signOut()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Sair</button>
+            </div>
         </header>
 
         <main class="p-6">
@@ -175,10 +189,10 @@
             <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
                 <h2 class="text-lg font-semibold mb-4">Adicionar Nova Receita</h2>
                 <form id="manual-entry-form" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                    <div><label for="entry-data" class="block text-sm font-medium">Data:</label><input type="date" id="entry-data" required class="mt-1 block w-full p-2 border rounded-md"></div>
-                    <div><label for="entry-tipo" class="block text-sm font-medium">Tipo:</label><input type="text" id="entry-tipo" required class="mt-1 block w-full p-2 border rounded-md" placeholder="Ex: LEITE"></div>
-                    <div><label for="entry-total" class="block text-sm font-medium">Valor Total (R$):</label><input type="number" step="0.01" id="entry-total" required class="mt-1 block w-full p-2 border rounded-md" placeholder="Ex: 5500.50"></div>
-                    <div class="md:col-span-2"><label for="entry-obs" class="block text-sm font-medium">Observações:</label><input type="text" id="entry-obs" class="mt-1 block w-full p-2 border rounded-md"></div>
+                    <div><label for="entry-data" class="block text-sm font-medium">Data:</label><input type="date" id="entry-data" required class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"></div>
+                    <div><label for="entry-tipo" class="block text-sm font-medium">Tipo:</label><input type="text" id="entry-tipo" required class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" placeholder="Ex: LEITE"></div>
+                    <div><label for="entry-total" class="block text-sm font-medium">Valor Total (R$):</label><input type="number" step="0.01" id="entry-total" required class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" placeholder="Ex: 5500.50"></div>
+                    <div class="md:col-span-2"><label for="entry-obs" class="block text-sm font-medium">Observações:</label><input type="text" id="entry-obs" class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"></div>
                     <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg w-full md:col-start-5">Adicionar</button>
                 </form>
             </div>
@@ -212,3 +226,4 @@
     </div>
 </body>
 </html>
+
