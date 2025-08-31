@@ -18,6 +18,17 @@
         ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #718096; }
         #uploadModal.hidden { display: none; }
+        .table-filter-input {
+            width: 100%;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #4a5568;
+            background-color: #2d3748;
+            color: #e2e8f0;
+        }
+        .table-filter-input::placeholder {
+            color: #a0aec0;
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
@@ -86,16 +97,25 @@
             populateFilters(data);
             addEventListeners();
             filterAndRedraw();
-            createTwoYearComparisonChart(data); // Cria o novo gráfico comparativo
+            createTwoYearComparisonChart(data);
         }
 
         function addEventListeners() {
+            // Filtros superiores
             document.getElementById('categoryFilter').addEventListener('change', filterAndRedraw);
             document.getElementById('subcategoryFilter').addEventListener('change', filterAndRedraw);
             document.getElementById('yearFilter').addEventListener('change', filterAndRedraw);
             document.getElementById('monthFilter').addEventListener('change', filterAndRedraw);
+            
+            // Botão de Upload
             document.getElementById('upload-btn').addEventListener('click', () => document.getElementById('csv-upload-input').click());
             document.getElementById('csv-upload-input').addEventListener('change', handleFileSelect);
+            
+            // Filtros da tabela
+            document.getElementById('filterData').addEventListener('keyup', filterAndRedraw);
+            document.getElementById('filterCategoria').addEventListener('keyup', filterAndRedraw);
+            document.getElementById('filterSubCategoria').addEventListener('keyup', filterAndRedraw);
+            document.getElementById('filterDescricao').addEventListener('keyup', filterAndRedraw);
         }
 
         function handleFileSelect(event) {
@@ -165,22 +185,40 @@
             populateSelect('yearFilter',years);
             populateSelect('monthFilter', meses, true);
         }
+        
         function filterAndRedraw(){
+            // Filtros superiores (dropdowns)
             const category=document.getElementById('categoryFilter').value;
             const subcategory=document.getElementById('subcategoryFilter').value;
             const year=document.getElementById('yearFilter').value;
             const month=document.getElementById('monthFilter').value;
+
+            // Filtros da tabela (inputs)
+            const filterData = document.getElementById('filterData').value.toLowerCase();
+            const filterCategoria = document.getElementById('filterCategoria').value.toLowerCase();
+            const filterSubCategoria = document.getElementById('filterSubCategoria').value.toLowerCase();
+            const filterDescricao = document.getElementById('filterDescricao').value.toLowerCase();
+
             let filteredData=originalData;
+            
+            // Aplicando filtros superiores
             if(category!=='all')filteredData=filteredData.filter(d=>d.Categoria===category);
             if(subcategory!=='all')filteredData=filteredData.filter(d=>d['Sub Categoria']===subcategory);
             if(year!=='all')filteredData=filteredData.filter(d=>d.Data.getFullYear()==year);
             if(month!=='all')filteredData=filteredData.filter(d=>d.Data.getMonth()==month);
+            
+            // Aplicando filtros da tabela
+            if(filterData)filteredData=filteredData.filter(d=>d.Data.toLocaleDateString('pt-BR').includes(filterData));
+            if(filterCategoria)filteredData=filteredData.filter(d=>d.Categoria?.toLowerCase().includes(filterCategoria));
+            if(filterSubCategoria)filteredData=filteredData.filter(d=>d['Sub Categoria']?.toLowerCase().includes(filterSubCategoria));
+            if(filterDescricao)filteredData=filteredData.filter(d=>d.Descrição?.toLowerCase().includes(filterDescricao));
+            
             displayData(filteredData);
         }
 
         function createTwoYearComparisonChart(data) {
-            const currentYear = new Date().getFullYear(); // 2025
-            const previousYear = currentYear - 1; // 2024
+            const currentYear = new Date().getFullYear();
+            const previousYear = currentYear - 1;
             
             const totalsCurrentYear = Array(12).fill(0);
             const totalsPreviousYear = Array(12).fill(0);
@@ -202,29 +240,11 @@
                 data: {
                     labels: meses,
                     datasets: [
-                        {
-                            label: `Despesas ${previousYear}`,
-                            data: totalsPreviousYear,
-                            backgroundColor: '#60a5fa', // Azul
-                        },
-                        {
-                            label: `Despesas ${currentYear}`,
-                            data: totalsCurrentYear,
-                            backgroundColor: '#f97316', // Laranja
-                        }
+                        { label: `Despesas ${previousYear}`, data: totalsPreviousYear, backgroundColor: '#60a5fa' },
+                        { label: `Despesas ${currentYear}`, data: totalsCurrentYear, backgroundColor: '#f97316' }
                     ]
                 },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    scales: { 
-                        y: { 
-                            beginAtZero: true, 
-                            ticks: { 
-                                callback: value => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
-                            } 
-                        } 
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: value => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) } } } }
             });
         }
 
@@ -285,13 +305,41 @@
                 <div class="lg:col-span-3 bg-white dark:bg-gray-800 p-4 rounded-lg shadow"><h2 class="text-lg font-semibold mb-2 text-center">Despesas Mensais</h2><div class="chart-container"><canvas id="monthlyChart"></canvas></div></div>
             </div>
             
-            <!-- Nova Seção de Comparativo Anual -->
             <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
                 <h2 class="text-lg font-semibold mb-4 text-center">Comparativo Anual (Mês a Mês)</h2>
                 <div class="mt-4 chart-container"><canvas id="twoYearComparisonChart"></canvas></div>
             </div>
 
-            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow"><div class="flex justify-between items-center mb-4"><h2 class="text-lg font-semibold">Tabela de Despesas</h2><div class="text-right"><span class="text-sm font-medium">Total Filtrado:</span><span id="total-geral" class="text-xl font-bold text-green-500 ml-2"></span></div></div><div class="overflow-x-auto max-h-96"><table class="w-full text-sm text-left"><thead class="text-xs uppercase bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th scope="col" class="py-3 px-4">Data</th><th scope="col" class="py-3 px-4">Categoria</th><th scope="col" class="py-3 px-4">Sub Categoria</th><th scope="col" class="py-3 px-4">Descrição</th><th scope="col" class="py-3 px-4 text-right">Total</th></tr></thead><tbody id="expensesTableBody"></tbody></table></div></div>
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold">Tabela de Despesas</h2>
+                    <div class="text-right">
+                        <span class="text-sm font-medium">Total Filtrado:</span>
+                        <span id="total-geral" class="text-xl font-bold text-green-500 ml-2"></span>
+                    </div>
+                </div>
+                <div class="overflow-x-auto max-h-96">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs uppercase bg-gray-50 dark:bg-gray-700 sticky top-0">
+                            <tr>
+                                <th scope="col" class="py-3 px-4 w-1/12">Data</th>
+                                <th scope="col" class="py-3 px-4 w-2/12">Categoria</th>
+                                <th scope="col" class="py-3 px-4 w-2/12">Sub Categoria</th>
+                                <th scope="col" class="py-3 px-4 w-5/12">Descrição</th>
+                                <th scope="col" class="py-3 px-4 w-2/12 text-right">Total</th>
+                            </tr>
+                            <tr class="bg-gray-100 dark:bg-gray-700">
+                                <th class="px-4 py-2"><input type="text" id="filterData" placeholder="Filtrar..." class="table-filter-input"></th>
+                                <th class="px-4 py-2"><input type="text" id="filterCategoria" placeholder="Filtrar..." class="table-filter-input"></th>
+                                <th class="px-4 py-2"><input type="text" id="filterSubCategoria" placeholder="Filtrar..." class="table-filter-input"></th>
+                                <th class="px-4 py-2"><input type="text" id="filterDescricao" placeholder="Filtrar..." class="table-filter-input"></th>
+                                <th class="px-4 py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="expensesTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </main>
     </div>
 
