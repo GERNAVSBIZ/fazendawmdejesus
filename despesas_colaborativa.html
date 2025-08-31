@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisador de Despesas da Fazenda</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .chart-container { position: relative; margin: auto; height: 400px; width: 100%; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #2d3748; }
+        ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #718096; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+    <script>
+        const firebaseConfig = {
+            apiKey: "SUA_API_KEY",
+            authDomain: "SEU_AUTH_DOMAIN",
+            projectId: "fazendawm-83f34",
+            storageBucket: "SEU_STORAGE_BUCKET",
+            messagingSenderId: "SEU_MESSAGING_SENDER_ID",
+            appId: "SEU_APP_ID"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        let chartInstances = {};
+
+        function signIn() {
+            auth.signInWithPopup(provider).catch(error => console.error("Erro de autenticação:", error));
+        }
+
+        function signOut() {
+            auth.signOut().catch(error => console.error("Erro ao sair:", error));
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                document.getElementById('user-name').textContent = user.displayName;
+                document.getElementById('user-img').src = user.photoURL;
+                loadAndProcessData();
+            } else {
+                document.getElementById('auth-container').classList.remove('hidden');
+                document.getElementById('dashboard').classList.add('hidden');
+            }
+        });
+
+        async function loadAndProcessData() {
+            try {
+                const snapshot = await db.collection("artifacts/fazendawm-83f34/public/despesas").get();
+                if (snapshot.empty) {
+                    console.warn("Nenhum dado de despesa encontrado. Carregue o arquivo CSV convertido para JSON no Firestore.");
+                    alert("Atenção: Nenhum dado de despesa foi encontrado no banco de dados. Por favor, faça o upload dos dados para a coleção 'despesas' no Firestore.");
+                    return;
+                }
+                const data = snapshot.docs.map(doc => doc.data());
+                initializeDashboard(data);
+            } catch (error) {
+                console.error("Erro ao carregar dados do Firestore: ", error);
+            }
+        }
+
+        function initializeDashboard(data) {
+            const processedData = data.map(d => ({
+                ...d,
+                Data: new Date(d.Data),
+                Total: parseFloat(d.Total)
+            })).sort((a, b) => b.Data - a.Data);
+
+            populateFilters(processedData);
+            displayData(processedData);
+
+            document.getElementById('categoryFilter').addEventListener('change', () => filterAndRedraw(processedData));
+            document.getElementById('subcategoryFilter').addEventListener('change', () => filterAndRedraw(processedData));
+            document.getElementById('yearFilter').addEventListener('change', () => filterAndRedraw(processedData));
+        }
+        
+        function populateFilters(data) {
+            const categories = [...new Set(data.map(item => item.Categoria))].sort();
+            const subcategories = [...new Set(data.map(item => item['Sub Categoria']))].sort();
+            const years = [...new Set(data.map(item => item.Data.getFullYear()))].sort((a,b) => b-a);
+
+            const catFilter = document.getElementById('categoryFilter');
+            categories.forEach(cat => catFilter.add(new Option(cat, cat)));
+
+            const subcatFilter = document.getElementById('subcategoryFilter');
+            subcategories.forEach(sub => subcatFilter.add(new Option(sub, sub)));
+
+            const yearFilter = document.getElementById('yearFilter');
+            years.forEach(year => yearFilter.add(new Option(year, year)));
+        }
+
+        function filterAndRedraw(originalData) {
+            const category = document.getElementById('categoryFilter').value;
+            const subcategory = document.getElementById('subcategoryFilter').value;
+            const year = document.getElementById('yearFilter').value;
+            
+            let filteredData = originalData;
+            if (category !== 'all') filteredData = filteredData.filter(d => d.Categoria === category);
+            if (subcategory !== 'all') filteredData = filteredData.filter(d => d['Sub Categoria'] === subcategory);
+            if (year !== 'all') filteredData = filteredData.filter(d => d.Data.getFullYear() == year);
+            
+            displayData(filteredData);
+        }
+
+        function displayData(data) {
+            const tableBody = document.getElementById('expensesTableBody');
+            tableBody.innerHTML = '';
+            let totalGeral = 0;
+            
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800';
+                tr.innerHTML = `
+                    <td class="py-3 px-4">${row.Data.toLocaleDateString('pt-BR')}</td>
+                    <td class="py-3 px-4">${row.Categoria}</td>
+                    <td class="py-3 px-4">${row['Sub Categoria']}</td>
+                    <td class="py-3 px-4">${row.Descrição}</td>
+                    <td class="py-3 px-4 text-right">${row.Total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                `;
+                tableBody.appendChild(tr);
+                totalGeral += row.Total;
+            });
+
+            document.getElementById('total-geral').textContent = totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            
+            Object.values(chartInstances).forEach(chart => chart.destroy());
+            createCategoryChart(data);
+            createMonthlyChart(data);
+        }
+
+        function createCategoryChart(data) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            const categoryTotals = data.reduce((acc, cur) => {
+                acc[cur.Categoria] = (acc[cur.Categoria] || 0) + cur.Total;
+                return acc;
+            }, {});
+
+            const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+            
+            chartInstances.category = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: sortedCategories.map(c => c[0]),
+                    datasets: [{
+                        label: 'Despesas por Categoria',
+                        data: sortedCategories.map(c => c[1]),
+                        backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef'],
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function createMonthlyChart(data) {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            const monthlyTotals = {};
+            const selectedYear = document.getElementById('yearFilter').value;
+
+            data.forEach(row => {
+                const year = row.Data.getFullYear();
+                if (selectedYear === 'all' || year == selectedYear) {
+                    const month = row.Data.getMonth(); // 0-11
+                    const key = `${year}-${String(month+1).padStart(2,'0')}`;
+                    monthlyTotals[key] = (monthlyTotals[key] || 0) + row.Total;
+                }
+            });
+
+            const sortedMonths = Object.keys(monthlyTotals).sort();
+            
+            chartInstances.monthly = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedMonths.map(m => new Date(m+'-02').toLocaleDateString('pt-BR', {month: 'short', year:'numeric'})),
+                    datasets: [{
+                        label: 'Tendência Mensal de Despesas',
+                        data: sortedMonths.map(m => monthlyTotals[m]),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    </script>
+    
+    <div id="auth-container" class="min-h-screen flex items-center justify-center">
+        <div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+            <h1 class="text-2xl font-bold mb-4">Análise de Despesas da Fazenda</h1>
+            <p class="mb-6">Por favor, faça login para continuar.</p>
+            <button onclick="signIn()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center mx-auto">
+                <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
+                Entrar com Google
+            </button>
+        </div>
+    </div>
+
+    <div id="dashboard" class="hidden">
+        <header class="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold">Análise de Despesas</h1>
+            <div class="flex items-center">
+                <span id="user-name" class="mr-4"></span>
+                <img id="user-img" class="w-10 h-10 rounded-full mr-4" alt="User Avatar">
+                <button onclick="signOut()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Sair</button>
+            </div>
+        </header>
+
+        <main class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div>
+                    <label for="yearFilter" class="block text-sm font-medium">Ano:</label>
+                    <select id="yearFilter" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md">
+                        <option value="all">Todos os Anos</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="categoryFilter" class="block text-sm font-medium">Categoria:</label>
+                    <select id="categoryFilter" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md">
+                        <option value="all">Todas as Categorias</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="subcategoryFilter" class="block text-sm font-medium">Sub Categoria:</label>
+                    <select id="subcategoryFilter" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md">
+                        <option value="all">Todas as Sub Categorias</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                    <h2 class="text-lg font-semibold mb-2">Despesas por Categoria</h2>
+                    <div class="chart-container"><canvas id="categoryChart"></canvas></div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                    <h2 class="text-lg font-semibold mb-2">Tendência Mensal (Filtro por Ano)</h2>
+                    <div class="chart-container"><canvas id="monthlyChart"></canvas></div>
+                </div>
+            </div>
+            
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold">Tabela de Despesas</h2>
+                    <div class="text-right">
+                        <span class="text-sm font-medium">Total Geral Filtrado:</span>
+                        <span id="total-geral" class="text-xl font-bold text-green-500"></span>
+                    </div>
+                </div>
+                <div class="overflow-x-auto max-h-96">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs uppercase bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th scope="col" class="py-3 px-4">Data</th>
+                                <th scope="col" class="py-3 px-4">Categoria</th>
+                                <th scope="col" class="py-3 px-4">Sub Categoria</th>
+                                <th scope="col" class="py-3 px-4">Descrição</th>
+                                <th scope="col" class="py-3 px-4 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expensesTableBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
