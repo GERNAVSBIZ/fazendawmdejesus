@@ -208,7 +208,18 @@
             if(month!=='all')filteredData=filteredData.filter(d=>d.Data.getMonth()==month);
             
             // Aplicando filtros da tabela
-            if(filterData)filteredData=filteredData.filter(d=>d.Data.toLocaleDateString('pt-BR').includes(filterData));
+            if (filterData) {
+                const monthYearMatch = filterData.match(/^(\d{1,2})\/(\d{4})$/);
+                if (monthYearMatch) {
+                    // Se o usuário digitar MM/YYYY, filtra o mês inteiro
+                    const month = parseInt(monthYearMatch[1], 10) - 1;
+                    const year = parseInt(monthYearMatch[2], 10);
+                    filteredData = filteredData.filter(d => d.Data.getMonth() === month && d.Data.getFullYear() === year);
+                } else {
+                    // Comportamento original para outros formatos (dd, dd/mm, etc.)
+                    filteredData = filteredData.filter(d => d.Data.toLocaleDateString('pt-BR').includes(filterData));
+                }
+            }
             if(filterCategoria)filteredData=filteredData.filter(d=>d.Categoria?.toLowerCase().includes(filterCategoria));
             if(filterSubCategoria)filteredData=filteredData.filter(d=>d['Sub Categoria']?.toLowerCase().includes(filterSubCategoria));
             if(filterDescricao)filteredData=filteredData.filter(d=>d.Descrição?.toLowerCase().includes(filterDescricao));
@@ -329,7 +340,7 @@
                                 <th scope="col" class="py-3 px-4 w-2/12 text-right">Total</th>
                             </tr>
                             <tr class="bg-gray-100 dark:bg-gray-700">
-                                <th class="px-4 py-2"><input type="text" id="filterData" placeholder="Filtrar..." class="table-filter-input"></th>
+                                <th class="px-4 py-2"><input type="text" id="filterData" placeholder="dd/mm/aaaa ou mm/aaaa" class="table-filter-input"></th>
                                 <th class="px-4 py-2"><input type="text" id="filterCategoria" placeholder="Filtrar..." class="table-filter-input"></th>
                                 <th class="px-4 py-2"><input type="text" id="filterSubCategoria" placeholder="Filtrar..." class="table-filter-input"></th>
                                 <th class="px-4 py-2"><input type="text" id="filterDescricao" placeholder="Filtrar..." class="table-filter-input"></th>
