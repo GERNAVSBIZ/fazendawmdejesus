@@ -23,14 +23,14 @@
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
     <script>
         const firebaseConfig = {
-  apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
-  authDomain: "fazendawm-83f34.firebaseapp.com",
-  projectId: "fazendawm-83f34",
-  storageBucket: "fazendawm-83f34.firebasestorage.app",
-  messagingSenderId: "40894938435",
-  appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
-  measurementId: "G-QQVTP0CQ4H"
-};
+            apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
+            authDomain: "fazendawm-83f34.firebaseapp.com",
+            projectId: "fazendawm-83f34",
+            storageBucket: "fazendawm-83f34.firebasestorage.app",
+            messagingSenderId: "40894938435",
+            appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
+            measurementId: "G-QQVTP0CQ4H"
+        };
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
@@ -56,7 +56,8 @@
 
         async function loadAndProcessData() {
             try {
-                const snapshot = await db.collection("artifacts/fazendawm-83f34/public/despesas").get();
+                // CORREÇÃO: Usando uma coleção principal chamada 'despesas'
+                const snapshot = await db.collection("despesas").get();
                 const parseDate = (dateStr) => {
                     if (!dateStr || typeof dateStr !== 'string') return new Date();
                     const [day, month, year] = dateStr.split('/');
@@ -107,7 +108,6 @@
 
         function parseCSV(text) {
             const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-            // Encontra a linha do cabeçalho
             let headerIndex = -1;
             for(let i=0; i<lines.length; i++){
                 if(lines[i].toLowerCase().startsWith('data')){
@@ -129,7 +129,7 @@
                     if (header) obj[header] = values[i] || '';
                 });
                 return obj;
-            }).filter(obj => obj.Data); // Filtra linhas vazias
+            }).filter(obj => obj.Data);
         }
 
         function showUploadModal(data, fileName) {
@@ -162,7 +162,8 @@
             actions.innerHTML = '';
 
             const batch = db.batch();
-            const collectionRef = db.collection("artifacts/fazendawm-83f34/public/despesas");
+            // CORREÇÃO: Usando uma coleção principal chamada 'despesas'
+            const collectionRef = db.collection("despesas");
             data.forEach(item => {
                 const docRef = collectionRef.doc();
                 batch.set(docRef, item);
@@ -173,7 +174,7 @@
                 modalContent.innerHTML = `<p class="text-green-500">Upload concluído com sucesso!</p>`;
                 setTimeout(() => {
                     document.getElementById('uploadModal').classList.add('hidden');
-                    loadAndProcessData(); // Recarrega os dados para exibir as novas informações
+                    loadAndProcessData();
                 }, 2000);
             } catch (error) {
                 console.error("Erro ao enviar dados: ", error);
@@ -182,13 +183,6 @@
             }
         }
         
-        function populateFilters(data) { /* ... (código existente sem alteração) ... */ }
-        function filterAndRedraw() { /* ... (código existente sem alteração) ... */ }
-        function displayData(data) { /* ... (código existente sem alteração) ... */ }
-        function createCategoryChart(data) { /* ... (código existente sem alteração) ... */ }
-        function createMonthlyChart(data) { /* ... (código existente sem alteração) ... */ }
-
-        // --- Funções colapsadas para economizar espaço (são as mesmas da versão anterior) ---
         function populateFilters(data){const categories=[...new Set(data.map(item=>item.Categoria))].sort();const subcategories=[...new Set(data.map(item=>item['Sub Categoria']))].sort();const years=[...new Set(data.map(item=>item.Data.getFullYear()))].sort((a,b)=>b-a);const populateSelect=(elementId,options)=>{const select=document.getElementById(elementId);select.innerHTML=`<option value="all">Todos</option>`;options.forEach(opt=>select.add(new Option(opt,opt)))};populateSelect('categoryFilter',categories);populateSelect('subcategoryFilter',subcategories);populateSelect('yearFilter',years)}
         function filterAndRedraw(){const category=document.getElementById('categoryFilter').value;const subcategory=document.getElementById('subcategoryFilter').value;const year=document.getElementById('yearFilter').value;let filteredData=originalData;if(category!=='all')filteredData=filteredData.filter(d=>d.Categoria===category);if(subcategory!=='all')filteredData=filteredData.filter(d=>d['Sub Categoria']===subcategory);if(year!=='all')filteredData=filteredData.filter(d=>d.Data.getFullYear()==year);displayData(filteredData)}
         function displayData(data){const tableBody=document.getElementById('expensesTableBody');tableBody.innerHTML='';let totalGeral=0;data.forEach(row=>{const tr=document.createElement('tr');tr.className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800';tr.innerHTML=`<td class="py-3 px-4">${row.Data.toLocaleDateString('pt-BR')}</td><td class="py-3 px-4">${row.Categoria||'N/A'}</td><td class="py-3 px-4">${row['Sub Categoria']||'N/A'}</td><td class="py-3 px-4">${row.Descrição||'N/A'}</td><td class="py-3 px-4 text-right">${row.Total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td>`;tableBody.appendChild(tr);totalGeral+=row.Total});document.getElementById('total-geral').textContent=totalGeral.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});Object.values(chartInstances).forEach(chart=>chart.destroy());createCategoryChart(data);createMonthlyChart(data)}
@@ -197,7 +191,6 @@
     </script>
     
     <div id="auth-container" class="min-h-screen flex items-center justify-center">
-        <!-- ... (código existente sem alteração) ... -->
         <div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
             <h1 class="text-2xl font-bold mb-4">Análise de Despesas da Fazenda</h1>
             <p class="mb-6">Por favor, faça login para continuar.</p>
@@ -226,8 +219,6 @@
         </header>
 
         <main class="p-6">
-            <!-- Conteúdo do dashboard (filtros, gráficos, tabela) -->
-            <!-- ... (código existente sem alteração) ... -->
              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow"><div><label for="yearFilter" class="block text-sm font-medium">Ano:</label><select id="yearFilter" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></select></div><div><label for="categoryFilter" class="block text-sm font-medium">Categoria:</label><select id="categoryFilter" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></select></div><div><label for="subcategoryFilter" class="block text-sm font-medium">Sub Categoria:</label><select id="subcategoryFilter" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></select></div></div><div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6"><div class="lg:col-span-2 bg-white dark:bg-gray-800 p-4 rounded-lg shadow"><h2 class="text-lg font-semibold mb-2 text-center">Despesas por Categoria</h2><div class="chart-container"><canvas id="categoryChart"></canvas></div></div><div class="lg:col-span-3 bg-white dark:bg-gray-800 p-4 rounded-lg shadow"><h2 class="text-lg font-semibold mb-2 text-center">Tendência Mensal</h2><div class="chart-container"><canvas id="monthlyChart"></canvas></div></div></div><div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow"><div class="flex justify-between items-center mb-4"><h2 class="text-lg font-semibold">Tabela de Despesas</h2><div class="text-right"><span class="text-sm font-medium">Total Filtrado:</span><span id="total-geral" class="text-xl font-bold text-green-500 ml-2"></span></div></div><div class="overflow-x-auto max-h-96"><table class="w-full text-sm text-left"><thead class="text-xs uppercase bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th scope="col" class="py-3 px-4">Data</th><th scope="col" class="py-3 px-4">Categoria</th><th scope="col" class="py-3 px-4">Sub Categoria</th><th scope="col" class="py-3 px-4">Descrição</th><th scope="col" class="py-3 px-4 text-right">Total</th></tr></thead><tbody id="expensesTableBody"></tbody></table></div></div>
         </main>
     </div>
@@ -252,4 +243,5 @@
 
 </body>
 </html>
+
 
