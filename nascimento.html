@@ -120,19 +120,14 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, getDocs, writeBatch, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // --- CONFIGURAÇÃO ---
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "fazendawm-83f34",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
-        const appId = 'fazendawm-83f34'; 
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : { apiKey: "FALLBACK_API_KEY", projectId: "fazendawm-83f34" }; // Fallback para evitar erros
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fazendawm-83f34';
 
         // --- INICIALIZAÇÃO DO FIREBASE ---
         const app = initializeApp(firebaseConfig);
@@ -153,9 +148,19 @@
             }
         });
 
-        signInAnonymously(auth).catch((error) => {
-            console.error("Anonymous sign-in failed:", error);
-        });
+        // Tenta autenticar usando o token do ambiente, se disponível, senão, anonimamente.
+        (async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication failed:", error);
+                alert("Falha na autenticação com o banco de dados. Verifique o console para mais detalhes.");
+            }
+        })();
 
         // --- LÓGICA DA INTERFACE ---
         const uploadCsvBtn = document.getElementById('uploadCsvBtn');
@@ -195,8 +200,14 @@
                 document.getElementById('totalFemeas').textContent = '0';
                 document.getElementById('periodoAnalise').textContent = '-';
                 document.getElementById('birthsTableBody').innerHTML = '<tr><td colspan="3" class="text-center py-4">Nenhum dado para exibir. Carregue um arquivo CSV.</td></tr>';
-                if(sexoChartInstance) sexoChartInstance.destroy();
-                if(nascimentosMesChartInstance) nascimentosMesChartInstance.destroy();
+                if(sexoChartInstance) {
+                    sexoChartInstance.destroy();
+                    sexoChartInstance = null;
+                }
+                if(nascimentosMesChartInstance) {
+                    nascimentosMesChartInstance.destroy();
+                    nascimentosMesChartInstance = null;
+                }
                 return;
             }
 
@@ -207,7 +218,12 @@
             document.getElementById('totalMachos').textContent = machos;
             document.getElementById('totalFemeas').textContent = femeas;
             
-            const dates = births.map(b => b.data_nascimento).filter(Boolean).map(d => new Date(d.split('/').reverse().join('-')));
+            const dates = births.map(b => b.data_nascimento).filter(Boolean).map(d => {
+                const parts = d.split('/');
+                if(parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]);
+                return null;
+            }).filter(Boolean);
+
             if(dates.length > 0){
                 const minDate = new Date(Math.min.apply(null, dates));
                 const maxDate = new Date(Math.max.apply(null, dates));
@@ -215,7 +231,6 @@
             } else {
                 document.getElementById('periodoAnalise').textContent = 'Datas não informadas';
             }
-
 
             // 2. Atualizar Gráficos
             updateSexoChart(machos, femeas);
@@ -248,7 +263,7 @@
                 if(b.data_nascimento && b.data_nascimento.includes('/')) {
                     const parts = b.data_nascimento.split('/');
                     if (parts.length === 3) {
-                        const monthYear = `${parts[2]}-${parts[1]}`;
+                        const monthYear = `${parts[2]}-${parts[1].padStart(2, '0')}`;
                         birthsByMonth[monthYear] = (birthsByMonth[monthYear] || 0) + 1;
                     }
                 }
@@ -303,7 +318,7 @@
                 if (birthsData.length > 0) {
                     await uploadDataToFirestore(birthsData);
                 } else {
-                    alert("Nenhum dado válido encontrado no arquivo CSV.");
+                    alert("Nenhum dado válido encontrado no arquivo CSV. Verifique se o cabeçalho com 'ID DA VACA', 'DATA DE NASCIMENTO' e 'SEXO' está presente.");
                 }
             };
             reader.readAsText(file);
@@ -313,17 +328,18 @@
         function parseCsv(text) {
             const data = [];
             const lines = text.trim().split(/\r?\n/);
-            // Pular linhas de cabeçalho irrelevantes, procurando pela linha de cabeçalho correta
+            
             let headerIndex = -1;
             for(let i=0; i<lines.length; i++){
                 const line = lines[i].toUpperCase();
-                if(line.includes('ID DA VACA') && line.includes('DATA DE NASCIMENTO') && line.includes('SEXO')){
+                // Tornando a busca pelo cabeçalho mais flexível
+                if(line.includes('VACA') && line.includes('NASCIMENTO') && line.includes('SEXO')){
                     headerIndex = i;
                     break;
                 }
             }
 
-            if(headerIndex === -1) return []; // Não encontrou o cabeçalho
+            if(headerIndex === -1) return [];
 
             for(let i = headerIndex + 1; i < lines.length; i++){
                 const line = lines[i];
@@ -363,7 +379,7 @@
                 // 2. Adicionar os novos documentos
                 const addBatch = writeBatch(db);
                 data.forEach(item => {
-                    const newDocRef = doc(nascimentosCollectionRef); // Cria uma referência com ID automático
+                    const newDocRef = doc(nascimentosCollectionRef); 
                     addBatch.set(newDocRef, item);
                 });
                 await addBatch.commit();
