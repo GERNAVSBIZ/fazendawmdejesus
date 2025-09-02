@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise de Nascimentos Colaborativa - Fazenda WM de Jesus</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1a202c; }
+        ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #718096; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-secondary-900 text-gray-900 dark:text-gray-200">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-secondary-800 shadow-md flex-shrink-0">
+            <div class="p-6">
+                <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Fazenda WM</h1>
+            </div>
+            <nav class="mt-6">
+                <a href="./index_atualizado.html" class="block px-6 py-3 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Painel Principal</a>
+                <a href="./nascimento.html" class="block px-6 py-3 text-white bg-emerald-600 dark:bg-emerald-700 font-bold">Análise de Nascimentos</a>
+                <a href="#" class="block px-6 py-3 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Análise de Despesas</a>
+                <a href="#" class="block px-6 py-3 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Controle de Leite</a>
+                <a href="#" class="block px-6 py-3 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Configurações</a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6 bg-gray-50 dark:bg-secondary-900 overflow-y-auto">
+            <div class="container mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-3xl font-bold text-gray-800 dark:text-white">Painel de Análise de Nascimentos</h1>
+                    <button id="uploadCsvBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        <span>Carregar CSV</span>
+                    </button>
+                    <input type="file" id="csvFileInput" class="hidden" accept=".csv">
+                </div>
+
+                <!-- Loader -->
+                <div id="loader" class="hidden flex justify-center items-center py-10">
+                    <div class="loader"></div>
+                </div>
+
+                <!-- Dashboard Content -->
+                <div id="dashboardContent">
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total de Nascimentos</p>
+                            <p id="totalNascimentos" class="text-3xl font-bold text-gray-900 dark:text-white">0</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total de Machos</p>
+                            <p id="totalMachos" class="text-3xl font-bold text-blue-500">0</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total de Fêmeas</p>
+                            <p id="totalFemeas" class="text-3xl font-bold text-pink-500">0</p>
+                        </div>
+                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Período Analisado</p>
+                            <p id="periodoAnalise" class="text-base font-bold text-gray-900 dark:text-white mt-2">-</p>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
+                        <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                            <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">Distribuição por Sexo</h2>
+                            <canvas id="sexoChart"></canvas>
+                        </div>
+                        <div class="lg:col-span-3 bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                            <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">Nascimentos por Mês</h2>
+                            <canvas id="nascimentosMesChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Data Table -->
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">Registros de Nascimento</h2>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white dark:bg-gray-800">
+                                <thead class="bg-gray-50 dark:bg-gray-700">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID da Vaca</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Data de Nascimento</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sexo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="birthsTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, getDocs, writeBatch, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // --- CONFIGURAÇÃO ---
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "fazendawm-83f34",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        const appId = 'fazendawm-83f34'; 
+
+        // --- INICIALIZAÇÃO DO FIREBASE ---
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        let userId = null;
+        let nascimentosCollectionRef;
+        
+        let sexoChartInstance = null;
+        let nascimentosMesChartInstance = null;
+
+        // --- AUTENTICAÇÃO E INICIALIZAÇÃO ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userId = user.uid;
+                nascimentosCollectionRef = collection(db, `artifacts/${appId}/public/data/nascimentos`);
+                setupRealtimeListener();
+            }
+        });
+
+        signInAnonymously(auth).catch((error) => {
+            console.error("Anonymous sign-in failed:", error);
+        });
+
+        // --- LÓGICA DA INTERFACE ---
+        const uploadCsvBtn = document.getElementById('uploadCsvBtn');
+        const csvFileInput = document.getElementById('csvFileInput');
+        const loader = document.getElementById('loader');
+        const dashboardContent = document.getElementById('dashboardContent');
+
+        uploadCsvBtn.addEventListener('click', () => csvFileInput.click());
+        csvFileInput.addEventListener('change', handleFileUpload);
+
+        function showLoader(show) {
+            loader.classList.toggle('hidden', !show);
+            dashboardContent.classList.toggle('hidden', show);
+        }
+        
+        // --- LÓGICA DE DADOS E GRÁFICOS ---
+        function setupRealtimeListener() {
+            showLoader(true);
+            onSnapshot(nascimentosCollectionRef, (snapshot) => {
+                const births = [];
+                snapshot.forEach((doc) => {
+                    births.push(doc.data());
+                });
+                updateDashboard(births);
+                showLoader(false);
+            }, (error) => {
+                console.error("Error fetching real-time data: ", error);
+                showLoader(false);
+            });
+        }
+
+        function updateDashboard(births) {
+            if (!births || births.length === 0) {
+                 // Resetar a UI se não houver dados
+                document.getElementById('totalNascimentos').textContent = '0';
+                document.getElementById('totalMachos').textContent = '0';
+                document.getElementById('totalFemeas').textContent = '0';
+                document.getElementById('periodoAnalise').textContent = '-';
+                document.getElementById('birthsTableBody').innerHTML = '<tr><td colspan="3" class="text-center py-4">Nenhum dado para exibir. Carregue um arquivo CSV.</td></tr>';
+                if(sexoChartInstance) sexoChartInstance.destroy();
+                if(nascimentosMesChartInstance) nascimentosMesChartInstance.destroy();
+                return;
+            }
+
+            // 1. Atualizar Cards de Estatísticas
+            const machos = births.filter(b => b.sexo && b.sexo.toUpperCase() === 'MACHO').length;
+            const femeas = births.filter(b => b.sexo && b.sexo.toUpperCase() === 'FEMEA').length;
+            document.getElementById('totalNascimentos').textContent = births.length;
+            document.getElementById('totalMachos').textContent = machos;
+            document.getElementById('totalFemeas').textContent = femeas;
+            
+            const dates = births.map(b => b.data_nascimento).filter(Boolean).map(d => new Date(d.split('/').reverse().join('-')));
+            if(dates.length > 0){
+                const minDate = new Date(Math.min.apply(null, dates));
+                const maxDate = new Date(Math.max.apply(null, dates));
+                document.getElementById('periodoAnalise').textContent = `${minDate.toLocaleDateString('pt-BR')} a ${maxDate.toLocaleDateString('pt-BR')}`;
+            } else {
+                document.getElementById('periodoAnalise').textContent = 'Datas não informadas';
+            }
+
+
+            // 2. Atualizar Gráficos
+            updateSexoChart(machos, femeas);
+            updateNascimentosMesChart(births);
+
+            // 3. Atualizar Tabela
+            updateTable(births);
+        }
+        
+        function updateSexoChart(machos, femeas) {
+             const ctx = document.getElementById('sexoChart').getContext('2d');
+             if(sexoChartInstance) {
+                 sexoChartInstance.data.datasets[0].data = [machos, femeas];
+                 sexoChartInstance.update();
+             } else {
+                 sexoChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Machos', 'Fêmeas'],
+                        datasets: [{ data: [machos, femeas], backgroundColor: ['#3B82F6', '#EC4899'] }]
+                    },
+                    options: { responsive: true, plugins: { legend: { position: 'top' }}}
+                 });
+             }
+        }
+
+        function updateNascimentosMesChart(births) {
+            const birthsByMonth = {};
+            births.forEach(b => {
+                if(b.data_nascimento && b.data_nascimento.includes('/')) {
+                    const parts = b.data_nascimento.split('/');
+                    if (parts.length === 3) {
+                        const monthYear = `${parts[2]}-${parts[1]}`;
+                        birthsByMonth[monthYear] = (birthsByMonth[monthYear] || 0) + 1;
+                    }
+                }
+            });
+
+            const sortedLabels = Object.keys(birthsByMonth).sort();
+            const data = sortedLabels.map(label => birthsByMonth[label]);
+
+            const ctx = document.getElementById('nascimentosMesChart').getContext('2d');
+            if(nascimentosMesChartInstance) {
+                nascimentosMesChartInstance.data.labels = sortedLabels;
+                nascimentosMesChartInstance.data.datasets[0].data = data;
+                nascimentosMesChartInstance.update();
+            } else {
+                nascimentosMesChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: sortedLabels, datasets: [{ label: 'Nascimentos', data, borderColor: '#10B981', tension: 0.1 }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false }}}
+                });
+            }
+        }
+
+        function updateTable(births) {
+            const tableBody = document.getElementById('birthsTableBody');
+            tableBody.innerHTML = '';
+            births.forEach(b => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
+                const sexClass = b.sexo && b.sexo.toUpperCase() === 'MACHO' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800';
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">${b.id_vaca || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${b.data_nascimento || 'Não informada'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sexClass}">
+                            ${b.sexo || 'N/A'}
+                        </span>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // --- LÓGICA DE UPLOAD DE CSV ---
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const text = e.target.result;
+                const birthsData = parseCsv(text);
+                if (birthsData.length > 0) {
+                    await uploadDataToFirestore(birthsData);
+                } else {
+                    alert("Nenhum dado válido encontrado no arquivo CSV.");
+                }
+            };
+            reader.readAsText(file);
+            csvFileInput.value = ''; // Resetar input
+        }
+
+        function parseCsv(text) {
+            const data = [];
+            const lines = text.trim().split(/\r?\n/);
+            // Pular linhas de cabeçalho irrelevantes, procurando pela linha de cabeçalho correta
+            let headerIndex = -1;
+            for(let i=0; i<lines.length; i++){
+                const line = lines[i].toUpperCase();
+                if(line.includes('ID DA VACA') && line.includes('DATA DE NASCIMENTO') && line.includes('SEXO')){
+                    headerIndex = i;
+                    break;
+                }
+            }
+
+            if(headerIndex === -1) return []; // Não encontrou o cabeçalho
+
+            for(let i = headerIndex + 1; i < lines.length; i++){
+                const line = lines[i];
+                if (!line) continue;
+                
+                const columns = line.split(';');
+                const idVaca = columns[0] ? columns[0].trim() : '';
+                const dataNascimento = columns[1] ? columns[1].trim() : '';
+                const sexo = columns[2] ? columns[2].trim() : '';
+
+                if (idVaca || dataNascimento || sexo) {
+                    data.push({
+                        id_vaca: idVaca,
+                        data_nascimento: dataNascimento,
+                        sexo: sexo
+                    });
+                }
+            }
+            return data;
+        }
+
+        async function uploadDataToFirestore(data) {
+            if (!nascimentosCollectionRef) {
+                alert("Conexão com o banco de dados não estabelecida.");
+                return;
+            }
+            showLoader(true);
+            try {
+                // 1. Apagar todos os documentos antigos
+                const querySnapshot = await getDocs(nascimentosCollectionRef);
+                const deleteBatch = writeBatch(db);
+                querySnapshot.forEach(doc => {
+                    deleteBatch.delete(doc.ref);
+                });
+                await deleteBatch.commit();
+                
+                // 2. Adicionar os novos documentos
+                const addBatch = writeBatch(db);
+                data.forEach(item => {
+                    const newDocRef = doc(nascimentosCollectionRef); // Cria uma referência com ID automático
+                    addBatch.set(newDocRef, item);
+                });
+                await addBatch.commit();
+
+                alert("Dados do CSV carregados com sucesso!");
+            } catch (error) {
+                console.error("Erro ao carregar dados para o Firestore: ", error);
+                alert("Ocorreu um erro ao carregar os dados.");
+            } finally {
+                showLoader(false);
+            }
+        }
+    </script>
+</body>
+</html>
+
