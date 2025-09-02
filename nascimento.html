@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análise de N Colaborativa - Fazenda WM de Jesus</title>
+    <title>Análise de Nascimentos Colaborativa - Fazenda WM de Jesus</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -142,10 +142,16 @@
         import { getFirestore, collection, onSnapshot, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // --- CONFIGURAÇÃO ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : { apiKey: "FALLBACK_API_KEY", projectId: "fazendawm-83f34" }; 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fazendawm-83f34';
+        const firebaseConfig = {
+          apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
+          authDomain: "fazendawm-83f34.firebaseapp.com",
+          projectId: "fazendawm-83f34",
+          storageBucket: "fazendawm-83f34.appspot.com",
+          messagingSenderId: "40894938435",
+          appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
+          measurementId: "G-QQVTP0CQ4H"
+        };
+        const appId = firebaseConfig.projectId;
 
         // --- INICIALIZAÇÃO DO FIREBASE ---
         const app = initializeApp(firebaseConfig);
@@ -168,11 +174,7 @@
 
         (async () => {
             try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                await signInAnonymously(auth);
             } catch (error) {
                 console.error("Authentication failed:", error);
                 alert("Falha na autenticação com o banco de dados. Verifique o console para mais detalhes.");
