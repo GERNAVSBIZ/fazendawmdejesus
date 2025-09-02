@@ -73,10 +73,11 @@
 
                 <!-- Stats Cards and Charts -->
                 <div id="dashboardContent">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total de Nascimentos</p><p id="totalNascimentos" class="text-3xl font-bold text-gray-900 dark:text-white">0</p></div>
                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total de Machos</p><p id="totalMachos" class="text-3xl font-bold text-blue-500">0</p></div>
                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total de Fêmeas</p><p id="totalFemeas" class="text-3xl font-bold text-pink-500">0</p></div>
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Média Mensal</p><p id="mediaMensal" class="text-3xl font-bold text-amber-500">0.00</p></div>
                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Período Analisado</p><p id="periodoAnalise" class="text-base font-bold text-gray-900 dark:text-white mt-2">-</p></div>
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
@@ -230,6 +231,7 @@
                 document.getElementById('totalNascimentos').textContent = '0';
                 document.getElementById('totalMachos').textContent = '0';
                 document.getElementById('totalFemeas').textContent = '0';
+                document.getElementById('mediaMensal').textContent = '0.00';
                 document.getElementById('periodoAnalise').textContent = '-';
                 document.getElementById('birthsTableBody').innerHTML = '<tr><td colspan="3" class="text-center py-4">Nenhum dado para exibir. Carregue um arquivo CSV.</td></tr>';
                 if(sexoChartInstance) { sexoChartInstance.destroy(); sexoChartInstance = null; }
@@ -239,9 +241,25 @@
 
             const machos = births.filter(b => b.sexo && b.sexo.toUpperCase() === 'MACHO').length;
             const femeas = births.filter(b => b.sexo && b.sexo.toUpperCase() === 'FEMEA').length;
+            
+            const birthsByMonth = {};
+            births.forEach(b => {
+                if(b.data_nascimento && b.data_nascimento.includes('/')) {
+                    const parts = b.data_nascimento.split('/');
+                    if (parts.length === 3) {
+                        const monthYear = `${parts[2]}-${parts[1].padStart(2, '0')}`;
+                        birthsByMonth[monthYear] = (birthsByMonth[monthYear] || 0) + 1;
+                    }
+                }
+            });
+            
+            const numMonths = Object.keys(birthsByMonth).length;
+            const average = numMonths > 0 ? (births.length / numMonths).toFixed(2) : '0.00';
+
             document.getElementById('totalNascimentos').textContent = births.length;
             document.getElementById('totalMachos').textContent = machos;
             document.getElementById('totalFemeas').textContent = femeas;
+            document.getElementById('mediaMensal').textContent = average;
             
             const dates = births.map(b => b.data_nascimento).filter(Boolean).map(d => {
                 const parts = d.split('/');
@@ -258,7 +276,7 @@
             }
 
             updateSexoChart(machos, femeas);
-            updateNascimentosMesChart(births);
+            updateNascimentosMesChart(birthsByMonth);
             updateTable(births);
         }
         
@@ -276,18 +294,7 @@
              }
         }
 
-        function updateNascimentosMesChart(births) {
-            const birthsByMonth = {};
-            births.forEach(b => {
-                if(b.data_nascimento && b.data_nascimento.includes('/')) {
-                    const parts = b.data_nascimento.split('/');
-                    if (parts.length === 3) {
-                        const monthYear = `${parts[2]}-${parts[1].padStart(2, '0')}`;
-                        birthsByMonth[monthYear] = (birthsByMonth[monthYear] || 0) + 1;
-                    }
-                }
-            });
-
+        function updateNascimentosMesChart(birthsByMonth) {
             const sortedLabels = Object.keys(birthsByMonth).sort();
             const data = sortedLabels.map(label => birthsByMonth[label]);
 
@@ -298,8 +305,8 @@
                 nascimentosMesChartInstance.update();
             } else {
                 nascimentosMesChartInstance = new Chart(ctx, {
-                    type: 'line',
-                    data: { labels: sortedLabels, datasets: [{ label: 'Nascimentos', data, borderColor: '#10B981', tension: 0.1 }] },
+                    type: 'bar',
+                    data: { labels: sortedLabels, datasets: [{ label: 'Nascimentos', data, backgroundColor: '#10B981' }] },
                     options: { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false }}}
                 });
             }
