@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise da Produção de Vacas - Fazenda WM de Jesus</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1a202c; }
+        ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-200">
+    
+    <main class="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+        <div class="container mx-auto">
+            
+            <div id="loginContainer" class="text-center py-20">
+                <h1 class="text-4xl font-bold mb-4 text-gray-800 dark:text-white">Análise de Produção de Vacas</h1>
+                <p class="text-lg text-gray-600 dark:text-gray-400 mb-8">Faça login com sua conta do Google para acessar o painel.</p>
+                <button id="loginWithGoogleBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg flex items-center mx-auto space-x-3 transition-transform transform hover:scale-105">
+                    <svg class="w-6 h-6" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C42.012,36.494,44,30.687,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                    <span>Entrar com Google</span>
+                </button>
+            </div>
+
+            <div id="dashboardContainer" class="hidden">
+                 <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800 dark:text-white">Painel de Produção de Vacas</h1>
+                        <p id="userInfo" class="text-gray-600 dark:text-gray-400"></p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <a href="https://gernavsbiz.github.io/fazendawmdejesus/" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>
+                            <span>Home</span>
+                        </a>
+                        <button id="exportPdfBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd" /></svg>
+                            <span>Exportar PDF</span>
+                        </button>
+                         <button id="uploadCsvBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                            <span>Carregar CSV</span>
+                        </button>
+                        <button id="deleteDataBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
+                            <span>Deletar Dados</span>
+                        </button>
+                        <button id="logoutBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd" /></svg>
+                            <span>Sair</span>
+                        </button>
+                    </div>
+                    <input type="file" id="csvFileInput" class="hidden" accept=".csv">
+                </div>
+
+                <div id="loader" class="hidden flex justify-center items-center py-10"><div class="loader"></div></div>
+
+                <div id="dashboardContent">
+                    <div id="alertContainer" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6" role="alert">
+                        <p id="alertMessage" class="font-bold"></p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total de Vacas</p><p id="totalVacas" class="text-3xl font-bold text-gray-900 dark:text-white">0</p></div>
+                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Em Lactação</p><p id="totalLactacao" class="text-3xl font-bold text-green-500">0</p></div>
+                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Secas</p><p id="totalSecas" class="text-3xl font-bold text-gray-500">0</p></div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow"><h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">Status Reprodutivo</h2><canvas id="statusChart"></canvas></div>
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow"><h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">Vacas por Faixa de Lactação (DEL)</h2><canvas id="lactacaoChart"></canvas></div>
+                    </div>
+                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-8">
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">Tendência de Vacas Secas (por mês de apartação)</h2>
+                        <canvas id="secasTrendChart"></canvas>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                        <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Registros de Produção</h2>
+                            <div class="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs md:text-sm text-gray-600 dark:text-gray-300">
+                                <div class="flex items-center">
+                                    <span class="h-3 w-3 rounded-full bg-yellow-200 border border-yellow-300 mr-2"></span>
+                                    <span>Lact. > 290 dias</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="h-3 w-3 rounded-full bg-red-200 border border-red-300 mr-2"></span>
+                                    <span>Lact. > 310 dias</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="h-3 w-3 rounded-full bg-orange-200 border border-orange-300 mr-2"></span>
+                                    <span>Seca > 60 dias</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white dark:bg-gray-800">
+                                <thead class="bg-gray-50 dark:bg-gray-700">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Último Parto</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dias em Lactação (DEL)</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Data Apartação</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dias Seca</th>
+                                    </tr>
+                                    <tr class="bg-gray-100 dark:bg-gray-700">
+                                        <th class="p-2"><input type="text" id="filterId" placeholder="Filtrar..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
+                                        <th class="p-2"><input type="text" id="filterParto" placeholder="Filtrar..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
+                                        <th class="p-2"><input type="text" id="filterStatus" placeholder="Filtrar..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
+                                        <th class="p-2"><input type="number" id="filterDEL" placeholder="DEL >= a..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
+                                        <th class="p-2"><input type="text" id="filterApartacao" placeholder="Filtrar..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
+                                        <th class="p-2"><input type="text" id="filterDiasSeca" placeholder="Filtrar..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productionTableBody" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="deleteModal" class="hidden fixed z-50 inset-0 bg-gray-600 bg-opacity-50 h-full w-full flex items-center justify-center">
+        <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100"><svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mt-2">Deletar Todos os Dados?</h3>
+                <div class="mt-2 px-7 py-3"><p class="text-sm text-gray-500 dark:text-gray-400">Esta ação removerá permanentemente todos os registros de produção. Não pode ser desfeita.</p></div>
+                <div class="items-center px-4 py-3">
+                    <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-red-700">Sim, Deletar Tudo</button>
+                    <button id="cancelDeleteBtn" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-300 mt-2">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // --- CONFIGURAÇÃO ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
+          authDomain: "fazendawm-83f34.firebaseapp.com",
+          projectId: "fazendawm-83f34",
+          storageBucket: "fazendawm-83f34.appspot.com",
+          messagingSenderId: "40894938435",
+          appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
+          measurementId: "G-QQVTP0CQ4H"
+        };
+        const appId = firebaseConfig.projectId;
+
+        // --- INICIALIZAÇÃO DO FIREBASE ---
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        let producaoCollectionRef;
+        let allCowsData = []; // Store all cow data for filtering
+        
+        let statusChart, lactacaoChart, secasTrendChart;
+
+        // --- LÓGICA DA INTERFACE E AUTENTICAÇÃO ---
+        const loginContainer = document.getElementById('loginContainer');
+        const dashboardContainer = document.getElementById('dashboardContainer');
+        const userInfo = document.getElementById('userInfo');
+        const loginWithGoogleBtn = document.getElementById('loginWithGoogleBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const uploadCsvBtn = document.getElementById('uploadCsvBtn');
+        const deleteDataBtn = document.getElementById('deleteDataBtn');
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        const csvFileInput = document.getElementById('csvFileInput');
+        const deleteModal = document.getElementById('deleteModal');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                loginContainer.classList.add('hidden');
+                dashboardContainer.classList.remove('hidden');
+                userInfo.textContent = `Logado como: ${user.displayName || user.email}`;
+                producaoCollectionRef = collection(db, `artifacts/${appId}/public/data/vacas_producao`);
+                setupRealtimeListener();
+            } else {
+                loginContainer.classList.remove('hidden');
+                dashboardContainer.classList.add('hidden');
+            }
+        });
+
+        loginWithGoogleBtn.addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
+        logoutBtn.addEventListener('click', () => signOut(auth));
+        uploadCsvBtn.addEventListener('click', () => csvFileInput.click());
+        csvFileInput.addEventListener('change', handleFileUpload);
+        deleteDataBtn.addEventListener('click', () => deleteModal.classList.remove('hidden'));
+        cancelDeleteBtn.addEventListener('click', () => deleteModal.classList.add('hidden'));
+        confirmDeleteBtn.addEventListener('click', () => {
+            deleteModal.classList.add('hidden');
+            deleteDataFromFirestore();
+        });
+        exportPdfBtn.addEventListener('click', exportPDF);
+
+        // --- FILTERS ---
+        document.querySelectorAll('.filter-input').forEach(input => {
+            input.addEventListener('input', applyTableFilter);
+        });
+
+        function showLoader(show) {
+            document.getElementById('loader').classList.toggle('hidden', !show);
+            document.getElementById('dashboardContent').classList.toggle('hidden', show);
+        }
+        
+        // --- PROCESSAMENTO DE DADOS E GRÁFICOS ---
+        
+        function parseDate(dateStr) {
+            if (!dateStr || typeof dateStr !== 'string') return null;
+            const parts = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+            if (!parts) return null;
+            const day = parseInt(parts[1], 10);
+            const month = parseInt(parts[2], 10) - 1;
+            let year = parseInt(parts[3], 10);
+            if (year < 100) { year += 2000; }
+            return new Date(year, month, day);
+        }
+
+        function setupRealtimeListener() {
+            showLoader(true);
+            onSnapshot(producaoCollectionRef, (snapshot) => {
+                const now = new Date();
+                allCowsData = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    let diasEmLactacao = null;
+                    let diasSeca = null;
+                    let highlight = '';
+                    const status = data.status_reprodutivo ? data.status_reprodutivo.toUpperCase() : '';
+                    
+                    if (status === 'LACTAÇÃO') {
+                        const ultimoParto = parseDate(data.data_ultimo_parto);
+                        if (ultimoParto) {
+                            diasEmLactacao = Math.round((now - ultimoParto) / (1000 * 60 * 60 * 24));
+                            if (diasEmLactacao > 310) highlight = 'bg-red-200 dark:bg-red-800';
+                            else if (diasEmLactacao > 290) highlight = 'bg-yellow-200 dark:bg-yellow-800';
+                        }
+                    } else if (status === 'SECA') {
+                        const dataApartacao = parseDate(data.data_apartacao);
+                        if (dataApartacao) {
+                            diasSeca = Math.round((now - dataApartacao) / (1000 * 60 * 60 * 24));
+                            if (diasSeca > 60) highlight = 'bg-orange-200 dark:bg-orange-800';
+                        }
+                    }
+                    return { ...data, diasEmLactacao, diasSeca, highlight };
+                });
+                updateDashboardAndCharts(allCowsData);
+                applyTableFilter();
+                showLoader(false);
+            }, (error) => {
+                console.error("Erro ao buscar dados: ", error);
+                alert("Não foi possível carregar os dados. Verifique a conexão e as regras de segurança do Firestore.");
+                showLoader(false);
+            });
+        }
+
+        function updateDashboardAndCharts(cows) {
+            if (!cows) return;
+            const emLactacao = cows.filter(c => c.status_reprodutivo && c.status_reprodutivo.toUpperCase() === 'LACTAÇÃO');
+            const secas = cows.filter(c => c.status_reprodutivo && c.status_reprodutivo.toUpperCase() === 'SECA');
+            document.getElementById('totalVacas').textContent = cows.length;
+            document.getElementById('totalLactacao').textContent = emLactacao.length;
+            document.getElementById('totalSecas').textContent = secas.length;
+
+            const alertContainer = document.getElementById('alertContainer');
+            const alertMessage = document.getElementById('alertMessage');
+            const cowsOver290DEL = emLactacao.filter(c => c.diasEmLactacao > 290);
+
+            if (cowsOver290DEL.length > 0) {
+                alertMessage.textContent = `Atenção: Existem ${cowsOver290DEL.length} vacas com mais de 290 dias em lactação. Recomenda-se secar estes animais.`;
+                alertContainer.classList.remove('hidden');
+            } else {
+                alertContainer.classList.add('hidden');
+            }
+
+            updateStatusChart(emLactacao.length, secas.length);
+            updateLactacaoChart(emLactacao);
+            updateSecasTrendChart(cows);
+        }
+
+        function applyTableFilter() {
+            const filters = {
+                id: document.getElementById('filterId').value.toUpperCase(),
+                parto: document.getElementById('filterParto').value,
+                status: document.getElementById('filterStatus').value.toUpperCase(),
+                del: document.getElementById('filterDEL').value,
+                apartacao: document.getElementById('filterApartacao').value,
+                diasSeca: document.getElementById('filterDiasSeca').value
+            };
+
+            const delFilterValue = parseInt(filters.del, 10);
+
+            const filteredData = allCowsData.filter(cow => {
+                const idMatch = (cow.id_vaca || '').toUpperCase().includes(filters.id);
+                const partoMatch = (cow.data_ultimo_parto || '').includes(filters.parto);
+                const statusMatch = (cow.status_reprodutivo || '').toUpperCase().includes(filters.status);
+                const delMatch = isNaN(delFilterValue) || filters.del === ''
+                    ? true 
+                    : (cow.diasEmLactacao !== null && cow.diasEmLactacao >= delFilterValue);
+                const apartacaoMatch = (cow.data_apartacao || '').includes(filters.apartacao);
+                const diasSecaMatch = String(cow.diasSeca !== null ? cow.diasSeca : '').includes(filters.diasSeca);
+                
+                return idMatch && partoMatch && statusMatch && delMatch && apartacaoMatch && diasSecaMatch;
+            });
+
+            updateTable(filteredData);
+        }
+        
+        function updateStatusChart(lactacaoCount, secasCount) {
+            const ctx = document.getElementById('statusChart').getContext('2d');
+            const data = {
+                labels: ['Em Lactação', 'Secas'],
+                datasets: [{ data: [lactacaoCount, secasCount], backgroundColor: ['#22C55E', '#6B7280'] }]
+            };
+            if (statusChart) { statusChart.data = data; statusChart.update(); } 
+            else { statusChart = new Chart(ctx, { type: 'pie', data, options: { responsive: true } }); }
+        }
+
+        function updateLactacaoChart(lactacaoCows) {
+            const ranges = { '0-150': 0, '151-290': 0, '291-310': 0, '>310': 0 };
+            lactacaoCows.forEach(cow => {
+                if (cow.diasEmLactacao !== null) {
+                    if (cow.diasEmLactacao <= 150) ranges['0-150']++;
+                    else if (cow.diasEmLactacao <= 290) ranges['151-290']++;
+                    else if (cow.diasEmLactacao <= 310) ranges['291-310']++;
+                    else ranges['>310']++;
+                }
+            });
+            const ctx = document.getElementById('lactacaoChart').getContext('2d');
+            const data = {
+                labels: Object.keys(ranges),
+                datasets: [{ label: 'Nº de Vacas', data: Object.values(ranges), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'] }]
+            };
+            if (lactacaoChart) { lactacaoChart.data = data; lactacaoChart.update(); } 
+            else { lactacaoChart = new Chart(ctx, { type: 'bar', data, options: { responsive: true, plugins: { legend: { display: false }}}});}
+        }
+        
+        function updateSecasTrendChart(cows) {
+            const secasByMonth = {};
+            cows.forEach(cow => {
+                if (cow.status_reprodutivo && cow.status_reprodutivo.toUpperCase() === 'SECA' && cow.data_apartacao) {
+                    const apartacaoDate = parseDate(cow.data_apartacao);
+                    if (apartacaoDate) {
+                        const monthYear = `${apartacaoDate.getFullYear()}-${String(apartacaoDate.getMonth() + 1).padStart(2, '0')}`;
+                        secasByMonth[monthYear] = (secasByMonth[monthYear] || 0) + 1;
+                    }
+                }
+            });
+            const sortedLabels = Object.keys(secasByMonth).sort();
+            const dataValues = sortedLabels.map(label => secasByMonth[label]);
+            const ctx = document.getElementById('secasTrendChart').getContext('2d');
+            const data = { labels: sortedLabels, datasets: [{ label: 'Nº de Vacas Secas', data: dataValues, borderColor: '#6B7280', tension: 0.1 }] };
+             if (secasTrendChart) { secasTrendChart.data = data; secasTrendChart.update(); } 
+             else { secasTrendChart = new Chart(ctx, { type: 'line', data, options: { responsive: true, plugins: { legend: { display: false }}}});}
+        }
+
+        function updateTable(cows) {
+            const tableBody = document.getElementById('productionTableBody');
+            tableBody.innerHTML = '';
+            cows.sort((a,b) => (a.id_vaca || '').localeCompare(b.id_vaca || '')).forEach(cow => {
+                const row = document.createElement('tr');
+                row.className = `dark:text-gray-200 ${cow.highlight}`;
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${cow.id_vaca || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${cow.data_ultimo_parto || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${cow.status_reprodutivo || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${cow.diasEmLactacao !== null ? cow.diasEmLactacao : '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${cow.data_apartacao || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${cow.diasSeca !== null ? cow.diasSeca : '-'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // --- UPLOAD E DELEÇÃO ---
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => uploadDataToFirestore(parseCsv(e.target.result));
+            reader.readAsText(file, 'UTF-8'); // Especificar encoding para evitar problemas com acentos
+            csvFileInput.value = '';
+        }
+
+        function parseCsv(text) {
+            const lines = text.trim().split(/\r?\n/);
+            const headerIndex = lines.findIndex(line => 
+                line.toUpperCase().includes('ID') && line.toUpperCase().includes('STATUS REPRODUTIVO')
+            );
+            
+            if (headerIndex === -1) {
+                alert("ERRO: Cabeçalho do CSV não encontrado.\n\nVerifique se o arquivo possui as colunas 'ID' e 'STATUS REPRODUTIVO'.");
+                return [];
+            }
+            
+            const headerLine = lines[headerIndex];
+            const commaCount = (headerLine.match(/,/g) || []).length;
+            const semicolonCount = (headerLine.match(/;/g) || []).length;
+            const delimiter = semicolonCount > commaCount ? ';' : ',';
+            
+            alert(`Delimitador detectado: '${delimiter}'. Processando o arquivo...`);
+
+            const headers = headerLine.split(delimiter).map(h => h.trim().toUpperCase());
+            const idIndex = headers.indexOf('ID');
+            const partoIndex = headers.indexOf('DATA ÚLTIMO PARTO');
+            const statusIndex = headers.indexOf('STATUS REPRODUTIVO');
+            const apartacaoIndex = headers.indexOf('DATA APARTAÇÃO');
+            
+            return lines.slice(headerIndex + 1).map(line => {
+                const cols = line.split(delimiter);
+                if (cols.length < Math.max(idIndex, partoIndex, statusIndex, apartacaoIndex)) return null;
+                
+                return {
+                    id_vaca: cols[idIndex] ? cols[idIndex].trim() : null,
+                    data_ultimo_parto: cols[partoIndex] ? cols[partoIndex].trim() : null,
+                    status_reprodutivo: cols[statusIndex] ? cols[statusIndex].trim() : null,
+                    data_apartacao: cols[apartacaoIndex] ? cols[apartacaoIndex].trim() : null,
+                };
+            }).filter(item => item && item.id_vaca);
+        }
+
+        async function uploadDataToFirestore(data) {
+            if (!producaoCollectionRef || data.length === 0) {
+                alert("Nenhum dado válido para carregar. Verifique o conteúdo do seu arquivo CSV.");
+                return;
+            };
+            showLoader(true);
+            try {
+                const batch = writeBatch(db);
+                data.forEach(item => {
+                    const docRef = doc(producaoCollectionRef, item.id_vaca);
+                    batch.set(docRef, item);
+                });
+                await batch.commit();
+                alert(`${data.length} registros foram carregados com sucesso!`);
+            } catch (error) { 
+                console.error("Erro no upload: ", error); 
+                alert("Ocorreu um erro ao carregar os dados. Verifique o console para mais detalhes.");
+            } finally { 
+                showLoader(false); 
+            }
+        }
+        
+        async function deleteDataFromFirestore() {
+            showLoader(true);
+            try {
+                const snapshot = await getDocs(producaoCollectionRef);
+                const batch = writeBatch(db);
+                snapshot.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                alert("Todos os dados foram deletados!");
+            } catch (error) { 
+                console.error("Erro ao deletar: ", error); 
+                alert("Ocorreu um erro ao deletar os dados. Verifique o console para mais detalhes.");
+            }
+            finally { showLoader(false); }
+        }
+
+        // --- EXPORTAR PDF ---
+        function exportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.text("Relatório de Produção de Vacas", 14, 16);
+            doc.setFontSize(10);
+            doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 22);
+            
+            doc.text("Status Reprodutivo", 14, 30);
+            doc.addImage(statusChart.canvas.toDataURL('image/png'), 'PNG', 14, 35, 80, 80);
+            doc.text("Vacas por Faixa de Lactação", 110, 30);
+            doc.addImage(lactacaoChart.canvas.toDataURL('image/png'), 'PNG', 110, 35, 80, 80);
+            
+            doc.addPage();
+            doc.text("Tabela de Dados de Produção", 14, 16);
+
+            const table = document.getElementById('productionTableBody');
+            const head = [['ID', 'Último Parto', 'Status', 'DEL', 'Data Apartação', 'Dias Seca']];
+            const body = [];
+            
+            const visibleRows = Array.from(table.querySelectorAll('tr'));
+            visibleRows.forEach(tr => {
+                const rowData = [];
+                tr.querySelectorAll('td').forEach(td => {
+                    rowData.push(td.innerText);
+                });
+                body.push(rowData);
+            });
+
+            doc.autoTable({
+                head, body, startY: 24, theme: 'grid', styles: { fontSize: 8 }, headStyles: { fillColor: [22, 160, 133] },
+                 didParseCell: function (data) {
+                    if (data.section !== 'body') return;
+                    const rowNode = visibleRows[data.row.index];
+                    if (!rowNode) return;
+
+                    const highlight = rowNode.className;
+                    if (highlight.includes('bg-red-200')) data.cell.styles.fillColor = '#FECACA';
+                    if (highlight.includes('bg-yellow-200')) data.cell.styles.fillColor = '#FEF08A';
+                    if (highlight.includes('bg-orange-200')) data.cell.styles.fillColor = '#FED7AA';
+                }
+            });
+
+            doc.save('relatorio_producao_vacas.pdf');
+        }
+    </script>
+</body>
+</html>
