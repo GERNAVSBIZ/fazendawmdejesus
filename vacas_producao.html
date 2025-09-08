@@ -33,7 +33,6 @@
     <main class="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
         <div class="container mx-auto">
             
-            <!-- Login Screen -->
             <div id="loginContainer" class="text-center py-20">
                 <h1 class="text-4xl font-bold mb-4 text-gray-800 dark:text-white">Análise de Produção de Vacas</h1>
                 <p class="text-lg text-gray-600 dark:text-gray-400 mb-8">Faça login com sua conta do Google para acessar o painel.</p>
@@ -43,7 +42,6 @@
                 </button>
             </div>
 
-            <!-- Dashboard Content (hidden by default) -->
             <div id="dashboardContainer" class="hidden">
                  <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
                     <div>
@@ -74,6 +72,10 @@
                 <div id="loader" class="hidden flex justify-center items-center py-10"><div class="loader"></div></div>
 
                 <div id="dashboardContent">
+                    <div id="alertContainer" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6" role="alert">
+                        <p id="alertMessage" class="font-bold"></p>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total de Vacas</p><p id="totalVacas" class="text-3xl font-bold text-gray-900 dark:text-white">0</p></div>
                          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Em Lactação</p><p id="totalLactacao" class="text-3xl font-bold text-green-500">0</p></div>
@@ -116,12 +118,11 @@
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Data Apartação</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dias Seca</th>
                                     </tr>
-                                    <!-- Filter Row -->
                                     <tr class="bg-gray-100 dark:bg-gray-700">
                                         <th class="p-2"><input type="text" id="filterId" placeholder="Filtrar..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
                                         <th class="p-2"><input type="text" id="filterParto" placeholder="Filtrar..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
                                         <th class="p-2"><input type="text" id="filterStatus" placeholder="Filtrar..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
-                                        <th class="p-2"><input type="text" id="filterDEL" placeholder="Filtrar..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
+                                        <th class="p-2"><input type="number" id="filterDEL" placeholder="DEL >= a..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
                                         <th class="p-2"><input type="text" id="filterApartacao" placeholder="Filtrar..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
                                         <th class="p-2"><input type="text" id="filterDiasSeca" placeholder="Filtrar..." class="filter-input w-full bg-gray-200 dark:bg-gray-600 rounded p-1 text-sm"></th>
                                     </tr>
@@ -135,7 +136,6 @@
         </div>
     </main>
 
-    <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="hidden fixed z-50 inset-0 bg-gray-600 bg-opacity-50 h-full w-full flex items-center justify-center">
         <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div class="mt-3 text-center">
@@ -265,7 +265,7 @@
                     }
                     return { ...data, diasEmLactacao, diasSeca, highlight };
                 });
-                updateDashboardAndCharts(allCowsData);
+                updateDashboardAndCharts(allCwsData);
                 applyTableFilter();
                 showLoader(false);
             });
@@ -278,6 +278,18 @@
             document.getElementById('totalVacas').textContent = cows.length;
             document.getElementById('totalLactacao').textContent = emLactacao.length;
             document.getElementById('totalSecas').textContent = secas.length;
+
+            // Lógica do novo alerta
+            const alertContainer = document.getElementById('alertContainer');
+            const alertMessage = document.getElementById('alertMessage');
+            const cowsOver290DEL = emLactacao.filter(c => c.diasEmLactacao > 290);
+
+            if (cowsOver290DEL.length > 0) {
+                alertMessage.textContent = `Atenção: Existem ${cowsOver290DEL.length} vacas com mais de 290 dias em lactação. Recomenda-se secar estes animais.`;
+                alertContainer.classList.remove('hidden');
+            } else {
+                alertContainer.classList.add('hidden');
+            }
 
             updateStatusChart(emLactacao.length, secas.length);
             updateLactacaoChart(emLactacao);
@@ -294,13 +306,19 @@
                 diasSeca: document.getElementById('filterDiasSeca').value
             };
 
+            const delFilterValue = parseInt(filters.del, 10);
+
             const filteredData = allCowsData.filter(cow => {
                 const idMatch = (cow.id_vaca || '').toUpperCase().includes(filters.id);
                 const partoMatch = (cow.data_ultimo_parto || '').includes(filters.parto);
                 const statusMatch = (cow.status_reprodutivo || '').toUpperCase().includes(filters.status);
-                const delMatch = String(cow.diasEmLactacao !== null ? cow.diasEmLactacao : '').includes(filters.del);
+                // Lógica de filtro para DEL: maior ou igual ao valor
+                const delMatch = isNaN(delFilterValue) || filters.del === ''
+                    ? true // Se o filtro estiver vazio ou não for um número, mostra tudo
+                    : (cow.diasEmLactacao !== null && cow.diasEmLactacao >= delFilterValue);
                 const apartacaoMatch = (cow.data_apartacao || '').includes(filters.apartacao);
                 const diasSecaMatch = String(cow.diasSeca !== null ? cow.diasSeca : '').includes(filters.diasSeca);
+                
                 return idMatch && partoMatch && statusMatch && delMatch && apartacaoMatch && diasSecaMatch;
             });
 
@@ -454,17 +472,24 @@
             const table = document.getElementById('productionTableBody');
             const head = [['ID', 'Último Parto', 'Status', 'DEL', 'Data Apartação', 'Dias Seca']];
             const body = [];
-            table.querySelectorAll('tr').forEach(tr => {
-                const row = [];
-                tr.querySelectorAll('td').forEach(td => row.push(td.innerText));
-                body.push(row);
+            
+            // Usar os dados filtrados atualmente na tabela para o PDF
+            const visibleRows = Array.from(table.querySelectorAll('tr'));
+            visibleRows.forEach(tr => {
+                const rowData = [];
+                tr.querySelectorAll('td').forEach(td => {
+                    rowData.push(td.innerText);
+                });
+                body.push(rowData);
             });
 
             doc.autoTable({
                 head, body, startY: 24, theme: 'grid', styles: { fontSize: 8 }, headStyles: { fillColor: [22, 160, 133] },
                  didParseCell: function (data) {
-                    const rowNode = document.querySelector(`#productionTableBody tr:nth-child(${data.row.index + 1})`);
+                    if (data.section !== 'body') return;
+                    const rowNode = visibleRows[data.row.index];
                     if (!rowNode) return;
+
                     const highlight = rowNode.className;
                     if (highlight.includes('bg-red-200')) data.cell.styles.fillColor = '#FECACA';
                     if (highlight.includes('bg-yellow-200')) data.cell.styles.fillColor = '#FEF08A';
@@ -477,4 +502,3 @@
     </script>
 </body>
 </html>
-
