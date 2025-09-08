@@ -265,8 +265,12 @@
                     }
                     return { ...data, diasEmLactacao, diasSeca, highlight };
                 });
-                updateDashboardAndCharts(allCwsData);
+                updateDashboardAndCharts(allCowsData);
                 applyTableFilter();
+                showLoader(false);
+            }, (error) => {
+                console.error("Erro ao buscar dados: ", error);
+                alert("Não foi possível carregar os dados. Verifique a conexão e as regras de segurança do Firestore.");
                 showLoader(false);
             });
         }
@@ -279,7 +283,6 @@
             document.getElementById('totalLactacao').textContent = emLactacao.length;
             document.getElementById('totalSecas').textContent = secas.length;
 
-            // Lógica do novo alerta
             const alertContainer = document.getElementById('alertContainer');
             const alertMessage = document.getElementById('alertMessage');
             const cowsOver290DEL = emLactacao.filter(c => c.diasEmLactacao > 290);
@@ -312,9 +315,8 @@
                 const idMatch = (cow.id_vaca || '').toUpperCase().includes(filters.id);
                 const partoMatch = (cow.data_ultimo_parto || '').includes(filters.parto);
                 const statusMatch = (cow.status_reprodutivo || '').toUpperCase().includes(filters.status);
-                // Lógica de filtro para DEL: maior ou igual ao valor
                 const delMatch = isNaN(delFilterValue) || filters.del === ''
-                    ? true // Se o filtro estiver vazio ou não for um número, mostra tudo
+                    ? true 
                     : (cow.diasEmLactacao !== null && cow.diasEmLactacao >= delFilterValue);
                 const apartacaoMatch = (cow.data_apartacao || '').includes(filters.apartacao);
                 const diasSecaMatch = String(cow.diasSeca !== null ? cow.diasSeca : '').includes(filters.diasSeca);
@@ -397,36 +399,57 @@
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => uploadDataToFirestore(parseCsv(e.target.result));
-            reader.readAsText(file);
+            reader.readAsText(file, 'UTF-8'); // Especificar encoding para evitar problemas com acentos
             csvFileInput.value = '';
         }
 
+        // --- FUNÇÃO CORRIGIDA ---
         function parseCsv(text) {
             const lines = text.trim().split(/\r?\n/);
-            const headerIndex = lines.findIndex(line => line.toUpperCase().includes('ID') && line.toUpperCase().includes('STATUS REPRODUTIVO'));
+            // Procura pela linha de cabeçalho
+            const headerIndex = lines.findIndex(line => 
+                line.toUpperCase().includes('ID') && line.toUpperCase().includes('STATUS REPRODUTIVO')
+            );
+            
             if (headerIndex === -1) {
-                alert("Cabeçalho do CSV não encontrado. Verifique o arquivo.");
+                alert("ERRO: Cabeçalho do CSV não encontrado.\n\nVerifique se o arquivo possui as colunas 'ID' e 'STATUS REPRODUTIVO'.");
                 return [];
             }
-            const headers = lines[headerIndex].split(';').map(h => h.trim().toUpperCase());
+            
+            const headerLine = lines[headerIndex];
+
+            // Detecta o delimitador (vírgula ou ponto e vírgula)
+            const commaCount = (headerLine.match(/,/g) || []).length;
+            const semicolonCount = (headerLine.match(/;/g) || []).length;
+            const delimiter = semicolonCount > commaCount ? ';' : ',';
+            
+            alert(`Delimitador detectado: '${delimiter}'. Processando o arquivo...`);
+
+            const headers = headerLine.split(delimiter).map(h => h.trim().toUpperCase());
             const idIndex = headers.indexOf('ID');
             const partoIndex = headers.indexOf('DATA ÚLTIMO PARTO');
             const statusIndex = headers.indexOf('STATUS REPRODUTIVO');
             const apartacaoIndex = headers.indexOf('DATA APARTAÇÃO');
             
             return lines.slice(headerIndex + 1).map(line => {
-                const cols = line.split(';');
+                const cols = line.split(delimiter);
+                // Ignora linhas vazias ou mal formatadas
+                if (cols.length < Math.max(idIndex, partoIndex, statusIndex, apartacaoIndex)) return null;
+                
                 return {
                     id_vaca: cols[idIndex] ? cols[idIndex].trim() : null,
                     data_ultimo_parto: cols[partoIndex] ? cols[partoIndex].trim() : null,
                     status_reprodutivo: cols[statusIndex] ? cols[statusIndex].trim() : null,
                     data_apartacao: cols[apartacaoIndex] ? cols[apartacaoIndex].trim() : null,
                 };
-            }).filter(item => item.id_vaca);
+            }).filter(item => item && item.id_vaca); // Filtra linhas nulas e itens sem ID
         }
 
         async function uploadDataToFirestore(data) {
-            if (!producaoCollectionRef || data.length === 0) return;
+            if (!producaoCollectionRef || data.length === 0) {
+                alert("Nenhum dado válido para carregar. Verifique o conteúdo do seu arquivo CSV.");
+                return;
+            };
             showLoader(true);
             try {
                 const batch = writeBatch(db);
@@ -435,9 +458,13 @@
                     batch.set(docRef, item);
                 });
                 await batch.commit();
-                alert("Dados carregados com sucesso!");
-            } catch (error) { console.error("Erro no upload: ", error); }
-             finally { showLoader(false); }
+                alert(`${data.length} registros foram carregados com sucesso!`);
+            } catch (error) { 
+                console.error("Erro no upload: ", error); 
+                alert("Ocorreu um erro ao carregar os dados. Verifique o console para mais detalhes.");
+            } finally { 
+                showLoader(false); 
+            }
         }
         
         async function deleteDataFromFirestore() {
@@ -448,7 +475,10 @@
                 snapshot.forEach(doc => batch.delete(doc.ref));
                 await batch.commit();
                 alert("Todos os dados foram deletados!");
-            } catch (error) { console.error("Erro ao deletar: ", error); }
+            } catch (error) { 
+                console.error("Erro ao deletar: ", error); 
+                alert("Ocorreu um erro ao deletar os dados. Verifique o console para mais detalhes.");
+            }
             finally { showLoader(false); }
         }
 
@@ -473,7 +503,6 @@
             const head = [['ID', 'Último Parto', 'Status', 'DEL', 'Data Apartação', 'Dias Seca']];
             const body = [];
             
-            // Usar os dados filtrados atualmente na tabela para o PDF
             const visibleRows = Array.from(table.querySelectorAll('tr'));
             visibleRows.forEach(tr => {
                 const rowData = [];
