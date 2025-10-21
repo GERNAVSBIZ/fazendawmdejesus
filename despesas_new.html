@@ -270,7 +270,9 @@
 
         // Adiciona listeners para cálculo automático
         window.onload = () => {
-            initializeAppAndAuth();
+            // CORREÇÃO APLICADA AQUI: Adiciona um pequeno atraso para garantir que as variáveis globais sejam carregadas.
+            setTimeout(initializeAppAndAuth, 500); 
+
             const quantidadeInput = document.getElementById('quantidade');
             const precoUnitarioInput = document.getElementById('preco_unitario');
 
