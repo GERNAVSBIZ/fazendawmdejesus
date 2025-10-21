@@ -13,7 +13,10 @@
 
         // Global variables provided by the Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // CORREÇÃO: Garante que __firebase_config é uma string antes de tentar parsear, 
+        // ou usa um objeto vazio para evitar erro.
+        const firebaseConfigString = typeof __firebase_config !== 'undefined' && __firebase_config ? __firebase_config : '{}';
+        const firebaseConfig = JSON.parse(firebaseConfigString);
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // --- Variáveis Globais de Backend/Firestore ---
@@ -133,10 +136,13 @@
          * Inicializa o Firebase, autentica o usuário e carrega dados mestre.
          */
         async function initializeAppAndAuth() {
-            // VERIFICAÇÃO ADICIONADA: Checa se firebaseConfig possui o projectId
+            // VERIFICAÇÃO DE CONFIGURAÇÃO (Melhoria de robustez)
             if (!firebaseConfig || !firebaseConfig.projectId) {
                 console.error("Firebase Configuração Inválida: projectId não encontrado.");
                 showNotification("Erro: Configuração do Firebase não encontrada. O sistema de dados está indisponível.", 'error');
+                
+                // Define a mensagem de erro no dropdown para o usuário
+                document.getElementById('categoria').innerHTML = '<option value="">ERRO: Configuração do BD</option>';
                 return; // Impede a execução se a configuração estiver faltando
             }
 
