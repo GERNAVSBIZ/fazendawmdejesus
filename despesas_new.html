@@ -11,24 +11,17 @@
         import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, orderBy, where, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global variables provided by the Canvas environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // CORREÇÃO: Garante que __firebase_config é uma string JSON válida antes de tentar parsear.
-        // Se a variável não estiver definida, for nula, ou for uma string vazia, usamos '{}'.
-        const firebaseConfigString = (typeof __firebase_config !== 'undefined' && __firebase_config) ? String(__firebase_config) : '{}';
-        const firebaseConfig = JSON.parse(firebaseConfigString);
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // --- Variáveis Globais de Backend/Firestore ---
+        // --- Variáveis Globais de Backend/Firestore (Mantidas apenas como declaração) ---
         let db;
         let auth;
         let userId = 'anon'; // Default user ID until auth state is known
+        let appId = 'default-app-id'; // Será definido em initializeAppAndAuth
 
-        // Configurações de Coleções Firestore
-        const PUBLIC_PATH = `/artifacts/${appId}/public/data`;
-        const DESPESAS_COLLECTION = `${PUBLIC_PATH}/despesas`;
-        const CATEGORIAS_COLLECTION = `${PUBLIC_PATH}/categorias`;
-        const SUBCATEGORIAS_COLLECTION = `${PUBLIC_PATH}/subcategorias`;
+        // Configurações de Coleções Firestore (Caminho base, será completado com appId)
+        const BASE_PATH = `/artifacts`;
+        let DESPESAS_COLLECTION;
+        let CATEGORIAS_COLLECTION;
+        let SUBCATEGORIAS_COLLECTION;
 
         // --- Carga Inicial de Categorias e Subcategorias ---
         const initialCategories = {
@@ -134,10 +127,24 @@
 
         /**
          * Inicializa o Firebase, autentica o usuário e carrega dados mestre.
+         * Esta função agora acessa as variáveis globais dentro do seu escopo,
+         * garantindo que o setTimeout tenha tempo para injetá-las.
          */
         async function initializeAppAndAuth() {
-            // VERIFICAÇÃO DE CONFIGURAÇÃO (Melhoria de robustez)
-            if (!firebaseConfig || !firebaseConfig.projectId) {
+            // 1. ACESSO E PARSE DAS VARIÁVEIS GLOBAIS DENTRO DA FUNÇÃO ATRASADA
+            const firebaseConfigString = (typeof __firebase_config !== 'undefined' && __firebase_config) ? String(__firebase_config) : '{}';
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            
+            let currentFirebaseConfig;
+            try {
+                currentFirebaseConfig = JSON.parse(firebaseConfigString);
+            } catch (e) {
+                console.error("Erro ao parsear a configuração do Firebase:", e);
+                currentFirebaseConfig = {};
+            }
+            
+            // 2. VERIFICAÇÃO DE CONFIGURAÇÃO (Melhoria de robustez)
+            if (!currentFirebaseConfig || !currentFirebaseConfig.projectId) {
                 console.error("Firebase Configuração Inválida: projectId não encontrado.");
                 showNotification("Erro: Configuração do Firebase não encontrada. O sistema de dados está indisponível.", 'error');
                 
@@ -146,9 +153,17 @@
                 return; // Impede a execução se a configuração estiver faltando
             }
 
+            // 3. CONFIGURAÇÃO DE PATHS
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const PUBLIC_PATH = `${BASE_PATH}/${appId}/public/data`;
+            DESPESAS_COLLECTION = `${PUBLIC_PATH}/despesas`;
+            CATEGORIAS_COLLECTION = `${PUBLIC_PATH}/categorias`;
+            SUBCATEGORIAS_COLLECTION = `${PUBLIC_PATH}/subcategorias`;
+
+
             try {
                 setLogLevel('debug');
-                const app = initializeApp(firebaseConfig);
+                const app = initializeApp(currentFirebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
 
@@ -164,9 +179,9 @@
                         userId = user.uid;
                         console.log("Usuário autenticado:", userId);
                         
-                        // 1. Realiza a carga inicial dos dados mestre
+                        // 4. Realiza a carga inicial dos dados mestre
                         runInitialDataSetup().then(() => {
-                            // 2. Carrega dropdowns e inicia o listener de despesas
+                            // 5. Carrega dropdowns e inicia o listener de despesas
                             loadMasterData();
                             setupRealtimeListener();
                         });
