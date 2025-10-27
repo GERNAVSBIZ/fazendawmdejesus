@@ -52,11 +52,11 @@
         // Estado da Aplicação
         let chartInstances = {};
         let originalData = [];
-        let pendingExtrato = []; // NOVO: Armazena itens pendentes do extrato
+        let pendingExtrato = []; // Armazena itens pendentes do extrato
         const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
         
         let editingDocId = null; 
-        let conciliatingDocId = null; // NOVO: Armazena ID do extrato sendo conciliado
+        let conciliatingDocId = null; // Armazena ID do extrato sendo conciliado
 
         // PSEUDO-BACKEND PARA CATEGORIAS E SUBCATEGORIAS
         const categoriasSubcategorias = {
@@ -85,7 +85,7 @@
         });
 
         // =========================================================
-        // CARREGAMENTO PRINCIPAL DE DADOS (DESPESAS + EXTRATO)
+        // CARREGAMENTO PRINCIPAL DE DADOS (DESPESAS + EXTRATO) - (FUNÇÃO CORRIGIDA)
         // =========================================================
         async function loadAndProcessData() {
             try {
@@ -97,11 +97,13 @@
                 }).sort((a, b) => b.Data - a.Data);
 
                 // 2. Carregar Extrato (Aguardando conciliação)
-                const extratoSnapshot = await db.collection("extrato_bancario")
-                                                .where("conciliado", "==", false)
-                                                .get();
+                // MODIFICAÇÃO: Traz todos os documentos e filtra no Javascript
+                // Isso evita o erro de "Índice não encontrado" no Firestore.
+                const extratoSnapshot = await db.collection("extrato_bancario").get();
                                                 
-                pendingExtrato = extratoSnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
+                pendingExtrato = extratoSnapshot.docs
+                    .map(doc => ({ docId: doc.id, ...doc.data() }))
+                    .filter(item => item.conciliado === false); // Filtro manual
 
                 // 3. Inicializar o Dashboard
                 initializeDashboard(originalData);
@@ -111,7 +113,8 @@
 
             } catch (error) {
                 console.error("Erro ao carregar dados do Firestore: ", error);
-                alert("Erro ao carregar dados. Verifique as permissões do Firestore.");
+                // Alert modificado para ser mais genérico, já que não era "permissão"
+                alert("Erro ao carregar dados. Verifique o console para mais detalhes.");
             }
         }
 
@@ -130,7 +133,6 @@
             return new Date();
         }
         
-        // Converte o valor numérico BRL formatado de volta para float (Ex: "R$ 1.234,56" -> 1234.56)
         function formatToFloat(currencyStr) {
             if (typeof currencyStr !== 'string' && typeof currencyStr !== 'number') return 0;
             if (typeof currencyStr === 'number') return currencyStr;
@@ -138,8 +140,8 @@
             return parseFloat(String(currencyStr)
                 .replace('R$', '')
                 .trim()
-                .replace(/\./g, '') // Remove o separador de milhar
-                .replace(',', '.')) // Troca a vírgula do decimal por ponto
+                .replace(/\./g, '') 
+                .replace(',', '.')) 
             || 0;
         }
 
@@ -164,7 +166,6 @@
             document.getElementById('csv-upload-input').addEventListener('change', handleFileSelect);
             document.getElementById('delete-data-btn').addEventListener('click', deleteAllExpenses);
             
-            // NOVO: Upload do Extrato Bancário
             document.getElementById('extrato-upload-btn').addEventListener('click', () => document.getElementById('extrato-upload-input').click());
             document.getElementById('extrato-upload-input').addEventListener('change', handleExtratoSelect);
             
@@ -198,7 +199,6 @@
             inputQtd.addEventListener('input', calculateTotal);
             inputPU.addEventListener('input', calculateTotal);
             
-            // Listener de Submissão Único
             form.addEventListener('submit', handleFormSubmit);
             
             const today = new Date().toISOString().split('T')[0];
@@ -238,7 +238,6 @@
             document.getElementById('inputTotal').value = total;
         }
 
-        // Prepara os dados do formulário para salvar no Firestore (criação ou edição)
         function prepareExpenseData(dataOriginal) {
             const [year, month, day] = dataOriginal.split('-');
             const dataDisplay = `${day}/${month}/${year}`;
@@ -269,7 +268,7 @@
             try {
                 await db.collection("despesas").add(newExpense);
                 alert("Despesa adicionada com sucesso!");
-                cancelEditing(); // Reseta o formulário
+                cancelEditing(); 
                 loadAndProcessData(); 
             } catch (error) {
                 console.error("Erro ao adicionar despesa: ", error);
@@ -297,33 +296,28 @@
             }
         }
         
-        // NOVO: Salva a despesa vinda da conciliação
         async function saveConciliatedExpense(extratoId) {
             document.body.style.cursor = 'wait';
             const dataOriginal = document.getElementById('inputData').value;
             
-            // 1. Prepara a nova despesa
             const newExpense = {
                 ...prepareExpenseData(dataOriginal),
                 "Timestamp": firebase.firestore.FieldValue.serverTimestamp()
             };
 
             try {
-                // 2. Usa um batch para garantir que as duas operações ocorram
                 const batch = db.batch();
                 
-                // 3. Cria a nova despesa na coleção 'despesas'
                 const despesaRef = db.collection("despesas").doc();
                 batch.set(despesaRef, newExpense);
                 
-                // 4. Atualiza o item na coleção 'extrato_bancario' para 'conciliado = true'
                 const extratoRef = db.collection("extrato_bancario").doc(extratoId);
                 batch.update(extratoRef, { conciliado: true });
                 
                 await batch.commit();
                 
                 alert("Despesa conciliada e salva!");
-                cancelEditing(); // Reseta o formulário
+                cancelEditing(); 
                 loadAndProcessData(); 
             } catch (error) {
                 console.error("Erro ao conciliar despesa: ", error);
@@ -366,20 +360,17 @@
                 return;
             }
             
-            cancelEditing(); // Garante que o formulário está limpo
+            cancelEditing(); 
 
-            // 1. Prepara o formulário para a edição
             editingDocId = docId;
             document.getElementById('submit-btn-text').textContent = 'Salvar Edição';
             document.getElementById('cancel-edit-btn').classList.remove('hidden');
 
-            // 2. Popula os campos com os dados da despesa
-            // Data: Converte o objeto Date para formato YYYY-MM-DD para o input type="date"
             const dataStr = expense.Data.toISOString().split('T')[0];
             document.getElementById('inputData').value = dataStr;
             
             document.getElementById('inputCategoria').value = expense.Categoria;
-            updateSubcategories(); // Garante que as subcategorias corretas estejam disponíveis
+            updateSubcategories(); 
             document.getElementById('inputSubCategoria').value = expense['Sub Categoria'];
             document.getElementById('inputTipo').value = expense.Tipo || '';
             document.getElementById('inputDescricao').value = expense.Descrição || '';
@@ -398,7 +389,7 @@
         
         function cancelEditing() {
             editingDocId = null;
-            conciliatingDocId = null; // Reseta ambos os modos
+            conciliatingDocId = null; 
             
             document.getElementById('newExpenseForm').reset();
             document.getElementById('submit-btn-text').textContent = 'Registrar Despesa';
@@ -428,15 +419,13 @@
                     alert("Não foi possível processar o arquivo de extrato. Verifique o formato.");
                 }
             };
-            reader.readAsText(file, 'ISO-8859-1'); // O extrato pode ter acentuação
+            reader.readAsText(file, 'ISO-8859-1'); 
         }
         
-        // NOVO: Parser específico para o CSV do Extrato (commas + quotes)
         function parseExtratoCSV(text) {
             const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
             let headerIndex = -1;
             
-            // Encontra o cabeçalho (procura por "Valor" e "N° documento")
             for(let i=0; i<lines.length; i++){ 
                 if(lines[i].includes('"Valor"') && lines[i].includes('"N° documento"')){ 
                     headerIndex = i; 
@@ -445,7 +434,6 @@
             }
             if(headerIndex === -1) { alert("Erro: Cabeçalho 'Valor' ou 'N° documento' não encontrado no arquivo CSV."); return []; }
             
-            // "Data","Lançamento","Detalhes","N° documento","Valor","Tipo Lançamento"
             const headers = lines[headerIndex].split('","').map(h => h.replace(/"/g, '').trim());
             const dataLines = lines.slice(headerIndex + 1);
 
@@ -454,10 +442,9 @@
                 let obj = {};
                 headers.forEach((header, i) => { if (header) obj[header] = values[i] || ''; });
                 return obj;
-            }).filter(obj => obj.Data && obj.Valor); // Filtra linhas vazias
+            }).filter(obj => obj.Data && obj.Valor); 
         }
 
-        // NOVO: Upload do Extrato (com anti-duplicidade)
         async function uploadExtratoToFirestore(data) {
             document.body.style.cursor = 'wait';
             const batch = db.batch();
@@ -465,21 +452,19 @@
             let count = 0;
 
             data.forEach(item => {
-                // Filtra apenas por Saídas e ignora linhas sem N° Documento
                 if (item['Tipo Lançamento'] === "Saída" && item['N° documento']) {
-                    const docId = item['N° documento']; // ID ÚNICO
+                    const docId = item['N° documento']; 
                     const docRef = collectionRef.doc(docId);
                     
                     const dataToSet = {
                         Data: item.Data,
                         Lancamento: item.Lançamento,
                         Detalhes: item.Detalhes,
-                        Valor: item.Valor, // Mantém o formato original (ex: "-1.234,56")
-                        conciliado: false // Flag de controle
+                        Valor: item.Valor, 
+                        conciliado: false 
                     };
                     
-                    // Usa set() com o docId. Isso CRIA ou SOBRESCREVE (evita duplicatas)
-                    batch.set(docRef, dataToSet, { merge: true }); // merge: true para não apagar 'conciliado' se já existir
+                    batch.set(docRef, dataToSet, { merge: true }); 
                     count++;
                 }
             });
@@ -487,7 +472,7 @@
             try {
                 await batch.commit();
                 alert(`${count} transações de saída foram carregadas/atualizadas com sucesso!`);
-                loadAndProcessData(); // Recarrega tudo
+                loadAndProcessData(); 
             } catch (error) {
                 console.error("Erro ao enviar extrato: ", error);
                 alert("Erro ao salvar o extrato. Verifique o console.");
@@ -496,36 +481,31 @@
             }
         }
         
-        // NOVO: Mostra a tabela de conciliação
         function displayConciliation(pendingItems, allDespesas) {
             const tableBody = document.getElementById('conciliationTableBody');
             tableBody.innerHTML = '';
             
-            // 1. Cria um "Mapa" de despesas existentes para checagem rápida
-            // Chave: "DD/MM/YYYY-VALOR" (ex: "25/09/2025-180.00")
             const despesaMap = new Map();
             allDespesas.forEach(d => {
                 const dataKey = d.Data.toLocaleDateString('pt-BR');
-                const valorKey = d.Total.toFixed(2); // Total é float
+                const valorKey = d.Total.toFixed(2); 
                 const key = `${dataKey}-${valorKey}`;
-                despesaMap.set(key, (despesaMap.get(key) || 0) + 1); // Conta quantas vezes esse valor aparece
+                despesaMap.set(key, (despesaMap.get(key) || 0) + 1); 
             });
 
-            // 2. Filtra os itens pendentes
             const trulyPending = pendingItems.filter(item => {
-                const dataKey = item.Data; // Já está "dd/mm/aaaa"
-                const valorKey = (formatToFloat(item.Valor) * -1).toFixed(2); // Deixa positivo
+                const dataKey = item.Data; 
+                const valorKey = (formatToFloat(item.Valor) * -1).toFixed(2); 
                 const key = `${dataKey}-${valorKey}`;
                 
                 if (despesaMap.has(key)) {
-                    // Se a despesa existe, "consome" ela do mapa
                     despesaMap.set(key, despesaMap.get(key) - 1);
                     if (despesaMap.get(key) === 0) {
                         despesaMap.delete(key);
                     }
-                    return false; // Não está pendente, já foi lançado
+                    return false; 
                 }
-                return true; // Está pendente
+                return true; 
             });
 
             if (trulyPending.length === 0) {
@@ -535,12 +515,11 @@
             
             document.getElementById('conciliationContainer').classList.remove('hidden');
 
-            // 3. Popula a tabela
             trulyPending.forEach(item => {
                 const tr = document.createElement('tr');
                 tr.className = 'border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800';
                 
-                const valorFloat = formatToFloat(item.Valor) * -1; // Converte para positivo
+                const valorFloat = formatToFloat(item.Valor) * -1; 
                 
                 tr.innerHTML = `
                     <td class="py-3 px-4">${item.Data}</td>
@@ -556,7 +535,6 @@
             });
         }
         
-        // NOVO: Preenche o formulário com dados do extrato
         function categorizeFromExtrato(docId) {
             const item = pendingExtrato.find(d => d.docId === docId);
             if (!item) {
@@ -564,13 +542,12 @@
                 return;
             }
             
-            cancelEditing(); // Limpa o formulário
+            cancelEditing(); 
 
             conciliatingDocId = docId;
             document.getElementById('submit-btn-text').textContent = 'Salvar Despesa Conciliada';
             document.getElementById('cancel-edit-btn').classList.remove('hidden');
             
-            // Converte Data dd/mm/aaaa para yyyy-mm-dd
             const parts = item.Data.split('/');
             const dataStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
             
@@ -616,7 +593,6 @@
             }
         }
 
-        // Parser do CSV de Despesas (ponto e vírgula)
         function parseCSV(text) {
             const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
             let headerIndex = -1;
@@ -784,9 +760,6 @@
         function createCategoryChart(data){const ctx=document.getElementById('categoryChart').getContext('2d');const categoryTotals=data.reduce((acc,cur)=>{acc[cur.Categoria]=(acc[cur.Categoria]||0)+cur.Total;return acc},{});const sortedCategories=Object.entries(categoryTotals).sort((a,b)=>b[1]-a[1]);chartInstances.category=new Chart(ctx,{type:'doughnut',data:{labels:sortedCategories.map(c=>c[0]),datasets:[{label:'Despesas por Categoria',data:sortedCategories.map(c=>c[1]),backgroundColor:['#ef4444','#f97316','#eab308','#84cc16','#22c55e','#14b6a6','#06b6d4','#3b82f6','#8b5cf6','#d946ef'],borderColor:'#1f2937'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}}}})}
         function createMonthlyChart(data){const ctx=document.getElementById('monthlyChart').getContext('2d');const monthlyTotals=Array(12).fill(0);const yearFilter=document.getElementById('yearFilter').value;let filteredData=data;if(yearFilter!=='all'){filteredData=data.filter(d=>d.Data.getFullYear()==yearFilter)}filteredData.forEach(row=>{const month=row.Data.getMonth();monthlyTotals[month]+=row.Total});const label=`Despesas Mensais (${yearFilter==='all'?'Todos os Anos':yearFilter})`;chartInstances.monthly=new Chart(ctx,{type:'bar',data:{labels:meses,datasets:[{label:label,data:monthlyTotals,backgroundColor:'rgba(59, 130, 246, 0.7)',borderColor:'#3b82f6'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}}}})}
     
-        // =========================================================
-        // LÓGICA DE EXPORTAÇÃO CSV (Das Despesas Categorizadas)
-        // =========================================================
         function convertToCSV(data) {
             const fields = ["Data", "Categoria", "Sub Categoria", "Tipo", "Descrição", "Quantidade", "Preço Unitário", "Total", "Observações"];
             
@@ -855,10 +828,7 @@
             <div class="flex items-center gap-4 flex-wrap">
                 <h1 class="text-xl font-bold">Análise de Despesas</h1>
                 
-                <!-- Input Oculto para CSV Despesas -->
                 <input type="file" id="csv-upload-input" class="hidden" accept=".csv">
-                
-                <!-- Input Oculto para CSV Extrato -->
                 <input type="file" id="extrato-upload-input" class="hidden" accept=".csv">
 
                 <button id="upload-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
@@ -866,7 +836,6 @@
                     Carregar CSV (Despesas)
                 </button>
                 
-                <!-- NOVO BOTÃO DE EXTRATO -->
                 <button id="extrato-upload-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H7a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
                    Carregar Extrato
