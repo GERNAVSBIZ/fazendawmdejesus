@@ -86,7 +86,8 @@
                 const snapshot = await db.collection("despesas").get();
                 originalData = snapshot.docs.map(doc => {
                     const data = doc.data();
-                    return { docId: doc.id, ...data, Data: parseDate(data.Data), Total: formatToFloat(data.Total) }; 
+                    // Para despesas já salvas (BR format), usa formatToFloatBRL
+                    return { docId: doc.id, ...data, Data: parseDate(data.Data), Total: formatToFloatBRL(data.Total) }; 
                 }).sort((a, b) => b.Data - a.Data);
 
                 // Carrega Extrato
@@ -117,10 +118,34 @@
             return new Date();
         }
         
-        function formatToFloat(currencyStr) {
+        // Formata strings BR (R$ 1.000,00) para float
+        function formatToFloatBRL(currencyStr) {
             if (typeof currencyStr !== 'string' && typeof currencyStr !== 'number') return 0;
             if (typeof currencyStr === 'number') return currencyStr;
             return parseFloat(String(currencyStr).replace('R$', '').trim().replace(/\./g, '').replace(',', '.')) || 0;
+        }
+
+        // Função Inteligente para Parsear Extrato (Detecta Ponto ou Vírgula)
+        function parseExtratoValue(val) {
+            if (typeof val === 'number') return val;
+            let str = String(val).trim().replace('R$', '').trim();
+            
+            const hasDot = str.indexOf('.') !== -1;
+            const hasComma = str.indexOf(',') !== -1;
+            
+            if (hasDot && !hasComma) {
+                // Formato Internacional (1000.00) - CSV atual
+                return parseFloat(str);
+            } else if (hasComma && !hasDot) {
+                // Formato Simples BR (1000,00)
+                return parseFloat(str.replace(',', '.'));
+            } else if (hasDot && hasComma) {
+                // Formato Completo BR (1.000,00) - assume ponto como milhar
+                return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+            } else {
+                // Inteiro ou desconhecido
+                return parseFloat(str);
+            }
         }
 
         function initializeDashboard(data) {
@@ -292,11 +317,11 @@
             document.getElementById('inputSubCategoria').value = expense['Sub Categoria'];
             document.getElementById('inputTipo').value = expense.Tipo || '';
             document.getElementById('inputDescricao').value = expense.Descrição || '';
-            document.getElementById('inputQuantidade').value = formatToFloat(expense.Quantidade);
+            document.getElementById('inputQuantidade').value = formatToFloatBRL(expense.Quantidade);
             
             const total = expense.Total; 
-            const qtd = formatToFloat(expense.Quantidade);
-            const precoUnitario = (qtd > 0 && total > 0) ? (total / qtd) : formatToFloat(expense['Preço Unitário'] || 0);
+            const qtd = formatToFloatBRL(expense.Quantidade);
+            const precoUnitario = (qtd > 0 && total > 0) ? (total / qtd) : formatToFloatBRL(expense['Preço Unitário'] || 0);
 
             document.getElementById('inputPrecoUnitario').value = precoUnitario.toFixed(2);
             document.getElementById('inputTotal').value = total.toFixed(2);
@@ -333,20 +358,17 @@
             const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
             if (lines.length === 0) { alert("Arquivo CSV vazio."); return []; }
 
-            // 1. Detectar Delimitador (Vírgula ou Ponto e Vírgula)
             const sampleLine = lines[0];
             const delimiter = (sampleLine.split(';').length > sampleLine.split(',').length) ? ';' : ',';
 
             let headerIndex = -1;
             let headers = [];
 
-            // 2. Encontrar Cabeçalho (Flexível - sem exigir aspas)
+            // Encontrar Cabeçalho
             for(let i=0; i<Math.min(lines.length, 20); i++){ 
                 const lineLower = lines[i].toLowerCase();
-                // Procura por "valor" e "documento" na mesma linha
                 if(lineLower.includes('valor') && (lineLower.includes('documento') || lineLower.includes('doc'))){ 
                     headerIndex = i; 
-                    // Limpa aspas e espaços dos headers
                     headers = lines[i].split(delimiter).map(h => h.replace(/"/g, '').trim().toLowerCase());
                     break; 
                 } 
@@ -357,7 +379,6 @@
                 return []; 
             }
             
-            // 3. Mapear Índices
             const idxData = headers.findIndex(h => h.includes('data'));
             const idxValor = headers.findIndex(h => h.includes('valor'));
             const idxDoc = headers.findIndex(h => h.includes('documento') || h.includes('doc'));
@@ -371,20 +392,14 @@
             const dataLines = lines.slice(headerIndex + 1);
 
             return dataLines.map(line => {
-                // Split simples assumindo que não há delimitador dentro dos campos (comum em extratos simples)
-                // Se for necessário regex complexo para aspas, podemos ajustar, mas split costuma funcionar para esses arquivos
                 let values = line.split(delimiter);
-                
-                // Limpa aspas de cada valor
                 values = values.map(v => v ? v.replace(/"/g, '').trim() : '');
 
                 if (values.length <= Math.max(idxData, idxValor, idxDoc)) return null;
 
-                const rawValor = values[idxValor];
-                
                 return {
                     Data: values[idxData],
-                    Valor: rawValor, // Mantém original para conversão posterior
+                    Valor: values[idxValor],
                     'N° documento': values[idxDoc],
                     'Histórico': idxDesc !== -1 ? values[idxDesc] : 'Sem descrição'
                 };
@@ -398,8 +413,8 @@
             let count = 0;
 
             data.forEach(item => {
-                const normalizedValor = item.Valor.replace(/\./g, '').replace(',', '.'); 
-                const valorFloat = parseFloat(normalizedValor) || 0; 
+                // Parse inteligente do valor para float
+                const valorFloat = parseExtratoValue(item.Valor); 
                 
                 // Filtra apenas saídas (negativo) e com ID
                 if (valorFloat < 0 && item['N° documento']) {
@@ -410,7 +425,7 @@
                         Data: item.Data,
                         Lancamento: item['Histórico'].substring(0, 50), 
                         Detalhes: item['Histórico'],     
-                        Valor: item.Valor, 
+                        Valor: item.Valor, // Mantém original
                         conciliado: false 
                     };
                     batch.set(docRef, dataToSet, { merge: true }); 
@@ -440,9 +455,8 @@
 
             const trulyPending = pendingItems.filter(item => {
                 const dataKey = item.Data; 
-                const rawValor = String(item.Valor).replace(/"/g, '').trim();
-                const normalizedValor = rawValor.replace(/\./g, '').replace(',', '.');
-                const valorFloat = parseFloat(normalizedValor) || 0;
+                // Parse do valor do extrato
+                const valorFloat = parseExtratoValue(item.Valor);
                 
                 const valorKey = (valorFloat * -1).toFixed(2); 
                 const key = `${dataKey}-${valorKey}`;
@@ -464,9 +478,8 @@
             trulyPending.forEach(item => {
                 const tr = document.createElement('tr');
                 tr.className = 'border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800';
-                const rawValor = String(item.Valor).replace(/"/g, '').trim();
-                const normalizedValor = rawValor.replace(/\./g, '').replace(',', '.');
-                const valorFloat = parseFloat(normalizedValor) || 0;
+                
+                const valorFloat = parseExtratoValue(item.Valor);
                 const valorDisplay = (valorFloat * -1).toLocaleString('pt-BR',{style:'currency','currency':'BRL'}); 
                 
                 tr.innerHTML = `
@@ -491,9 +504,10 @@
             
             const parts = item.Data.split('/');
             const dataStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
-            const rawValor = String(item.Valor).replace(/"/g, '').trim();
-            const normalizedValor = rawValor.replace(/\./g, '').replace(',', '.');
-            const valor = (parseFloat(normalizedValor) * -1).toFixed(2);
+            
+            // Parse inteligente
+            const valorFloat = parseExtratoValue(item.Valor);
+            const valor = (valorFloat * -1).toFixed(2); // Remove sinal negativo para o form
 
             document.getElementById('inputData').value = dataStr;
             document.getElementById('inputDescricao').value = item.Detalhes || item.Lancamento;
