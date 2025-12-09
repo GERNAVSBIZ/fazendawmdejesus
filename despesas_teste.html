@@ -144,32 +144,36 @@
         }
 
         function addEventListeners() {
-            document.getElementById('categoryFilter').addEventListener('change', filterAndRedraw);
-            document.getElementById('subcategoryFilter').addEventListener('change', filterAndRedraw);
-            document.getElementById('yearFilter').addEventListener('change', filterAndRedraw);
-            document.getElementById('monthFilter').addEventListener('change', filterAndRedraw);
+            // Remove listeners antigos para evitar duplicação se initializeDashboard for chamado múltiplas vezes
+            const oldUploadBtn = document.getElementById('upload-btn');
+            const newUploadBtn = oldUploadBtn.cloneNode(true);
+            oldUploadBtn.parentNode.replaceChild(newUploadBtn, oldUploadBtn);
+            
+            // Re-adiciona listeners
+            document.getElementById('categoryFilter').onchange = filterAndRedraw;
+            document.getElementById('subcategoryFilter').onchange = filterAndRedraw;
+            document.getElementById('yearFilter').onchange = filterAndRedraw;
+            document.getElementById('monthFilter').onchange = filterAndRedraw;
 
             document.getElementById('upload-btn').addEventListener('click', () => {
                 document.getElementById('csv-upload-input').value = null; 
                 document.getElementById('csv-upload-input').click();
             });
-            document.getElementById('csv-upload-input').addEventListener('change', handleFileSelect);
+            document.getElementById('csv-upload-input').onchange = handleFileSelect;
             
-            document.getElementById('extrato-upload-btn').addEventListener('click', () => {
+            document.getElementById('extrato-upload-btn').onclick = () => {
                 document.getElementById('extrato-upload-input').value = null;
                 document.getElementById('extrato-upload-input').click();
-            });
-            document.getElementById('extrato-upload-input').addEventListener('change', handleExtratoSelect);
+            };
+            document.getElementById('extrato-upload-input').onchange = handleExtratoSelect;
             
-            document.getElementById('delete-data-btn').addEventListener('click', deleteAllExpenses);
-            document.getElementById('export-csv-btn').addEventListener('click', () => exportCSV(originalData));
-            document.getElementById('cancel-edit-btn').addEventListener('click', cancelEditing);
-            
-            // NOVO: Listener para o botão de apagar todos os pendentes
-            document.getElementById('delete-all-pending-btn').addEventListener('click', deleteAllPendingExtrato);
+            document.getElementById('delete-data-btn').onclick = deleteAllExpenses;
+            document.getElementById('export-csv-btn').onclick = () => exportCSV(originalData);
+            document.getElementById('cancel-edit-btn').onclick = cancelEditing;
+            document.getElementById('delete-all-pending-btn').onclick = deleteAllPendingExtrato;
 
             ['filterData', 'filterCategoria', 'filterSubCategoria', 'filterDescricao'].forEach(id => {
-                document.getElementById(id).addEventListener('keyup', filterAndRedraw);
+                document.getElementById(id).onkeyup = filterAndRedraw;
             });
         }
 
@@ -179,16 +183,26 @@
             const inputQtd = document.getElementById('inputQuantidade');
             const inputPU = document.getElementById('inputPrecoUnitario');
 
+            // --- CORREÇÃO: Limpa as opções antes de adicionar ---
+            categorySelect.innerHTML = '<option value="">Selecione</option>';
+
             Object.keys(categoriasSubcategorias).sort().forEach(cat => {
                 categorySelect.add(new Option(cat, cat));
             });
-            categorySelect.addEventListener('change', updateSubcategories);
-            inputQtd.addEventListener('input', calculateTotal);
-            inputPU.addEventListener('input', calculateTotal);
-            form.addEventListener('submit', handleFormSubmit);
             
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('inputData').value = today;
+            // Remove listener antigo para evitar duplicação e adiciona novo
+            categorySelect.onchange = updateSubcategories;
+            inputQtd.oninput = calculateTotal;
+            inputPU.oninput = calculateTotal;
+            
+            // Tratamento especial para o submit para não empilhar listeners
+            form.onsubmit = handleFormSubmit;
+            
+            // Define data padrão apenas se estiver vazio
+            if (!document.getElementById('inputData').value) {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('inputData').value = today;
+            }
         }
         
         function handleFormSubmit(event) {
@@ -328,16 +342,11 @@
             document.getElementById('inputSubCategoria').innerHTML = '<option value="">Selecione</option>';
         }
 
-        // ==========================================================
-        // NOVAS FUNÇÕES PARA EXCLUSÃO DE EXTRATO
-        // ==========================================================
-
         async function deleteExtratoItem(docId) {
             if (!confirm("Tem certeza que deseja APAGAR este item do extrato? (Não será lançado como despesa)")) return;
             document.body.style.cursor = 'wait';
             try {
                 await db.collection("extrato_bancario").doc(docId).delete();
-                // Remove localmente e atualiza tela sem recarregar tudo
                 pendingExtrato = pendingExtrato.filter(item => item.docId !== docId);
                 displayConciliation(pendingExtrato, originalData);
             } catch (error) {
@@ -358,7 +367,6 @@
             document.body.style.cursor = 'wait';
             const batch = db.batch();
             
-            // Adiciona operações de delete ao batch
             pendingExtrato.forEach(item => {
                 const docRef = db.collection("extrato_bancario").doc(item.docId);
                 batch.delete(docRef);
@@ -367,7 +375,7 @@
             try {
                 await batch.commit();
                 alert("Todos os itens pendentes foram apagados.");
-                loadAndProcessData(); // Recarrega para garantir sincronia
+                loadAndProcessData(); 
             } catch (error) {
                 console.error("Erro ao apagar todos os pendentes: ", error);
                 alert("Erro ao apagar itens: " + error.message);
@@ -375,8 +383,6 @@
                 document.body.style.cursor = 'default';
             }
         }
-
-        // ==========================================================
 
         function handleExtratoSelect(event) {
             const file = event.target.files[0]; if (!file) return;
