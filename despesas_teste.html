@@ -86,7 +86,6 @@
                 const snapshot = await db.collection("despesas").get();
                 originalData = snapshot.docs.map(doc => {
                     const data = doc.data();
-                    // Para despesas já salvas (BR format), usa formatToFloatBRL
                     return { docId: doc.id, ...data, Data: parseDate(data.Data), Total: formatToFloatBRL(data.Total) }; 
                 }).sort((a, b) => b.Data - a.Data);
 
@@ -118,34 +117,22 @@
             return new Date();
         }
         
-        // Formata strings BR (R$ 1.000,00) para float
         function formatToFloatBRL(currencyStr) {
             if (typeof currencyStr !== 'string' && typeof currencyStr !== 'number') return 0;
             if (typeof currencyStr === 'number') return currencyStr;
             return parseFloat(String(currencyStr).replace('R$', '').trim().replace(/\./g, '').replace(',', '.')) || 0;
         }
 
-        // Função Inteligente para Parsear Extrato (Detecta Ponto ou Vírgula)
         function parseExtratoValue(val) {
             if (typeof val === 'number') return val;
             let str = String(val).trim().replace('R$', '').trim();
-            
             const hasDot = str.indexOf('.') !== -1;
             const hasComma = str.indexOf(',') !== -1;
             
-            if (hasDot && !hasComma) {
-                // Formato Internacional (1000.00) - CSV atual
-                return parseFloat(str);
-            } else if (hasComma && !hasDot) {
-                // Formato Simples BR (1000,00)
-                return parseFloat(str.replace(',', '.'));
-            } else if (hasDot && hasComma) {
-                // Formato Completo BR (1.000,00) - assume ponto como milhar
-                return parseFloat(str.replace(/\./g, '').replace(',', '.'));
-            } else {
-                // Inteiro ou desconhecido
-                return parseFloat(str);
-            }
+            if (hasDot && !hasComma) return parseFloat(str);
+            else if (hasComma && !hasDot) return parseFloat(str.replace(',', '.'));
+            else if (hasDot && hasComma) return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+            else return parseFloat(str);
         }
 
         function initializeDashboard(data) {
@@ -162,16 +149,14 @@
             document.getElementById('yearFilter').addEventListener('change', filterAndRedraw);
             document.getElementById('monthFilter').addEventListener('change', filterAndRedraw);
 
-            // Upload de Despesas
             document.getElementById('upload-btn').addEventListener('click', () => {
-                document.getElementById('csv-upload-input').value = null; // Reseta o input
+                document.getElementById('csv-upload-input').value = null; 
                 document.getElementById('csv-upload-input').click();
             });
             document.getElementById('csv-upload-input').addEventListener('change', handleFileSelect);
             
-            // Upload de Extrato (Com reset de valor para evitar travamento)
             document.getElementById('extrato-upload-btn').addEventListener('click', () => {
-                document.getElementById('extrato-upload-input').value = null; // Reseta o input
+                document.getElementById('extrato-upload-input').value = null;
                 document.getElementById('extrato-upload-input').click();
             });
             document.getElementById('extrato-upload-input').addEventListener('change', handleExtratoSelect);
@@ -179,8 +164,10 @@
             document.getElementById('delete-data-btn').addEventListener('click', deleteAllExpenses);
             document.getElementById('export-csv-btn').addEventListener('click', () => exportCSV(originalData));
             document.getElementById('cancel-edit-btn').addEventListener('click', cancelEditing);
+            
+            // NOVO: Listener para o botão de apagar todos os pendentes
+            document.getElementById('delete-all-pending-btn').addEventListener('click', deleteAllPendingExtrato);
 
-            // Filtros de texto
             ['filterData', 'filterCategoria', 'filterSubCategoria', 'filterDescricao'].forEach(id => {
                 document.getElementById(id).addEventListener('keyup', filterAndRedraw);
             });
@@ -341,6 +328,56 @@
             document.getElementById('inputSubCategoria').innerHTML = '<option value="">Selecione</option>';
         }
 
+        // ==========================================================
+        // NOVAS FUNÇÕES PARA EXCLUSÃO DE EXTRATO
+        // ==========================================================
+
+        async function deleteExtratoItem(docId) {
+            if (!confirm("Tem certeza que deseja APAGAR este item do extrato? (Não será lançado como despesa)")) return;
+            document.body.style.cursor = 'wait';
+            try {
+                await db.collection("extrato_bancario").doc(docId).delete();
+                // Remove localmente e atualiza tela sem recarregar tudo
+                pendingExtrato = pendingExtrato.filter(item => item.docId !== docId);
+                displayConciliation(pendingExtrato, originalData);
+            } catch (error) {
+                console.error("Erro ao apagar item do extrato: ", error);
+                alert("Erro ao apagar item.");
+            } finally {
+                document.body.style.cursor = 'default';
+            }
+        }
+
+        async function deleteAllPendingExtrato() {
+            if (pendingExtrato.length === 0) {
+                alert("Não há itens pendentes para apagar.");
+                return;
+            }
+            if (!confirm(`Tem certeza que deseja APAGAR TODOS os ${pendingExtrato.length} itens pendentes do extrato?\n\nEssa ação é irreversível!`)) return;
+            
+            document.body.style.cursor = 'wait';
+            const batch = db.batch();
+            
+            // Adiciona operações de delete ao batch
+            pendingExtrato.forEach(item => {
+                const docRef = db.collection("extrato_bancario").doc(item.docId);
+                batch.delete(docRef);
+            });
+
+            try {
+                await batch.commit();
+                alert("Todos os itens pendentes foram apagados.");
+                loadAndProcessData(); // Recarrega para garantir sincronia
+            } catch (error) {
+                console.error("Erro ao apagar todos os pendentes: ", error);
+                alert("Erro ao apagar itens: " + error.message);
+            } finally {
+                document.body.style.cursor = 'default';
+            }
+        }
+
+        // ==========================================================
+
         function handleExtratoSelect(event) {
             const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -353,7 +390,6 @@
             reader.readAsText(file, 'ISO-8859-1'); 
         }
         
-        // --- FUNÇÃO DE PARSER ROBUSTA ---
         function parseExtratoCSV(text) {
             const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
             if (lines.length === 0) { alert("Arquivo CSV vazio."); return []; }
@@ -364,7 +400,6 @@
             let headerIndex = -1;
             let headers = [];
 
-            // Encontrar Cabeçalho
             for(let i=0; i<Math.min(lines.length, 20); i++){ 
                 const lineLower = lines[i].toLowerCase();
                 if(lineLower.includes('valor') && (lineLower.includes('documento') || lineLower.includes('doc'))){ 
@@ -413,10 +448,8 @@
             let count = 0;
 
             data.forEach(item => {
-                // Parse inteligente do valor para float
                 const valorFloat = parseExtratoValue(item.Valor); 
                 
-                // Filtra apenas saídas (negativo) e com ID
                 if (valorFloat < 0 && item['N° documento']) {
                     const docId = item['N° documento']; 
                     const docRef = collectionRef.doc(docId);
@@ -425,7 +458,7 @@
                         Data: item.Data,
                         Lancamento: item['Histórico'].substring(0, 50), 
                         Detalhes: item['Histórico'],     
-                        Valor: item.Valor, // Mantém original
+                        Valor: item.Valor, 
                         conciliado: false 
                     };
                     batch.set(docRef, dataToSet, { merge: true }); 
@@ -455,9 +488,7 @@
 
             const trulyPending = pendingItems.filter(item => {
                 const dataKey = item.Data; 
-                // Parse do valor do extrato
                 const valorFloat = parseExtratoValue(item.Valor);
-                
                 const valorKey = (valorFloat * -1).toFixed(2); 
                 const key = `${dataKey}-${valorKey}`;
                 
@@ -486,8 +517,15 @@
                     <td class="py-3 px-4">${item.Data}</td>
                     <td class="py-3 px-4">${item.Detalhes || item.Lancamento}</td>
                     <td class="py-3 px-4 text-right">${valorDisplay}</td>
-                    <td class="py-3 px-4 text-center">
-                        <button onclick="categorizeFromExtrato('${item.docId}')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-2 rounded">Categorizar</button>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <button onclick="categorizeFromExtrato('${item.docId}')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-2 rounded mr-2">
+                            Categorizar
+                        </button>
+                        <button onclick="deleteExtratoItem('${item.docId}')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded" title="Apagar item">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
                     </td>
                 `;
                 tableBody.appendChild(tr);
@@ -505,9 +543,8 @@
             const parts = item.Data.split('/');
             const dataStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
             
-            // Parse inteligente
             const valorFloat = parseExtratoValue(item.Valor);
-            const valor = (valorFloat * -1).toFixed(2); // Remove sinal negativo para o form
+            const valor = (valorFloat * -1).toFixed(2); 
 
             document.getElementById('inputData').value = dataStr;
             document.getElementById('inputDescricao').value = item.Detalhes || item.Lancamento;
@@ -703,7 +740,15 @@
             </div>
             
             <div id="conciliationContainer" class="hidden bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
-                <h2 class="text-lg font-semibold mb-4 text-orange-500">Conciliação Bancária (Pendentes)</h2>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-orange-500">Conciliação Bancária (Pendentes)</h2>
+                    <button id="delete-all-pending-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Apagar Todos
+                    </button>
+                </div>
                 <div class="overflow-x-auto max-h-96">
                     <table class="w-full text-sm text-left"><thead class="text-xs uppercase bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th class="py-3 px-4">Data</th><th class="py-3 px-4">Descrição (Extrato)</th><th class="py-3 px-4 text-right">Valor</th><th class="py-3 px-4 text-center">Ação</th></tr></thead><tbody id="conciliationTableBody"></tbody></table>
                 </div>
