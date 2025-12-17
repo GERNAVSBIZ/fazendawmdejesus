@@ -144,12 +144,10 @@
         }
 
         function addEventListeners() {
-            // Remove listeners antigos para evitar duplicação se initializeDashboard for chamado múltiplas vezes
             const oldUploadBtn = document.getElementById('upload-btn');
             const newUploadBtn = oldUploadBtn.cloneNode(true);
             oldUploadBtn.parentNode.replaceChild(newUploadBtn, oldUploadBtn);
             
-            // Re-adiciona listeners
             document.getElementById('categoryFilter').onchange = filterAndRedraw;
             document.getElementById('subcategoryFilter').onchange = filterAndRedraw;
             document.getElementById('yearFilter').onchange = filterAndRedraw;
@@ -183,22 +181,18 @@
             const inputQtd = document.getElementById('inputQuantidade');
             const inputPU = document.getElementById('inputPrecoUnitario');
 
-            // --- CORREÇÃO: Limpa as opções antes de adicionar ---
             categorySelect.innerHTML = '<option value="">Selecione</option>';
 
             Object.keys(categoriasSubcategorias).sort().forEach(cat => {
                 categorySelect.add(new Option(cat, cat));
             });
             
-            // Remove listener antigo para evitar duplicação e adiciona novo
             categorySelect.onchange = updateSubcategories;
             inputQtd.oninput = calculateTotal;
             inputPU.oninput = calculateTotal;
             
-            // Tratamento especial para o submit para não empilhar listeners
             form.onsubmit = handleFormSubmit;
             
-            // Define data padrão apenas se estiver vazio
             if (!document.getElementById('inputData').value) {
                 const today = new Date().toISOString().split('T')[0];
                 document.getElementById('inputData').value = today;
@@ -715,11 +709,11 @@
             </div>
         </header>
 
-        <main class="p-6">
+        <main class="p-2 md:p-6">
             <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
                 <h2 class="text-lg font-semibold mb-4">Nova Despesa</h2>
                 <form id="newExpenseForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div><label for="inputData" class="block text-sm font-medium">Data *</label><input type="date" id="inputData" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></div>
+                    <div><label for="inputData" class="block text-sm font-medium">Data *</label><input type="date" id="inputData" required class="mt-1 block w-full box-border p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm min-w-0 text-sm"></div>
                     <div><label for="inputCategoria" class="block text-sm font-medium">Categoria *</label><select id="inputCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"><option value="">Selecione</option></select></div>
                     <div><label for="inputSubCategoria" class="block text-sm font-medium">Sub Categoria *</label><select id="inputSubCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"><option value="">Selecione</option></select></div>
                     <div><label for="inputTipo" class="block text-sm font-medium">Tipo</label><input type="text" id="inputTipo" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm" placeholder="Ex: Boleto, Nota Fiscal"></div>
