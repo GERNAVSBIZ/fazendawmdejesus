@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Analisador de Despesas da Fazenda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -18,10 +18,36 @@
         ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #718096; }
         #uploadModal.hidden { display: none; }
-        /* Padronização visual dos inputs */
-        input, select, textarea {
-            font-size: 0.875rem !important; /* Força tamanho pequeno no mobile */
+        
+        /* --- CORREÇÃO CRÍTICA PARA MOBILE --- */
+        
+        /* 1. Força todos os inputs a terem o mesmo tamanho de fonte para evitar zoom automático */
+        input, select, textarea, button {
+            font-size: 16px !important; /* 16px evita zoom no iOS */
         }
+
+        /* 2. Reseta a aparência nativa (arredondada/estranha) de inputs no iPhone/Android */
+        input[type="date"], input[type="text"], input[type="number"], select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            border-radius: 0.375rem; /* rounded-md do Tailwind */
+        }
+
+        /* 3. Correção específica para o alinhamento vertical do texto da DATA no iOS */
+        input[type="date"] {
+            min-height: 2.75rem; /* h-11 equivalente */
+            line-height: 1.5;
+            display: block;
+            width: 100%;
+        }
+        /* Alinha o texto da data no centro verticalmente no iOS */
+        input[type="date"]::-webkit-date-and-time-value {
+            text-align: left;
+            margin-top: 6px; 
+            margin-bottom: 6px; 
+        }
+
         .table-filter-input {
             width: 100%;
             padding: 4px 8px;
@@ -29,6 +55,7 @@
             border: 1px solid #4a5568;
             background-color: #2d3748;
             color: #e2e8f0;
+            font-size: 14px !important;
         }
         .table-filter-input::placeholder { color: #a0aec0; }
     </style>
@@ -212,7 +239,6 @@
         function updateSubcategories() {
             const category = document.getElementById('inputCategoria').value;
             const subcategorySelect = document.getElementById('inputSubCategoria');
-            const selectedSubcategory = subcategorySelect.value;
             
             subcategorySelect.innerHTML = '<option value="">Selecione</option>';
             if (category && categoriasSubcategorias[category]) {
@@ -712,21 +738,21 @@
             <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
                 <h2 class="text-lg font-semibold mb-4">Nova Despesa</h2>
                 <form id="newExpenseForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div><label for="inputData" class="block text-sm font-medium">Data *</label><input type="date" id="inputData" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm max-w-full"></div>
-                    <div><label for="inputCategoria" class="block text-sm font-medium">Categoria *</label><select id="inputCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm"><option value="">Selecione</option></select></div>
-                    <div><label for="inputSubCategoria" class="block text-sm font-medium">Sub Categoria *</label><select id="inputSubCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm"><option value="">Selecione</option></select></div>
-                    <div><label for="inputTipo" class="block text-sm font-medium">Tipo</label><input type="text" id="inputTipo" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm" placeholder="Ex: Boleto, Nota Fiscal"></div>
-                    <div class="md:col-span-4"><label for="inputDescricao" class="block text-sm font-medium">Descrição *</label><input type="text" id="inputDescricao" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm" placeholder="O que foi comprado/pago?"></div>
-                    <div><label for="inputQuantidade" class="block text-sm font-medium">Quantidade</label><input type="number" step="any" id="inputQuantidade" value="1" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm"></div>
-                    <div><label for="inputPrecoUnitario" class="block text-sm font-medium">Preço Unitário *</label><input type="number" step="any" id="inputPrecoUnitario" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm"></div>
-                    <div><label for="inputTotal" class="block text-sm font-medium">Total (R$) *</label><input type="number" step="any" id="inputTotal" required readonly class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 rounded-md shadow-sm text-sm"></div>
+                    <div><label for="inputData" class="block text-sm font-medium">Data *</label><input type="date" id="inputData" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm h-10 max-w-full"></div>
+                    <div><label for="inputCategoria" class="block text-sm font-medium">Categoria *</label><select id="inputCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm h-10 appearance-none"><option value="">Selecione</option></select></div>
+                    <div><label for="inputSubCategoria" class="block text-sm font-medium">Sub Categoria *</label><select id="inputSubCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm h-10 appearance-none"><option value="">Selecione</option></select></div>
+                    <div><label for="inputTipo" class="block text-sm font-medium">Tipo</label><input type="text" id="inputTipo" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm h-10" placeholder="Ex: Boleto, Nota Fiscal"></div>
+                    <div class="md:col-span-4"><label for="inputDescricao" class="block text-sm font-medium">Descrição *</label><input type="text" id="inputDescricao" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm h-10" placeholder="O que foi comprado/pago?"></div>
+                    <div><label for="inputQuantidade" class="block text-sm font-medium">Quantidade</label><input type="number" step="any" id="inputQuantidade" value="1" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm h-10"></div>
+                    <div><label for="inputPrecoUnitario" class="block text-sm font-medium">Preço Unitário *</label><input type="number" step="any" id="inputPrecoUnitario" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm h-10"></div>
+                    <div><label for="inputTotal" class="block text-sm font-medium">Total (R$) *</label><input type="number" step="any" id="inputTotal" required readonly class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 rounded-md shadow-sm text-sm h-10"></div>
                     <div class="md:col-span-4"><label for="inputObservacoes" class="block text-sm font-medium">Observações</label><textarea id="inputObservacoes" rows="2" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm" placeholder="Informações adicionais"></textarea></div>
                     <div class="md:col-span-4 flex justify-between items-center mt-2">
                         <div class="flex">
-                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L10 11.586l-2.293-2.293z"/><path fill-rule="evenodd" d="M12 2a1 1 0 011 1v1h4a1 1 0 010 2h-1.071l-.112 1.401A3 3 0 0113 14a3 3 0 01-2.95 2.895L9 16.908V17a1 1 0 11-2 0v-.092l-.05-.005A3.001 3.001 0 013 14a3 3 0 01-1.884-5.32l-.112-1.401H1a1 1 0 110-2h4V3a1 1 0 011-1h6zM7 14a1 1 0 102 0v-2H7v2z" clip-rule="evenodd"/></svg><span id="submit-btn-text">Registrar Despesa</span></button>
-                            <button type="button" id="cancel-edit-btn" class="hidden ml-3 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">Cancelar</button>
+                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center h-10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L10 11.586l-2.293-2.293z"/><path fill-rule="evenodd" d="M12 2a1 1 0 011 1v1h4a1 1 0 010 2h-1.071l-.112 1.401A3 3 0 0113 14a3 3 0 01-2.95 2.895L9 16.908V17a1 1 0 11-2 0v-.092l-.05-.005A3.001 3.001 0 013 14a3 3 0 01-1.884-5.32l-.112-1.401H1a1 1 0 110-2h4V3a1 1 0 011-1h6zM7 14a1 1 0 102 0v-2H7v2z" clip-rule="evenodd"/></svg><span id="submit-btn-text">Registrar Despesa</span></button>
+                            <button type="button" id="cancel-edit-btn" class="hidden ml-3 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center h-10">Cancelar</button>
                         </div>
-                        <button type="button" id="export-csv-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L10 11.586l1.293-1.293a1 1 0 111.414 1.414l-2 2a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1h4a1 1 0 010 2h-4v7a1 1 0 11-2 0V6H5a1 1 0 110-2h4V3a1 1 0 011-1z" clip-rule="evenodd" /></svg>Exportar Despesas</button>
+                        <button type="button" id="export-csv-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg flex items-center h-10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L10 11.586l1.293-1.293a1 1 0 111.414 1.414l-2 2a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1h4a1 1 0 010 2h-4v7a1 1 0 11-2 0V6H5a1 1 0 110-2h4V3a1 1 0 011-1z" clip-rule="evenodd" /></svg>Exportar Despesas</button>
                     </div>
                 </form>
             </div>
@@ -741,7 +767,7 @@
             <div id="conciliationContainer" class="hidden bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-semibold text-orange-500">Conciliação Bancária (Pendentes)</h2>
-                    <button id="delete-all-pending-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm">
+                    <button id="delete-all-pending-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm h-10">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
@@ -754,10 +780,10 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                 <div><label>Ano:</label><select id="yearFilter" class="mt-1 block w-full p-2 border rounded-md"></select></div>
-                 <div><label>Mês:</label><select id="monthFilter" class="mt-1 block w-full p-2 border rounded-md"></select></div>
-                 <div><label>Categoria:</label><select id="categoryFilter" class="mt-1 block w-full p-2 border rounded-md"></select></div>
-                 <div><label>Sub Categoria:</label><select id="subcategoryFilter" class="mt-1 block w-full p-2 border rounded-md"></select></div>
+                 <div><label>Ano:</label><select id="yearFilter" class="mt-1 block w-full p-2 border rounded-md h-10 text-sm appearance-none"></select></div>
+                 <div><label>Mês:</label><select id="monthFilter" class="mt-1 block w-full p-2 border rounded-md h-10 text-sm appearance-none"></select></div>
+                 <div><label>Categoria:</label><select id="categoryFilter" class="mt-1 block w-full p-2 border rounded-md h-10 text-sm appearance-none"></select></div>
+                 <div><label>Sub Categoria:</label><select id="subcategoryFilter" class="mt-1 block w-full p-2 border rounded-md h-10 text-sm appearance-none"></select></div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
