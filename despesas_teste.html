@@ -18,6 +18,10 @@
         ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #718096; }
         #uploadModal.hidden { display: none; }
+        /* Padronização visual dos inputs */
+        input, select, textarea {
+            font-size: 0.875rem !important; /* Força tamanho pequeno no mobile */
+        }
         .table-filter-input {
             width: 100%;
             padding: 4px 8px;
@@ -26,9 +30,7 @@
             background-color: #2d3748;
             color: #e2e8f0;
         }
-        .table-filter-input::placeholder {
-            color: #a0aec0;
-        }
+        .table-filter-input::placeholder { color: #a0aec0; }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
@@ -82,14 +84,12 @@
 
         async function loadAndProcessData() {
             try {
-                // Carrega Despesas
                 const snapshot = await db.collection("despesas").get();
                 originalData = snapshot.docs.map(doc => {
                     const data = doc.data();
                     return { docId: doc.id, ...data, Data: parseDate(data.Data), Total: formatToFloatBRL(data.Total) }; 
                 }).sort((a, b) => b.Data - a.Data);
 
-                // Carrega Extrato
                 const extratoSnapshot = await db.collection("extrato_bancario").get();
                 pendingExtrato = extratoSnapshot.docs
                     .map(doc => ({ docId: doc.id, ...doc.data() }))
@@ -100,7 +100,7 @@
 
             } catch (error) {
                 console.error("Erro ao carregar dados: ", error);
-                alert("Erro ao carregar dados. Verifique o console (F12) para detalhes.");
+                alert("Erro ao carregar dados. Verifique o console.");
             }
         }
 
@@ -190,7 +190,6 @@
             categorySelect.onchange = updateSubcategories;
             inputQtd.oninput = calculateTotal;
             inputPU.oninput = calculateTotal;
-            
             form.onsubmit = handleFormSubmit;
             
             if (!document.getElementById('inputData').value) {
@@ -713,15 +712,15 @@
             <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
                 <h2 class="text-lg font-semibold mb-4">Nova Despesa</h2>
                 <form id="newExpenseForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div><label for="inputData" class="block text-sm font-medium">Data *</label><input type="date" id="inputData" required class="mt-1 block w-full box-border p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm min-w-0 text-sm"></div>
-                    <div><label for="inputCategoria" class="block text-sm font-medium">Categoria *</label><select id="inputCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"><option value="">Selecione</option></select></div>
-                    <div><label for="inputSubCategoria" class="block text-sm font-medium">Sub Categoria *</label><select id="inputSubCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"><option value="">Selecione</option></select></div>
-                    <div><label for="inputTipo" class="block text-sm font-medium">Tipo</label><input type="text" id="inputTipo" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm" placeholder="Ex: Boleto, Nota Fiscal"></div>
-                    <div class="md:col-span-4"><label for="inputDescricao" class="block text-sm font-medium">Descrição *</label><input type="text" id="inputDescricao" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm" placeholder="O que foi comprado/pago?"></div>
-                    <div><label for="inputQuantidade" class="block text-sm font-medium">Quantidade</label><input type="number" step="any" id="inputQuantidade" value="1" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></div>
-                    <div><label for="inputPrecoUnitario" class="block text-sm font-medium">Preço Unitário *</label><input type="number" step="any" id="inputPrecoUnitario" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></div>
-                    <div><label for="inputTotal" class="block text-sm font-medium">Total (R$) *</label><input type="number" step="any" id="inputTotal" required readonly class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 rounded-md shadow-sm"></div>
-                    <div class="md:col-span-4"><label for="inputObservacoes" class="block text-sm font-medium">Observações</label><textarea id="inputObservacoes" rows="2" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm" placeholder="Informações adicionais"></textarea></div>
+                    <div><label for="inputData" class="block text-sm font-medium">Data *</label><input type="date" id="inputData" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm max-w-full"></div>
+                    <div><label for="inputCategoria" class="block text-sm font-medium">Categoria *</label><select id="inputCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm"><option value="">Selecione</option></select></div>
+                    <div><label for="inputSubCategoria" class="block text-sm font-medium">Sub Categoria *</label><select id="inputSubCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm"><option value="">Selecione</option></select></div>
+                    <div><label for="inputTipo" class="block text-sm font-medium">Tipo</label><input type="text" id="inputTipo" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm" placeholder="Ex: Boleto, Nota Fiscal"></div>
+                    <div class="md:col-span-4"><label for="inputDescricao" class="block text-sm font-medium">Descrição *</label><input type="text" id="inputDescricao" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm" placeholder="O que foi comprado/pago?"></div>
+                    <div><label for="inputQuantidade" class="block text-sm font-medium">Quantidade</label><input type="number" step="any" id="inputQuantidade" value="1" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm"></div>
+                    <div><label for="inputPrecoUnitario" class="block text-sm font-medium">Preço Unitário *</label><input type="number" step="any" id="inputPrecoUnitario" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm"></div>
+                    <div><label for="inputTotal" class="block text-sm font-medium">Total (R$) *</label><input type="number" step="any" id="inputTotal" required readonly class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 rounded-md shadow-sm text-sm"></div>
+                    <div class="md:col-span-4"><label for="inputObservacoes" class="block text-sm font-medium">Observações</label><textarea id="inputObservacoes" rows="2" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm text-sm" placeholder="Informações adicionais"></textarea></div>
                     <div class="md:col-span-4 flex justify-between items-center mt-2">
                         <div class="flex">
                             <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L10 11.586l-2.293-2.293z"/><path fill-rule="evenodd" d="M12 2a1 1 0 011 1v1h4a1 1 0 010 2h-1.071l-.112 1.401A3 3 0 0113 14a3 3 0 01-2.95 2.895L9 16.908V17a1 1 0 11-2 0v-.092l-.05-.005A3.001 3.001 0 013 14a3 3 0 01-1.884-5.32l-.112-1.401H1a1 1 0 110-2h4V3a1 1 0 011-1h6zM7 14a1 1 0 102 0v-2H7v2z" clip-rule="evenodd"/></svg><span id="submit-btn-text">Registrar Despesa</span></button>
