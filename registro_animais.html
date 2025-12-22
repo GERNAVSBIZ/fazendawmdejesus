@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gado Pro Mobile v13</title>
+    <title>Gado Pro Mobile v14</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -35,13 +35,13 @@
     <nav id="menu-desktop" class="bg-slate-900 text-white px-6 py-4 shadow-lg sticky top-0 z-50 justify-between items-center">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><i class="fas fa-cow text-lg"></i></div>
-            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v13.0</p></div>
+            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v14.0</p></div>
         </div>
         <div class="flex gap-2 text-sm font-medium">
             <button onclick="nav('dashboard')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-chart-line"></i> Painel</button>
             <button onclick="nav('lista')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-list"></i> Rebanho</button>
             <button onclick="nav('cadastro')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-plus"></i> Novo</button>
-            <button onclick="nav('config')" class="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 shadow transition flex items-center gap-2"><i class="fas fa-database"></i> Dados</button>
+            <button onclick="nav('exportar')" class="px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 shadow transition flex items-center gap-2"><i class="fas fa-file-export"></i> Exportar</button>
         </div>
     </nav>
 
@@ -49,50 +49,21 @@
         
         <div id="tela-dashboard" class="space-y-4 fade-in">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-                
                 <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-slate-600 flex flex-col justify-between">
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase">Total Ativo</p>
-                        <p class="text-2xl md:text-4xl font-extrabold text-slate-800 mt-1" id="kpi-total">0</p>
-                    </div>
-                    <div class="mt-2 pt-2 border-t border-slate-100 flex justify-between text-[10px] font-bold text-gray-500" id="kpi-detalhe-total">
-                        <span><i class="fas fa-mars text-blue-500"></i> -</span>
-                        <span><i class="fas fa-venus text-pink-500"></i> -</span>
-                    </div>
+                    <div><p class="text-[10px] font-bold text-slate-400 uppercase">Total Ativo</p><p class="text-2xl md:text-4xl font-extrabold text-slate-800 mt-1" id="kpi-total">0</p></div>
+                    <div class="mt-2 pt-2 border-t border-slate-100 flex justify-between text-[10px] font-bold text-gray-500" id="kpi-detalhe-total"><span><i class="fas fa-mars text-blue-500"></i> -</span><span><i class="fas fa-venus text-pink-500"></i> -</span></div>
                 </div>
-
                 <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-green-500 flex flex-col justify-between">
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase">Lactação</p>
-                        <div class="flex items-baseline gap-1 mt-1">
-                            <p class="text-2xl md:text-4xl font-extrabold text-green-600" id="kpi-lactacao">0</p>
-                            <span class="text-[10px] font-bold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full" id="pct-lactacao">0%</span>
-                        </div>
-                    </div>
-                    <div class="mt-2 pt-2 border-t border-slate-100 text-[10px] font-bold text-green-600">
-                        Produzindo
-                    </div>
+                    <div><p class="text-[10px] font-bold text-slate-400 uppercase">Lactação</p><div class="flex items-baseline gap-1 mt-1"><p class="text-2xl md:text-4xl font-extrabold text-green-600" id="kpi-lactacao">0</p><span class="text-[10px] font-bold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full" id="pct-lactacao">0%</span></div></div>
+                    <div class="mt-2 pt-2 border-t border-slate-100 text-[10px] font-bold text-green-600">Produzindo</div>
                 </div>
-
                 <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-blue-500 flex flex-col justify-between">
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase">Bezerros (< 1 ano)</p>
-                        <p class="text-2xl md:text-4xl font-extrabold text-blue-600 mt-1" id="kpi-bezerros">0</p>
-                    </div>
-                    <div class="mt-2 pt-2 border-t border-slate-100 flex justify-between text-[10px] font-bold text-gray-500" id="kpi-detalhe-bezerros">
-                        <span><i class="fas fa-mars text-blue-500"></i> -</span>
-                        <span><i class="fas fa-venus text-pink-500"></i> -</span>
-                    </div>
+                    <div><p class="text-[10px] font-bold text-slate-400 uppercase">Bezerros (< 1 ano)</p><p class="text-2xl md:text-4xl font-extrabold text-blue-600 mt-1" id="kpi-bezerros">0</p></div>
+                    <div class="mt-2 pt-2 border-t border-slate-100 flex justify-between text-[10px] font-bold text-gray-500" id="kpi-detalhe-bezerros"><span><i class="fas fa-mars text-blue-500"></i> -</span><span><i class="fas fa-venus text-pink-500"></i> -</span></div>
                 </div>
-
                 <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-red-500 flex flex-col justify-between">
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase">Alertas</p>
-                        <p class="text-2xl md:text-4xl font-extrabold text-red-500 mt-1 animate-pulse" id="kpi-alertas">0</p>
-                    </div>
-                    <div class="mt-2 pt-2 border-t border-slate-100 text-[10px] font-bold text-red-500">
-                        Secagem Pendente
-                    </div>
+                    <div><p class="text-[10px] font-bold text-slate-400 uppercase">Alertas</p><p class="text-2xl md:text-4xl font-extrabold text-red-500 mt-1 animate-pulse" id="kpi-alertas">0</p></div>
+                    <div class="mt-2 pt-2 border-t border-slate-100 text-[10px] font-bold text-red-500">Secagem Pendente</div>
                 </div>
             </div>
 
@@ -132,24 +103,17 @@
                     </div>
                     <div>
                         <select id="filtro-sexo" onchange="aplicarFiltros()" class="w-full py-2 px-2 border border-gray-200 rounded-lg text-sm bg-slate-50 text-slate-600 focus:border-blue-500 outline-none">
-                            <option value="ALL">Sexo: Todos</option>
-                            <option value="FEMEA">Fêmeas</option>
-                            <option value="MACHO">Machos</option>
+                            <option value="ALL">Sexo: Todos</option><option value="FEMEA">Fêmeas</option><option value="MACHO">Machos</option>
                         </select>
                     </div>
                     <div>
                         <select id="filtro-status" onchange="aplicarFiltros()" class="w-full py-2 px-2 border border-gray-200 rounded-lg text-sm bg-slate-50 text-slate-600 focus:border-blue-500 outline-none">
-                            <option value="ALL">Status: Todos</option>
-                            <option value="LACTACAO">Em Lactação</option>
-                            <option value="SECA">Secas</option>
-                            <option value="OUTROS">Outros</option>
+                            <option value="ALL">Status: Todos</option><option value="LACTACAO">Em Lactação</option><option value="SECA">Secas</option><option value="OUTROS">Outros</option>
                         </select>
                     </div>
                     <div>
                         <select id="filtro-cat" onchange="aplicarFiltros()" class="w-full py-2 px-2 border border-gray-200 rounded-lg text-sm bg-slate-50 text-slate-600 focus:border-blue-500 outline-none">
-                            <option value="ALL">Categoria: Todas</option>
-                            <option value="BEZERRO">Bezerros</option>
-                            <option value="ADULTO">Adultos</option>
+                            <option value="ALL">Categoria: Todas</option><option value="BEZERRO">Bezerros</option><option value="ADULTO">Adultos</option>
                         </select>
                     </div>
                 </div>
@@ -160,11 +124,7 @@
                     <table class="w-full text-left border-collapse whitespace-nowrap">
                         <thead>
                             <tr class="text-[10px] font-bold text-slate-400 uppercase bg-slate-50 border-b border-slate-100">
-                                <th class="px-4 py-3">ID</th>
-                                <th class="px-4 py-3 text-center">Sexo</th>
-                                <th class="px-4 py-3">Status</th>
-                                <th class="px-4 py-3">Ref. Data</th>
-                                <th class="px-4 py-3 w-40 text-center">Ações</th>
+                                <th class="px-4 py-3">ID</th><th class="px-4 py-3 text-center">Sexo</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Ref. Data</th><th class="px-4 py-3 w-40 text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tbody-lista" class="text-sm text-slate-600 divide-y divide-slate-50"></tbody>
@@ -174,59 +134,18 @@
             </div>
         </div>
 
-        <div id="modal-secagem" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in">
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Encerrar Lactação</h3>
-                <p class="text-sm text-gray-500 mb-4">Vaca: <strong id="lbl-id-vaca-sec" class="text-blue-600"></strong></p>
-                <input type="hidden" id="input-id-secagem">
-                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data Secagem</label>
-                <input type="date" id="input-data-secagem" class="w-full border p-3 rounded-xl mb-4 text-base bg-slate-50">
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('modal-secagem').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl text-sm font-bold">Cancelar</button>
-                    <button onclick="confirmarSecagem()" class="w-1/2 py-3 bg-red-600 text-white rounded-xl text-sm font-bold">Confirmar</button>
+        <div id="tela-exportar" class="hidden max-w-lg mx-auto fade-in">
+            <div class="bg-white p-8 rounded-2xl shadow-lg text-center border border-slate-100">
+                <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600">
+                    <i class="fas fa-file-csv text-3xl"></i>
                 </div>
-            </div>
-        </div>
-
-        <div id="modal-editar" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in">
-                <div class="flex items-center gap-3 mb-4 text-blue-600"><i class="fas fa-exchange-alt text-xl"></i><h3 class="text-lg font-bold text-slate-800">Trocar Brinco</h3></div>
-                <input type="hidden" id="edit-id-antigo">
-                <div class="mb-3"><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Atual</label><input type="text" id="view-id-antigo" disabled class="w-full border p-3 rounded-xl bg-gray-100"></div>
-                <div class="mb-6"><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Novo</label><input type="text" id="edit-id-novo" class="w-full border-2 border-blue-100 p-3 rounded-xl bg-white font-bold text-lg"></div>
-                <div class="flex gap-3"><button onclick="document.getElementById('modal-editar').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl font-bold text-sm">Cancelar</button><button onclick="confirmarEdicao()" class="w-1/2 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm">Salvar</button></div>
-            </div>
-        </div>
-
-        <div id="modal-excluir" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in border-t-4 border-red-500">
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Dar Baixa</h3>
-                <p class="text-sm text-gray-500 mb-4">Animal: <strong id="lbl-id-excluir" class="text-red-600"></strong></p>
-                <input type="hidden" id="input-id-excluir">
-                <div class="space-y-3 mb-6">
-                    <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Motivo</label><select id="input-motivo-excluir" class="w-full border p-3 rounded-xl bg-slate-50"><option value="VENDIDO">Venda</option><option value="MORTO">Morte</option><option value="ROUBO">Roubo</option><option value="OUTRO">Outro</option></select></div>
-                    <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data</label><input type="date" id="input-data-excluir" class="w-full border p-3 rounded-xl bg-slate-50"></div>
-                    <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Obs</label><input type="text" id="input-obs-excluir" class="w-full border p-3 rounded-xl bg-slate-50"></div>
-                </div>
-                <div class="flex gap-3"><button onclick="document.getElementById('modal-excluir').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl font-bold text-sm">Cancelar</button><button onclick="confirmarExclusao()" class="w-1/2 py-3 bg-red-600 text-white rounded-xl font-bold text-sm">Baixar</button></div>
-            </div>
-        </div>
-
-        <div id="modal-dossie" class="hidden fixed inset-0 bg-white z-[70] flex flex-col fade-in">
-            <div class="bg-slate-50 p-4 border-b border-gray-200 flex justify-between items-center shadow-sm sticky top-0 z-10">
-                <div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 text-lg text-blue-600"><i class="fas fa-id-card"></i></div><div><h2 class="text-xl font-bold text-slate-800" id="dossie-id">---</h2><div class="text-[10px] text-gray-500" id="dossie-resumo"></div></div></div>
-                <button onclick="fecharDossie()" class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="flex-grow overflow-y-auto p-4 bg-slate-50 space-y-6">
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <h4 class="text-xs font-bold text-gray-400 uppercase mb-3">Nova Ocorrência</h4>
-                    <div class="space-y-3">
-                        <input type="date" id="dossie-nova-data" class="w-full border p-3 rounded-lg text-sm bg-gray-50">
-                        <textarea id="dossie-nova-obs" class="w-full border p-3 rounded-lg text-sm bg-gray-50 h-20 resize-none" placeholder="O que houve?"></textarea>
-                        <button onclick="salvarOcorrencia()" class="w-full bg-blue-600 text-white py-3 rounded-lg text-sm font-bold shadow-md shadow-blue-200 active:scale-95 transition">Salvar</button>
-                    </div>
-                </div>
-                <div><h4 class="text-xs font-bold text-gray-400 uppercase mb-3 ml-1">Linha do Tempo</h4><div class="space-y-4 pl-2" id="dossie-timeline"></div></div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">Exportar Dados</h2>
+                <p class="text-gray-500 mb-8 text-sm">Baixe uma planilha completa com todo o seu rebanho e histórico para abrir no Excel.</p>
+                
+                <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-200 transition transform active:scale-95 flex items-center justify-center gap-3">
+                    <i class="fas fa-download"></i> BAIXAR PLANILHA AGORA
+                </button>
+                <p class="text-xs text-gray-400 mt-4">Formato CSV compatível com Excel</p>
             </div>
         </div>
 
@@ -243,24 +162,49 @@
             </form>
         </div>
 
-        <div id="tela-config" class="hidden max-w-lg mx-auto space-y-4">
-            <div class="bg-white p-6 rounded-2xl shadow-sm text-center border border-gray-100">
-                <h3 class="font-bold text-slate-700 mb-6">Importar Dados</h3>
-                <div class="space-y-3">
-                    <div class="p-4 border-2 border-dashed border-gray-200 rounded-xl hover:border-pink-400 relative">
-                        <i class="fas fa-venus text-pink-300 mr-2"></i><span class="text-xs font-bold text-gray-500">RG FÊMEA</span>
-                        <input type="file" id="fileFemea" class="absolute inset-0 opacity-0" onchange="importarCSV('FEMEA')">
-                    </div>
-                    <div class="p-4 border-2 border-dashed border-gray-200 rounded-xl hover:border-blue-400 relative">
-                        <i class="fas fa-mars text-blue-300 mr-2"></i><span class="text-xs font-bold text-gray-500">RG MACHO</span>
-                        <input type="file" id="fileMacho" class="absolute inset-0 opacity-0" onchange="importarCSV('MACHO')">
-                    </div>
-                    <div class="p-4 border-2 border-dashed border-gray-200 rounded-xl hover:border-green-400 relative">
-                        <i class="fas fa-baby text-green-300 mr-2"></i><span class="text-xs font-bold text-gray-500">NASCIMENTO</span>
-                        <input type="file" id="fileNasc" class="absolute inset-0 opacity-0" onchange="importarCSV('NASCIMENTO')">
-                    </div>
+        <div id="modal-secagem" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Encerrar Lactação</h3>
+                <p class="text-sm text-gray-500 mb-4">Vaca: <strong id="lbl-id-vaca-sec" class="text-blue-600"></strong></p>
+                <input type="hidden" id="input-id-secagem">
+                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data Secagem</label>
+                <input type="date" id="input-data-secagem" class="w-full border p-3 rounded-xl mb-4 text-base bg-slate-50">
+                <div class="flex gap-3"><button onclick="document.getElementById('modal-secagem').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl text-sm font-bold">Cancelar</button><button onclick="confirmarSecagem()" class="w-1/2 py-3 bg-red-600 text-white rounded-xl text-sm font-bold">Confirmar</button></div>
+            </div>
+        </div>
+        <div id="modal-editar" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in">
+                <div class="flex items-center gap-3 mb-4 text-blue-600"><i class="fas fa-exchange-alt text-xl"></i><h3 class="text-lg font-bold text-slate-800">Trocar Brinco</h3></div>
+                <input type="hidden" id="edit-id-antigo">
+                <div class="mb-3"><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Atual</label><input type="text" id="view-id-antigo" disabled class="w-full border p-3 rounded-xl bg-gray-100"></div>
+                <div class="mb-6"><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Novo</label><input type="text" id="edit-id-novo" class="w-full border-2 border-blue-100 p-3 rounded-xl bg-white font-bold text-lg"></div>
+                <div class="flex gap-3"><button onclick="document.getElementById('modal-editar').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl font-bold text-sm">Cancelar</button><button onclick="confirmarEdicao()" class="w-1/2 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm">Salvar</button></div>
+            </div>
+        </div>
+        <div id="modal-excluir" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in border-t-4 border-red-500">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Dar Baixa</h3>
+                <p class="text-sm text-gray-500 mb-4">Animal: <strong id="lbl-id-excluir" class="text-red-600"></strong></p>
+                <input type="hidden" id="input-id-excluir">
+                <div class="space-y-3 mb-6">
+                    <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Motivo</label><select id="input-motivo-excluir" class="w-full border p-3 rounded-xl bg-slate-50"><option value="VENDIDO">Venda</option><option value="MORTO">Morte</option><option value="ROUBO">Roubo</option><option value="OUTRO">Outro</option></select></div>
+                    <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data</label><input type="date" id="input-data-excluir" class="w-full border p-3 rounded-xl bg-slate-50"></div>
+                    <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Obs</label><input type="text" id="input-obs-excluir" class="w-full border p-3 rounded-xl bg-slate-50"></div>
                 </div>
-                <p id="import-status" class="text-xs text-blue-500 font-bold mt-4 min-h-[1rem]"></p>
+                <div class="flex gap-3"><button onclick="document.getElementById('modal-excluir').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl font-bold text-sm">Cancelar</button><button onclick="confirmarExclusao()" class="w-1/2 py-3 bg-red-600 text-white rounded-xl font-bold text-sm">Baixar</button></div>
+            </div>
+        </div>
+        <div id="modal-dossie" class="hidden fixed inset-0 bg-white z-[70] flex flex-col fade-in">
+            <div class="bg-slate-50 p-4 border-b border-gray-200 flex justify-between items-center shadow-sm sticky top-0 z-10">
+                <div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 text-lg text-blue-600"><i class="fas fa-id-card"></i></div><div><h2 class="text-xl font-bold text-slate-800" id="dossie-id">---</h2><div class="text-[10px] text-gray-500" id="dossie-resumo"></div></div></div>
+                <button onclick="fecharDossie()" class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex-grow overflow-y-auto p-4 bg-slate-50 space-y-6">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase mb-3">Nova Ocorrência</h4>
+                    <div class="space-y-3"><input type="date" id="dossie-nova-data" class="w-full border p-3 rounded-lg text-sm bg-gray-50"><textarea id="dossie-nova-obs" class="w-full border p-3 rounded-lg text-sm bg-gray-50 h-20 resize-none" placeholder="O que houve?"></textarea><button onclick="salvarOcorrencia()" class="w-full bg-blue-600 text-white py-3 rounded-lg text-sm font-bold shadow-md shadow-blue-200 active:scale-95 transition">Salvar</button></div>
+                </div>
+                <div><h4 class="text-xs font-bold text-gray-400 uppercase mb-3 ml-1">Linha do Tempo</h4><div class="space-y-4 pl-2" id="dossie-timeline"></div></div>
             </div>
         </div>
 
@@ -270,13 +214,14 @@
         <button onclick="nav('dashboard')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-dashboard"><i class="fas fa-chart-pie text-xl mb-1"></i><span class="text-[10px] font-bold">Painel</span></button>
         <button onclick="nav('lista')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-lista"><i class="fas fa-list text-xl mb-1"></i><span class="text-[10px] font-bold">Rebanho</span></button>
         <button onclick="nav('cadastro')" class="flex flex-col items-center -mt-8"><div class="w-14 h-14 bg-slate-900 rounded-full flex items-center justify-center text-white shadow-lg shadow-slate-400 border-4 border-gray-50 active:scale-95 transition"><i class="fas fa-plus text-xl"></i></div></button>
-        <button onclick="nav('config')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-config"><i class="fas fa-database text-xl mb-1"></i><span class="text-[10px] font-bold">Dados</span></button>
+        <button onclick="nav('exportar')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-exportar"><i class="fas fa-file-export text-xl mb-1"></i><span class="text-[10px] font-bold">Exportar</span></button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, doc, writeBatch, getDocs, setDoc, addDoc, query, where, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+        // CREDENCIAIS
         const firebaseConfig = {
             apiKey: "AIzaSyDT93mKi2kTXKLxdQngup6D-czdu9_vTYk",
             authDomain: "registro-animais.firebaseapp.com",
@@ -291,13 +236,14 @@
         window.todosAnimais = [];
 
         window.nav = (tela) => {
-            ['dashboard', 'cadastro', 'lista', 'config'].forEach(t => document.getElementById('tela-' + t).classList.add('hidden'));
+            ['dashboard', 'cadastro', 'lista', 'exportar'].forEach(t => document.getElementById('tela-' + t).classList.add('hidden'));
             document.getElementById('tela-' + tela).classList.remove('hidden');
             document.querySelectorAll('.nav-item-mob').forEach(b => b.classList.remove('text-blue-600'));
             if(document.getElementById('mob-'+tela)) document.getElementById('mob-'+tela).classList.add('text-blue-600');
             if(tela === 'dashboard' || tela === 'lista') carregarDados();
         }
 
+        // CARREGAR DADOS
         async function carregarDados() {
             try {
                 const snap = await getDocs(collection(db, 'animais'));
@@ -305,7 +251,6 @@
                 snap.forEach(d => animais.push(d.data()));
 
                 const limpar = (str) => str ? str.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
-                
                 window.todosAnimais = animais.filter(a => {
                     const st = limpar(a.status_produtivo);
                     return !st.includes('VENDIDO') && !st.includes('MORTO') && !st.includes('ROUBO');
@@ -313,10 +258,8 @@
 
                 if (!document.getElementById('tela-dashboard').classList.contains('hidden')) {
                     const lactacao = window.todosAnimais.filter(a => limpar(a.status_produtivo).includes('LACTACAO'));
-                    const secas = window.todosAnimais.filter(a => limpar(a.status_produtivo).includes('SECA'));
                     const bezerros = window.todosAnimais.filter(a => a.nascimento ? calcularMeses(a.nascimento) < 12 : limpar(a.categoria_manual).includes('BEZERRO'));
                     
-                    // Contagens por Sexo
                     const totalM = window.todosAnimais.filter(a => a.tipo === 'MACHO').length;
                     const totalF = window.todosAnimais.filter(a => a.tipo === 'FEMEA').length;
                     const bezM = bezerros.filter(a => a.tipo === 'MACHO').length;
@@ -324,10 +267,8 @@
 
                     document.getElementById('kpi-total').innerText = window.todosAnimais.length;
                     document.getElementById('kpi-detalhe-total').innerHTML = `<span class="text-blue-500"><i class="fas fa-mars"></i> ${totalM}</span><span class="text-pink-500"><i class="fas fa-venus"></i> ${totalF}</span>`;
-                    
                     document.getElementById('kpi-lactacao').innerText = lactacao.length;
                     document.getElementById('pct-lactacao').innerText = window.todosAnimais.length ? Math.round((lactacao.length / window.todosAnimais.length)*100) + '%' : '0%';
-                    
                     document.getElementById('kpi-bezerros').innerText = bezerros.length;
                     document.getElementById('kpi-detalhe-bezerros').innerHTML = `<span class="text-blue-500"><i class="fas fa-mars"></i> ${bezM}</span><span class="text-pink-500"><i class="fas fa-venus"></i> ${bezF}</span>`;
                     
@@ -343,10 +284,10 @@
                         }
                     });
                     document.getElementById('kpi-alertas').innerText = alertas.length;
-                    renderCharts(lactacao.length, secas.length, window.todosAnimais.length, bezerros);
+                    renderCharts(lactacao.length, window.todosAnimais.length - lactacao.length, window.todosAnimais.length, bezerros);
                 }
 
-                if (!document.getElementById('tela-lista').classList.contains('hidden')) { aplicarFiltros(); }
+                if (!document.getElementById('tela-lista').classList.contains('hidden')) aplicarFiltros();
 
             } catch(e) { console.error(e); }
         }
@@ -359,7 +300,6 @@
             const limpar = (str) => str ? str.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
             
             const tbody = document.getElementById('tbody-lista'); tbody.innerHTML = ''; let count = 0;
-
             const lista = window.todosAnimais.filter(a => {
                 if (fBusca && !a.id.includes(fBusca)) return false;
                 if (fSexo !== 'ALL' && a.tipo !== fSexo) return false;
@@ -384,26 +324,12 @@
                 } else if (st.includes('SECA')) badge = `<span class="text-[9px] font-bold text-red-400 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">SECA</span>`;
                 
                 let sexIcon = a.tipo === 'MACHO' ? '<i class="fas fa-mars text-blue-500"></i>' : '<i class="fas fa-venus text-pink-500"></i>';
-                
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 transition border-b border-slate-50">
-                        <td class="px-4 py-3 font-bold text-slate-700">${a.id}</td>
-                        <td class="px-4 py-3 text-center">${sexIcon}</td>
-                        <td class="px-4 py-3">${badge}</td>
-                        <td class="px-4 py-3 text-xs text-gray-400 font-mono">${formatarDataBr(a.data_evento || a.nascimento)}</td>
-                        <td class="px-4 py-3 text-center">
-                            <div class="grid grid-cols-4 gap-2 w-40 mx-auto items-center">
-                                ${slotSecar}
-                                <button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100"><i class="fas fa-clipboard-list text-xs"></i></button>
-                                <button onclick="abrirModalEditar('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 bg-white hover:text-slate-800 hover:bg-gray-100 transition shadow-sm border border-gray-100"><i class="fas fa-pen text-xs"></i></button>
-                                <button onclick="abrirModalExcluir('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-red-300 bg-white hover:text-red-600 hover:bg-red-50 transition shadow-sm border border-gray-100"><i class="fas fa-trash text-xs"></i></button>
-                            </div>
-                        </td>
-                    </tr>`;
+                tbody.innerHTML += `<tr class="hover:bg-slate-50 transition border-b border-slate-50"><td class="px-4 py-3 font-bold text-slate-700">${a.id}</td><td class="px-4 py-3 text-center">${sexIcon}</td><td class="px-4 py-3">${badge}</td><td class="px-4 py-3 text-xs text-gray-400 font-mono">${formatarDataBr(a.data_evento || a.nascimento)}</td><td class="px-4 py-3 text-center"><div class="grid grid-cols-4 gap-2 w-40 mx-auto items-center">${slotSecar}<button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100"><i class="fas fa-clipboard-list text-xs"></i></button><button onclick="abrirModalEditar('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 bg-white hover:text-slate-800 hover:bg-gray-100 transition shadow-sm border border-gray-100"><i class="fas fa-pen text-xs"></i></button><button onclick="abrirModalExcluir('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-red-300 bg-white hover:text-red-600 hover:bg-red-50 transition shadow-sm border border-gray-100"><i class="fas fa-trash text-xs"></i></button></div></td></tr>`;
             });
             document.getElementById('sem-resultados').classList.toggle('hidden', count > 0);
         }
 
+        // GRÁFICOS
         let chartStatus, chartNasc;
         function renderCharts(lact, secas, total, bezerros) {
             const ctx1 = document.getElementById('chartStatus');
@@ -411,24 +337,38 @@
             if(total === 0) { document.getElementById('chart-msg').classList.remove('hidden'); }
             else {
                 document.getElementById('chart-msg').classList.add('hidden');
-                chartStatus = new Chart(ctx1, {
-                    type: 'doughnut',
-                    data: { labels: ['Lactação', 'Secas', 'Outros'], datasets: [{ data: [lact, secas, total - lact - secas], backgroundColor: ['#16a34a', '#ef4444', '#f1f5f9'], borderWidth: 0 }] },
-                    options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'right', labels: { boxWidth: 8, font: {size: 10} } } } }
-                });
+                chartStatus = new Chart(ctx1, { type: 'doughnut', data: { labels: ['Lactação', 'Outros'], datasets: [{ data: [lact, total - lact], backgroundColor: ['#16a34a', '#ef4444'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'right', labels: { boxWidth: 8, font: {size: 10} } } } } });
             }
             const ctx2 = document.getElementById('chartNascimentos');
             if(chartNasc) chartNasc.destroy();
             const meses = Array(12).fill(0);
             bezerros.forEach(b => { if(b.nascimento) meses[new Date(b.nascimento).getMonth()]++; });
-            chartNasc = new Chart(ctx2, {
-                type: 'bar',
-                data: { labels: ['J','F','M','A','M','J','J','A','S','O','N','D'], datasets: [{ data: meses, backgroundColor: '#3b82f6', borderRadius: 3 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { display: false } } }
-            });
+            chartNasc = new Chart(ctx2, { type: 'bar', data: { labels: ['J','F','M','A','M','J','J','A','S','O','N','D'], datasets: [{ data: meses, backgroundColor: '#3b82f6', borderRadius: 3 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { display: false } } } });
         }
 
-        // AÇÕES (IGUAL)
+        // --- EXPORTAR CSV ---
+        window.exportarDados = async () => {
+            if(!window.todosAnimais || window.todosAnimais.length === 0) {
+                // Tenta carregar se estiver vazio
+                const snap = await getDocs(collection(db, 'animais'));
+                window.todosAnimais = [];
+                snap.forEach(d => window.todosAnimais.push(d.data()));
+            }
+
+            if(window.todosAnimais.length === 0) return alert("Nenhum dado para exportar.");
+
+            const csv = Papa.unparse(window.todosAnimais, { quotes: false, delimiter: ";" });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `backup_gado_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // AÇÕES PADRÃO (Secar, Editar, Excluir, Dossiê) - Mantidas da v13
         window.abrirModalSecagem = (id) => { document.getElementById('lbl-id-vaca-sec').innerText=id; document.getElementById('input-id-secagem').value=id; document.getElementById('input-data-secagem').value=new Date().toISOString().split('T')[0]; document.getElementById('modal-secagem').classList.remove('hidden'); }
         window.confirmarSecagem = async () => { const id=document.getElementById('input-id-secagem').value; const data=document.getElementById('input-data-secagem').value; try{ await setDoc(doc(db,"animais",id),{status_produtivo:"SECA",data_evento:data,data_secagem:data},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"SECAGEM",data,obs:"Via App",created_at:new Date()}); document.getElementById('modal-secagem').classList.add('hidden'); carregarDados(); }catch(e){alert(e.message);} }
         window.abrirModalEditar = (id) => { document.getElementById('edit-id-antigo').value=id; document.getElementById('view-id-antigo').value=id; document.getElementById('edit-id-novo').value=''; document.getElementById('modal-editar').classList.remove('hidden'); }
@@ -442,9 +382,6 @@
         function calcularMeses(d) { return (new Date()-new Date(d))/2629746000; }
         function calcularIdade(d) { if(!d)return'-'; const m=Math.floor(calcularMeses(d)); return m<12?m+"m":Math.floor(m/12)+"a"; }
         function formatarDataBr(d) { if(!d)return'-'; const p=d.split('-'); return `${p[2]}/${p[1]}/${p[0].slice(2)}`; }
-        window.importarCSV = (tipo) => { const f=document.getElementById(tipo==='FEMEA'?'fileFemea':tipo==='MACHO'?'fileMacho':'fileNasc').files[0]; if(!f)return; document.getElementById('import-status').innerText="Carregando..."; Papa.parse(f,{header:false,skipEmptyLines:true,encoding:"ISO-8859-1",complete:async(res)=>{ for(let r of res.data){ if(!r[0]||r[0].length>20||r[0].toLowerCase().includes('id'))continue; let id=r[0].trim().toUpperCase(); let d={id,status:'Ativo'}; if(tipo==='FEMEA'){d.tipo='FEMEA';d.status_produtivo=r[2]?.toUpperCase().trim();d.data_evento=corrigirData(r[1]);} else if(tipo==='MACHO'){d.tipo='MACHO';} else if(tipo==='NASCIMENTO'){let nid=`BEZ-${id}-${corrigirData(r[1])?.slice(2)}`; await setDoc(doc(db,'animais',nid),{id:nid,tipo:r[3]?.toUpperCase(),nascimento:corrigirData(r[1]),id_mae:id}); continue;} if(d.id) await setDoc(doc(db,'animais',d.id),d,{merge:true}); } document.getElementById('import-status').innerText="Concluído!"; carregarDados(); }}); }
-        function corrigirData(s){ if(!s)return null; let p=s.split('/'); if(p.length!==3)return null; let y=parseInt(p[2]); if(y<100)y+=2000; return `${y}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`; }
-
         nav('dashboard');
     </script>
 </body>
