@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gado Pro Mobile</title>
+    <title>Gado Pro Mobile v12</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -21,10 +21,13 @@
             #menu-desktop { display: none; }
             #menu-mobile { display: flex; }
             #conteudo-principal { padding-bottom: 90px; }
+            /* Ajuste filtros mobile */
+            .filter-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (min-width: 769px) {
             #menu-desktop { display: flex; }
             #menu-mobile { display: none; }
+            .filter-grid { grid-template-columns: repeat(4, 1fr); }
         }
     </style>
 </head>
@@ -33,7 +36,7 @@
     <nav id="menu-desktop" class="bg-slate-900 text-white px-6 py-4 shadow-lg sticky top-0 z-50 justify-between items-center">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><i class="fas fa-cow text-lg"></i></div>
-            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v11.0</p></div>
+            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v12.0</p></div>
         </div>
         <div class="flex gap-2 text-sm font-medium">
             <button onclick="nav('dashboard')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-chart-line"></i> Painel</button>
@@ -67,7 +70,6 @@
                     <p class="text-2xl md:text-4xl font-extrabold text-red-500 mt-1 animate-pulse" id="kpi-alertas">0</p>
                 </div>
             </div>
-
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 <div class="bg-white p-4 rounded-xl shadow-sm lg:col-span-1 border border-slate-100">
                     <h3 class="font-bold text-slate-700 mb-4 text-sm flex items-center gap-2"><i class="fas fa-chart-pie text-slate-400"></i> Status</h3>
@@ -81,7 +83,6 @@
                     <div class="h-48 md:h-64"><canvas id="chartNascimentos"></canvas></div>
                 </div>
             </div>
-
             <div class="bg-white rounded-xl shadow-sm border-l-4 border-yellow-400 overflow-hidden">
                 <div class="p-3 bg-yellow-50 border-b border-yellow-100 flex justify-between items-center">
                     <h3 class="font-bold text-yellow-800 text-sm flex items-center gap-2"><i class="fas fa-exclamation-triangle"></i> Secagem Pendente</h3>
@@ -96,10 +97,35 @@
         </div>
 
         <div id="tela-lista" class="hidden space-y-4 fade-in">
-            <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex gap-2">
-                <div class="relative flex-grow">
-                    <i class="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
-                    <input type="text" id="buscaLista" onkeyup="filtrarLista()" placeholder="Buscar brinco..." class="w-full pl-8 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-slate-50">
+            
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                <div class="grid filter-grid gap-3">
+                    <div class="relative col-span-2 md:col-span-1">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
+                        <input type="text" id="filtro-busca" onkeyup="aplicarFiltros()" placeholder="Buscar ID..." class="w-full pl-8 pr-2 py-2 border border-gray-200 rounded-lg text-sm bg-slate-50 focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <select id="filtro-sexo" onchange="aplicarFiltros()" class="w-full py-2 px-2 border border-gray-200 rounded-lg text-sm bg-slate-50 text-slate-600 focus:border-blue-500 outline-none">
+                            <option value="ALL">Sexo: Todos</option>
+                            <option value="FEMEA">Fêmeas</option>
+                            <option value="MACHO">Machos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <select id="filtro-status" onchange="aplicarFiltros()" class="w-full py-2 px-2 border border-gray-200 rounded-lg text-sm bg-slate-50 text-slate-600 focus:border-blue-500 outline-none">
+                            <option value="ALL">Status: Todos</option>
+                            <option value="LACTACAO">Em Lactação</option>
+                            <option value="SECA">Secas</option>
+                            <option value="OUTROS">Outros</option>
+                        </select>
+                    </div>
+                    <div>
+                        <select id="filtro-cat" onchange="aplicarFiltros()" class="w-full py-2 px-2 border border-gray-200 rounded-lg text-sm bg-slate-50 text-slate-600 focus:border-blue-500 outline-none">
+                            <option value="ALL">Categoria: Todas</option>
+                            <option value="BEZERRO">Bezerros</option>
+                            <option value="ADULTO">Adultos</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -109,7 +135,7 @@
                         <thead>
                             <tr class="text-[10px] font-bold text-slate-400 uppercase bg-slate-50 border-b border-slate-100">
                                 <th class="px-4 py-3">ID</th>
-                                <th class="px-4 py-3">Status</th>
+                                <th class="px-4 py-3 text-center">Sexo</th> <th class="px-4 py-3">Status</th>
                                 <th class="px-4 py-3">Ref. Data</th>
                                 <th class="px-4 py-3 w-40 text-center">Ações</th>
                             </tr>
@@ -117,6 +143,9 @@
                         <tbody id="tbody-lista" class="text-sm text-slate-600 divide-y divide-slate-50">
                             </tbody>
                     </table>
+                    <div id="sem-resultados" class="hidden p-6 text-center text-gray-400 text-sm">
+                        Nenhum animal encontrado com esses filtros.
+                    </div>
                 </div>
             </div>
         </div>
@@ -244,7 +273,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, doc, writeBatch, getDocs, setDoc, addDoc, query, where, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // CREDENCIAIS
         const firebaseConfig = {
             apiKey: "AIzaSyDT93mKi2kTXKLxdQngup6D-czdu9_vTYk",
             authDomain: "registro-animais.firebaseapp.com",
@@ -256,6 +284,9 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        // VARIÁVEL GLOBAL PARA OS DADOS (Para filtrar sem recarregar banco)
+        window.todosAnimais = [];
 
         window.nav = (tela) => {
             ['dashboard', 'cadastro', 'lista', 'config'].forEach(t => document.getElementById('tela-' + t).classList.add('hidden'));
@@ -273,70 +304,129 @@
 
                 const limpar = (str) => str ? str.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
                 
-                animais = animais.filter(a => {
+                // Salva na memória para filtros
+                window.todosAnimais = animais.filter(a => {
                     const st = limpar(a.status_produtivo);
                     return !st.includes('VENDIDO') && !st.includes('MORTO') && !st.includes('ROUBO');
                 });
 
-                const lactacao = animais.filter(a => limpar(a.status_produtivo).includes('LACTACAO'));
-                const secas = animais.filter(a => limpar(a.status_produtivo).includes('SECA'));
-                const bezerros = animais.filter(a => a.nascimento ? calcularMeses(a.nascimento) < 12 : limpar(a.categoria_manual).includes('BEZERRO'));
+                // --- DASHBOARD LÓGICA ---
+                if (!document.getElementById('tela-dashboard').classList.contains('hidden')) {
+                    const lactacao = window.todosAnimais.filter(a => limpar(a.status_produtivo).includes('LACTACAO'));
+                    const secas = window.todosAnimais.filter(a => limpar(a.status_produtivo).includes('SECA'));
+                    const bezerros = window.todosAnimais.filter(a => a.nascimento ? calcularMeses(a.nascimento) < 12 : limpar(a.categoria_manual).includes('BEZERRO'));
 
-                document.getElementById('kpi-total').innerText = animais.length;
-                document.getElementById('kpi-lactacao').innerText = lactacao.length;
-                document.getElementById('pct-lactacao').innerText = animais.length ? Math.round((lactacao.length / animais.length)*100) + '%' : '0%';
-                document.getElementById('kpi-bezerros').innerText = bezerros.length;
-                
-                const alertas = []; const hoje = new Date();
-                const tblAlertas = document.getElementById('lista-alertas-dash'); tblAlertas.innerHTML = '';
-                
-                lactacao.forEach(a => {
-                    if(a.data_evento) {
-                        const dias = Math.floor((hoje - new Date(a.data_evento)) / 86400000);
-                        if(dias > 300) {
-                            alertas.push({id: a.id, dias});
-                            tblAlertas.innerHTML += `<tr class="hover:bg-yellow-50 border-b border-gray-50"><td class="px-4 py-2 font-bold text-slate-700">${a.id}</td><td class="px-4 py-2 text-yellow-600 font-bold">${dias}d</td><td class="px-4 py-2 text-right"><button onclick="abrirModalSecagem('${a.id}')" class="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-bold">Secar</button></td></tr>`;
+                    document.getElementById('kpi-total').innerText = window.todosAnimais.length;
+                    document.getElementById('kpi-lactacao').innerText = lactacao.length;
+                    document.getElementById('pct-lactacao').innerText = window.todosAnimais.length ? Math.round((lactacao.length / window.todosAnimais.length)*100) + '%' : '0%';
+                    document.getElementById('kpi-bezerros').innerText = bezerros.length;
+                    
+                    const alertas = []; const hoje = new Date();
+                    const tblAlertas = document.getElementById('lista-alertas-dash'); tblAlertas.innerHTML = '';
+                    
+                    lactacao.forEach(a => {
+                        if(a.data_evento) {
+                            const dias = Math.floor((hoje - new Date(a.data_evento)) / 86400000);
+                            if(dias > 300) {
+                                alertas.push({id: a.id, dias});
+                                tblAlertas.innerHTML += `<tr class="hover:bg-yellow-50 border-b border-gray-50"><td class="px-4 py-2 font-bold text-slate-700">${a.id}</td><td class="px-4 py-2 text-yellow-600 font-bold">${dias}d</td><td class="px-4 py-2 text-right"><button onclick="abrirModalSecagem('${a.id}')" class="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-bold">Secar</button></td></tr>`;
+                            }
                         }
-                    }
-                });
-                document.getElementById('kpi-alertas').innerText = alertas.length;
-                renderCharts(lactacao.length, secas.length, animais.length, bezerros);
+                    });
+                    document.getElementById('kpi-alertas').innerText = alertas.length;
+                    renderCharts(lactacao.length, secas.length, window.todosAnimais.length, bezerros);
+                }
 
-                const tbody = document.getElementById('tbody-lista');
-                tbody.innerHTML = '';
-                
-                animais.sort((a,b) => a.id.localeCompare(b.id, undefined, {numeric: true})).slice(0, 300).forEach(a => {
-                    const st = limpar(a.status_produtivo);
-                    let badge = `<span class="text-[9px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">OUT</span>`;
-                    
-                    // Slot 1: Secar (ou Vazio)
-                    let slotSecar = `<div class="w-8 h-8"></div>`;
-                    
-                    if(st.includes('LACTACAO')) {
-                        badge = `<span class="text-[9px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">LACT</span>`;
-                        slotSecar = `<button onclick="abrirModalSecagem('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 transition border border-gray-100 bg-white shadow-sm" title="Secar"><i class="fas fa-power-off text-xs"></i></button>`;
-                    } else if (st.includes('SECA')) {
-                        badge = `<span class="text-[9px] font-bold text-red-400 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">SECA</span>`;
-                    }
+                // --- LISTA LÓGICA (Chama o filtro inicial) ---
+                if (!document.getElementById('tela-lista').classList.contains('hidden')) {
+                    aplicarFiltros();
+                }
 
-                    // Slot 2: Dossiê | Slot 3: Editar | Slot 4: Excluir
-                    const btns = `
-                        <div class="grid grid-cols-4 gap-2 w-40 mx-auto items-center">
-                            ${slotSecar}
-                            <button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100" title="Dossiê"><i class="fas fa-clipboard-list text-xs"></i></button>
-                            <button onclick="abrirModalEditar('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 bg-white hover:text-slate-800 hover:bg-gray-100 transition shadow-sm border border-gray-100" title="Editar"><i class="fas fa-pen text-xs"></i></button>
-                            <button onclick="abrirModalExcluir('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-red-300 bg-white hover:text-red-600 hover:bg-red-50 transition shadow-sm border border-gray-100" title="Baixa"><i class="fas fa-trash text-xs"></i></button>
-                        </div>`;
-
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50 transition border-b border-slate-50">
-                            <td class="px-4 py-3 font-bold text-slate-700">${a.id}</td>
-                            <td class="px-4 py-3">${badge}</td>
-                            <td class="px-4 py-3 text-xs text-gray-400 font-mono">${formatarDataBr(a.data_evento || a.nascimento)}</td>
-                            <td class="px-4 py-3 text-center">${btns}</td>
-                        </tr>`;
-                });
             } catch(e) { console.error(e); }
+        }
+
+        // --- NOVA FUNÇÃO DE FILTROS COMBINADOS ---
+        window.aplicarFiltros = () => {
+            const fBusca = document.getElementById('filtro-busca').value.toUpperCase();
+            const fSexo = document.getElementById('filtro-sexo').value; // 'ALL', 'FEMEA', 'MACHO'
+            const fStatus = document.getElementById('filtro-status').value; // 'ALL', 'LACTACAO', 'SECA', 'OUTROS'
+            const fCat = document.getElementById('filtro-cat').value; // 'ALL', 'BEZERRO', 'ADULTO'
+            
+            const limpar = (str) => str ? str.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
+            const tbody = document.getElementById('tbody-lista');
+            tbody.innerHTML = '';
+            let count = 0;
+
+            const listaFiltrada = window.todosAnimais.filter(a => {
+                // 1. Filtro Busca (ID)
+                if (fBusca && !a.id.includes(fBusca)) return false;
+
+                // 2. Filtro Sexo
+                if (fSexo !== 'ALL') {
+                    if (fSexo === 'FEMEA' && a.tipo !== 'FEMEA') return false;
+                    if (fSexo === 'MACHO' && a.tipo !== 'MACHO') return false;
+                }
+
+                // 3. Filtro Status
+                const st = limpar(a.status_produtivo);
+                if (fStatus !== 'ALL') {
+                    if (fStatus === 'LACTACAO' && !st.includes('LACTACAO')) return false;
+                    if (fStatus === 'SECA' && !st.includes('SECA')) return false;
+                    if (fStatus === 'OUTROS' && (st.includes('LACTACAO') || st.includes('SECA'))) return false;
+                }
+
+                // 4. Filtro Categoria
+                const ehBezerro = a.nascimento ? calcularMeses(a.nascimento) < 12 : limpar(a.categoria_manual).includes('BEZERRO');
+                if (fCat !== 'ALL') {
+                    if (fCat === 'BEZERRO' && !ehBezerro) return false;
+                    if (fCat === 'ADULTO' && ehBezerro) return false;
+                }
+
+                return true;
+            });
+
+            // Ordena e Renderiza
+            listaFiltrada.sort((a,b) => a.id.localeCompare(b.id, undefined, {numeric: true})).slice(0, 300).forEach(a => {
+                count++;
+                const st = limpar(a.status_produtivo);
+                
+                // Badges
+                let badge = `<span class="text-[9px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">OUT</span>`;
+                let slotSecar = `<div class="w-8 h-8"></div>`;
+
+                if(st.includes('LACTACAO')) {
+                    badge = `<span class="text-[9px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">LACT</span>`;
+                    slotSecar = `<button onclick="abrirModalSecagem('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 transition border border-gray-100 bg-white shadow-sm" title="Secar"><i class="fas fa-power-off text-xs"></i></button>`;
+                } else if (st.includes('SECA')) {
+                    badge = `<span class="text-[9px] font-bold text-red-400 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">SECA</span>`;
+                }
+
+                // Ícone Sexo
+                let sexIcon = a.tipo === 'MACHO' 
+                    ? '<i class="fas fa-mars text-blue-500 text-lg"></i>' 
+                    : '<i class="fas fa-venus text-pink-500 text-lg"></i>';
+
+                const btns = `
+                    <div class="grid grid-cols-4 gap-2 w-40 mx-auto items-center">
+                        ${slotSecar}
+                        <button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100"><i class="fas fa-clipboard-list text-xs"></i></button>
+                        <button onclick="abrirModalEditar('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 bg-white hover:text-slate-800 hover:bg-gray-100 transition shadow-sm border border-gray-100"><i class="fas fa-pen text-xs"></i></button>
+                        <button onclick="abrirModalExcluir('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-red-300 bg-white hover:text-red-600 hover:bg-red-50 transition shadow-sm border border-gray-100"><i class="fas fa-trash text-xs"></i></button>
+                    </div>`;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition border-b border-slate-50">
+                        <td class="px-4 py-3 font-bold text-slate-700">${a.id}</td>
+                        <td class="px-4 py-3 text-center">${sexIcon}</td>
+                        <td class="px-4 py-3">${badge}</td>
+                        <td class="px-4 py-3 text-xs text-gray-400 font-mono">${formatarDataBr(a.data_evento || a.nascimento)}</td>
+                        <td class="px-4 py-3 text-center">${btns}</td>
+                    </tr>`;
+            });
+
+            const divSemResult = document.getElementById('sem-resultados');
+            if(count === 0) divSemResult.classList.remove('hidden');
+            else divSemResult.classList.add('hidden');
         }
 
         let chartStatus, chartNasc;
@@ -363,7 +453,7 @@
             });
         }
 
-        // 1. SECAGEM
+        // --- FUNÇÕES DE AÇÃO ---
         window.abrirModalSecagem = (id) => {
             document.getElementById('lbl-id-vaca-sec').innerText = id;
             document.getElementById('input-id-secagem').value = id;
@@ -380,7 +470,6 @@
             } catch(e) { alert(e.message); }
         }
 
-        // 2. EDITAR
         window.abrirModalEditar = (id) => {
             document.getElementById('edit-id-antigo').value = id;
             document.getElementById('view-id-antigo').value = id;
@@ -406,7 +495,6 @@
             } catch(e) { alert("Erro: " + e.message); }
         }
 
-        // 3. EXCLUIR
         window.abrirModalExcluir = (id) => {
             document.getElementById('lbl-id-excluir').innerText = id;
             document.getElementById('input-id-excluir').value = id;
@@ -426,7 +514,6 @@
             } catch(e) { alert(e.message); }
         }
 
-        // DOSSIÊ
         window.abrirDossie = async (id) => {
             document.getElementById('modal-dossie').classList.remove('hidden');
             document.getElementById('dossie-id').innerText = id;
@@ -460,7 +547,6 @@
             try { await addDoc(collection(db,"historico"),{animal_id:id, evento:"OCORRÊNCIA", data, obs, created_at:new Date()}); document.getElementById('dossie-nova-obs').value=''; abrirDossie(id); } catch(e){ alert(e.message); }
         }
 
-        // CADASTRO
         document.getElementById('formNascimento').addEventListener('submit', async (e) => {
             e.preventDefault();
             const idBez = document.getElementById('cad-idBezerro').value.toUpperCase();
@@ -479,8 +565,6 @@
         function calcularIdade(d) { if(!d) return '-'; const m=Math.floor(calcularMeses(d)); return m<12?m+"m":Math.floor(m/12)+"a"; }
         function formatarDataBr(d) { if(!d)return'-'; const p=d.split('-'); return `${p[2]}/${p[1]}/${p[0].slice(2)}`; }
         
-        window.filtrarLista = () => { const t = document.getElementById('buscaLista').value.toUpperCase(); document.querySelectorAll('#tbody-lista tr').forEach(r => r.style.display = r.innerText.toUpperCase().includes(t) ? '' : 'none'); }
-
         window.importarCSV = (tipo) => {
             const f = document.getElementById(tipo==='FEMEA'?'fileFemea':tipo==='MACHO'?'fileMacho':'fileNasc').files[0];
             if(!f) return;
