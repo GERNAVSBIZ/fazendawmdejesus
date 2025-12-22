@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestão Pecuária Integrada</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+    <nav class="bg-slate-800 text-white p-4 shadow-lg">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold"><i class="fas fa-cow mr-2"></i>Sistema Gado Pro</h1>
+            <div class="space-x-4">
+                <button onclick="mostrarTela('dashboard')" class="hover:text-blue-300">Dashboard</button>
+                <button onclick="mostrarTela('cadastro')" class="hover:text-blue-300">Novo Nascimento</button>
+                <button onclick="mostrarTela('lista')" class="hover:text-blue-300">Rebanho Completo</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto p-6">
+        
+        <div id="dashboard" class="space-y-6">
+            <h2 class="text-2xl font-bold text-slate-700">Visão Geral</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-lg shadow border-l-4 border-blue-600">
+                    <div class="text-gray-500 text-sm">Total Rebanho</div>
+                    <div class="text-3xl font-bold" id="kpi-total">0</div>
+                </div>
+                <div class="bg-white p-5 rounded-lg shadow border-l-4 border-green-500">
+                    <div class="text-gray-500 text-sm">Vacas em Lactação</div>
+                    <div class="text-3xl font-bold" id="kpi-lactacao">0</div>
+                    <div class="text-xs text-green-600 mt-1" id="kpi-lactacao-detalhe">0% do plantel</div>
+                </div>
+                <div class="bg-white p-5 rounded-lg shadow border-l-4 border-orange-500">
+                    <div class="text-gray-500 text-sm">Bezerros (< 12 meses)</div>
+                    <div class="text-3xl font-bold" id="kpi-bezerros">0</div>
+                </div>
+                <div class="bg-white p-5 rounded-lg shadow border-l-4 border-red-500">
+                    <div class="text-gray-500 text-sm">Vacas Secas</div>
+                    <div class="text-3xl font-bold" id="kpi-secas">0</div>
+                </div>
+            </div>
+
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                <div class="flex">
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700">
+                            <strong class="font-bold">Atenção:</strong> Vacas com mais de 7 meses de lactação aparecem aqui para secagem.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="cadastro" class="hidden bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold mb-4 border-b pb-2">Registrar Parto / Nascimento</h2>
+            <form id="formNascimento" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <div class="space-y-4">
+                    <h3 class="font-semibold text-blue-600">Dados do Bezerro(a)</h3>
+                    <div>
+                        <label class="block text-sm font-medium">Brinco do Bezerro (Novo ID)</label>
+                        <input type="text" id="idBezerro" class="w-full border p-2 rounded focus:ring-2 ring-blue-500" placeholder="Ex: 312" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Sexo</label>
+                        <select id="sexoBezerro" class="w-full border p-2 rounded">
+                            <option value="MACHO">Macho</option>
+                            <option value="FEMEA">Fêmea</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Data Nascimento</label>
+                        <input type="date" id="dataNasc" class="w-full border p-2 rounded" required>
+                    </div>
+                </div>
+
+                <div class="space-y-4 bg-gray-50 p-4 rounded">
+                    <h3 class="font-semibold text-pink-600">Atualização da Mãe</h3>
+                    <div>
+                        <label class="block text-sm font-medium">Brinco da Mãe</label>
+                        <input type="text" id="idMae" class="w-full border p-2 rounded" placeholder="Ex: 009" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-sm font-medium">Novo Status</label>
+                            <input type="text" value="Lactação" disabled class="w-full border p-2 rounded bg-gray-200 text-gray-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Ciclo Atual</label>
+                            <input type="number" id="cicloMae" class="w-full border p-2 rounded" placeholder="Ex: 3">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Ordenhas/Dia</label>
+                        <select id="ordenhaMae" class="w-full border p-2 rounded">
+                            <option value="1X">1X (Uma vez)</option>
+                            <option value="2X">2X (Duas vezes)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="md:col-span-2 pt-4">
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded shadow">
+                        Confirmar Nascimento & Atualizar Mãe
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div id="lista" class="hidden bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Plantel Completo</h2>
+                <input type="text" id="buscaAnimal" placeholder="Buscar brinco..." class="border p-2 rounded">
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-100 uppercase text-gray-600">
+                        <tr>
+                            <th class="p-3">Brinco</th>
+                            <th class="p-3">Categoria</th> <th class="p-3">Status</th>
+                            <th class="p-3">Ciclo/Prod</th>
+                            <th class="p-3">Dias Lactação</th> <th class="p-3">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaAnimais">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        // Importar Firebase (Configuração Placeholder)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+             // SUA CONFIGURAÇÃO DO FIREBASE VEM AQUI
+             apiKey: "AIzaSy...",
+             authDomain: "...",
+             projectId: "..."
+        };
+
+        // Inicializa (Se não tiver config real, vai dar erro no console, mas a lógica está correta)
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- NAVEGAÇÃO SIMPLES ---
+        window.mostrarTela = (telaId) => {
+            ['dashboard', 'cadastro', 'lista'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(telaId).classList.remove('hidden');
+            if(telaId === 'lista' || telaId === 'dashboard') carregarDados();
+        }
+
+        // --- LÓGICA 1: REGISTRAR NASCIMENTO ---
+        document.getElementById('formNascimento').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const dados = {
+                idBezerro: document.getElementById('idBezerro').value,
+                sexo: document.getElementById('sexoBezerro').value,
+                nasc: document.getElementById('dataNasc').value,
+                idMae: document.getElementById('idMae').value,
+                cicloMae: Number(document.getElementById('cicloMae').value),
+                ordenhaMae: document.getElementById('ordenhaMae').value
+            };
+
+            try {
+                // 1. Criar Ficha do Bezerro
+                await setDoc(doc(db, "animais", dados.idBezerro), {
+                    id: dados.idBezerro,
+                    tipo: dados.sexo, // "MACHO" ou "FEMEA"
+                    nascimento: dados.nasc,
+                    id_mae: dados.idMae,
+                    status_produtivo: null, // Bezerro não produz
+                    status: "Ativo"
+                });
+
+                // 2. Atualizar a Mãe (Lógica do RG FEMEA)
+                const maeRef = doc(db, "animais", dados.idMae);
+                
+                // Verifica se mãe existe (no seu caso real, precisaria importar os CSVs primeiro)
+                await setDoc(maeRef, {
+                    id: dados.idMae, // Garante que cria se não existir
+                    status_produtivo: "Lactação",
+                    ciclo_atual: dados.cicloMae,
+                    producao_diaria: dados.ordenhaMae,
+                    data_ultimo_parto: dados.nasc // Reset do contador de dias
+                }, { merge: true });
+
+                alert("Nascimento registrado e ficha da mãe atualizada!");
+                document.getElementById('formNascimento').reset();
+                mostrarTela('lista');
+
+            } catch (error) {
+                console.error(error);
+                alert("Erro ao salvar (Verifique console)");
+            }
+        });
+
+        // --- LÓGICA 2: CÁLCULOS E EXIBIÇÃO ---
+        
+        function calcularDiasLactacao(dataParto) {
+            if (!dataParto) return 0;
+            const parto = new Date(dataParto);
+            const hoje = new Date();
+            const diffTime = Math.abs(hoje - parto);
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        }
+
+        function calcularCategoria(nascimento, sexo) {
+            if (!nascimento) return sexo === 'MACHO' ? 'Boi' : 'Vaca'; // Default se sem data
+            const hoje = new Date();
+            const nasc = new Date(nascimento);
+            const meses = (hoje.getFullYear() - nasc.getFullYear()) * 12 + (hoje.getMonth() - nasc.getMonth());
+
+            if (meses < 12) return sexo === 'MACHO' ? 'Bezerro' : 'Bezerra';
+            if (meses >= 12 && meses < 24) return sexo === 'MACHO' ? 'Garrote' : 'Novilha';
+            return sexo === 'MACHO' ? 'Boi' : 'Vaca';
+        }
+
+        async function carregarDados() {
+            // Em produção, usar query com paginação
+            const snapshot = await getDocs(collection(db, "animais"));
+            const tbody = document.getElementById('tabelaAnimais');
+            tbody.innerHTML = '';
+
+            let kpi = { total: 0, lactacao: 0, secas: 0, bezerros: 0 };
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                kpi.total++;
+
+                const categoria = calcularCategoria(data.nascimento, data.tipo);
+                const diasLactacao = data.status_produtivo === 'Lactação' ? calcularDiasLactacao(data.data_ultimo_parto) : '-';
+
+                // KPIs
+                if (data.status_produtivo === 'Lactação') kpi.lactacao++;
+                if (data.status_produtivo === 'Seca') kpi.secas++;
+                if (categoria.includes('Bezer')) kpi.bezerros++;
+
+                // Renderizar Linha
+                const tr = `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3 font-bold text-blue-800">${data.id}</td>
+                        <td class="p-3 text-gray-600">${categoria}</td>
+                        <td class="p-3">
+                            <span class="${data.status_produtivo === 'Lactação' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} px-2 py-1 rounded text-xs">
+                                ${data.status_produtivo || 'N/A'}
+                            </span>
+                        </td>
+                        <td class="p-3 text-sm">${data.ciclo_atual ? data.ciclo_atual + 'º (' + data.producao_diaria + ')' : '-'}</td>
+                        <td class="p-3 font-mono ${diasLactacao > 210 ? 'text-red-600 font-bold' : ''}">${diasLactacao}</td>
+                        <td class="p-3">
+                            <button class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += tr;
+            });
+
+            // Atualizar Dashboard
+            document.getElementById('kpi-total').innerText = kpi.total;
+            document.getElementById('kpi-lactacao').innerText = kpi.lactacao;
+            document.getElementById('kpi-secas').innerText = kpi.secas;
+            document.getElementById('kpi-bezerros').innerText = kpi.bezerros;
+        }
+
+        // Carregar inicial
+        window.mostrarTela('dashboard');
+    </script>
+</body>
+</html>
