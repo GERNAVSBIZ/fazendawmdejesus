@@ -11,21 +11,16 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        /* Ajustes Mobile */
-        body { -webkit-tap-highlight-color: transparent; } /* Remove flash cinza no toque iPhone */
-        
+        body { -webkit-tap-highlight-color: transparent; }
         .fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Esconder scrollbar horizontal mas manter funcionalidade */
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* Menu Mobile Fixo */
         @media (max-width: 768px) {
             #menu-desktop { display: none; }
             #menu-mobile { display: flex; }
-            #conteudo-principal { padding-bottom: 80px; } /* Espaço para o menu não cobrir conteúdo */
+            #conteudo-principal { padding-bottom: 80px; }
         }
         @media (min-width: 769px) {
             #menu-desktop { display: flex; }
@@ -38,7 +33,7 @@
     <nav id="menu-desktop" class="bg-slate-900 text-white px-6 py-4 shadow-lg sticky top-0 z-50 justify-between items-center">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><i class="fas fa-cow text-lg"></i></div>
-            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v8.0</p></div>
+            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v9.0</p></div>
         </div>
         <div class="flex gap-2 text-sm font-medium">
             <button onclick="nav('dashboard')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-chart-line"></i> Painel</button>
@@ -119,7 +114,7 @@
                                 <th class="px-4 py-3">ID</th>
                                 <th class="px-4 py-3">Status</th>
                                 <th class="px-4 py-3">Ref. Data</th>
-                                <th class="px-4 py-3 text-center">Ações</th>
+                                <th class="px-4 py-3 w-24 text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tbody-lista" class="text-sm text-slate-600 divide-y divide-slate-50">
@@ -147,14 +142,10 @@
             <div class="bg-slate-50 p-4 border-b border-gray-200 flex justify-between items-center shadow-sm sticky top-0 z-10">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 text-lg text-blue-600"><i class="fas fa-id-card"></i></div>
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800" id="dossie-id">---</h2>
-                        <div class="text-[10px] text-gray-500" id="dossie-resumo"></div>
-                    </div>
+                    <div><h2 class="text-xl font-bold text-slate-800" id="dossie-id">---</h2><div class="text-[10px] text-gray-500" id="dossie-resumo"></div></div>
                 </div>
                 <button onclick="fecharDossie()" class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center"><i class="fas fa-times"></i></button>
             </div>
-
             <div class="flex-grow overflow-y-auto p-4 bg-slate-50 space-y-6">
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <h4 class="text-xs font-bold text-gray-400 uppercase mb-3">Nova Ocorrência</h4>
@@ -164,7 +155,6 @@
                         <button onclick="salvarOcorrencia()" class="w-full bg-blue-600 text-white py-3 rounded-lg text-sm font-bold shadow-md shadow-blue-200 active:scale-95 transition">Salvar</button>
                     </div>
                 </div>
-
                 <div>
                     <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 ml-1">Linha do Tempo</h4>
                     <div class="space-y-4 pl-2" id="dossie-timeline"></div>
@@ -210,12 +200,10 @@
 
     <div id="menu-mobile" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-2 flex justify-between items-center z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
         <button onclick="nav('dashboard')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-dashboard">
-            <i class="fas fa-chart-pie text-xl mb-1"></i>
-            <span class="text-[10px] font-bold">Painel</span>
+            <i class="fas fa-chart-pie text-xl mb-1"></i><span class="text-[10px] font-bold">Painel</span>
         </button>
         <button onclick="nav('lista')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-lista">
-            <i class="fas fa-list text-xl mb-1"></i>
-            <span class="text-[10px] font-bold">Rebanho</span>
+            <i class="fas fa-list text-xl mb-1"></i><span class="text-[10px] font-bold">Rebanho</span>
         </button>
         <button onclick="nav('cadastro')" class="flex flex-col items-center -mt-8">
             <div class="w-14 h-14 bg-slate-900 rounded-full flex items-center justify-center text-white shadow-lg shadow-slate-400 border-4 border-gray-50 active:scale-95 transition">
@@ -223,8 +211,7 @@
             </div>
         </button>
         <button onclick="nav('config')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-config">
-            <i class="fas fa-database text-xl mb-1"></i>
-            <span class="text-[10px] font-bold">Dados</span>
+            <i class="fas fa-database text-xl mb-1"></i><span class="text-[10px] font-bold">Dados</span>
         </button>
     </div>
 
@@ -232,7 +219,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, doc, writeBatch, getDocs, setDoc, addDoc, query, where, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // CREDENCIAIS
         const firebaseConfig = {
             apiKey: "AIzaSyDT93mKi2kTXKLxdQngup6D-czdu9_vTYk",
             authDomain: "registro-animais.firebaseapp.com",
@@ -245,16 +231,11 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // NAVEGAÇÃO
         window.nav = (tela) => {
-            // Esconde todas
             ['dashboard', 'cadastro', 'lista', 'config'].forEach(t => document.getElementById('tela-' + t).classList.add('hidden'));
             document.getElementById('tela-' + tela).classList.remove('hidden');
-            
-            // Atualiza cor ícones mobile
             document.querySelectorAll('.nav-item-mob').forEach(b => b.classList.remove('text-blue-600'));
             if(document.getElementById('mob-'+tela)) document.getElementById('mob-'+tela).classList.add('text-blue-600');
-
             if(tela === 'dashboard' || tela === 'lista') carregarDados();
         }
 
@@ -270,48 +251,38 @@
                 const secas = animais.filter(a => limpar(a.status_produtivo).includes('SECA'));
                 const bezerros = animais.filter(a => a.nascimento ? calcularMeses(a.nascimento) < 12 : limpar(a.categoria_manual).includes('BEZERRO'));
 
-                // KPIs
                 document.getElementById('kpi-total').innerText = animais.length;
                 document.getElementById('kpi-lactacao').innerText = lactacao.length;
                 document.getElementById('pct-lactacao').innerText = animais.length ? Math.round((lactacao.length / animais.length)*100) + '%' : '0%';
                 document.getElementById('kpi-bezerros').innerText = bezerros.length;
                 
-                // Alertas
-                const alertas = [];
-                const hoje = new Date();
-                const tblAlertas = document.getElementById('lista-alertas-dash');
-                tblAlertas.innerHTML = '';
+                const alertas = []; const hoje = new Date();
+                const tblAlertas = document.getElementById('lista-alertas-dash'); tblAlertas.innerHTML = '';
                 
                 lactacao.forEach(a => {
                     if(a.data_evento) {
                         const dias = Math.floor((hoje - new Date(a.data_evento)) / 86400000);
                         if(dias > 300) {
                             alertas.push({id: a.id, dias});
-                            tblAlertas.innerHTML += `
-                                <tr class="hover:bg-yellow-50 border-b border-gray-50">
-                                    <td class="px-4 py-2 font-bold text-slate-700">${a.id}</td>
-                                    <td class="px-4 py-2 text-yellow-600 font-bold">${dias}d</td>
-                                    <td class="px-4 py-2 text-right"><button onclick="abrirModalSecagem('${a.id}')" class="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-bold">Secar</button></td>
-                                </tr>`;
+                            tblAlertas.innerHTML += `<tr class="hover:bg-yellow-50 border-b border-gray-50"><td class="px-4 py-2 font-bold text-slate-700">${a.id}</td><td class="px-4 py-2 text-yellow-600 font-bold">${dias}d</td><td class="px-4 py-2 text-right"><button onclick="abrirModalSecagem('${a.id}')" class="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-bold">Secar</button></td></tr>`;
                         }
                     }
                 });
                 document.getElementById('kpi-alertas').innerText = alertas.length;
-
-                // Gráficos
                 renderCharts(lactacao.length, secas.length, animais.length, bezerros);
 
-                // Tabela Lista (Minimalista Mobile)
                 const tbody = document.getElementById('tbody-lista');
                 tbody.innerHTML = '';
                 animais.sort((a,b) => (a.id > b.id) ? 1 : -1).slice(0, 300).forEach(a => {
                     const st = limpar(a.status_produtivo);
                     let badge = `<span class="text-[9px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">OUT</span>`;
-                    let btnSecar = '';
+                    // Grid para alinhar ícones
+                    let btns = `<div class="grid grid-cols-2 gap-2 w-16 mx-auto"><div></div><button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100"><i class="fas fa-clipboard-list text-xs"></i></button></div>`;
                     
                     if(st.includes('LACTACAO')) {
                         badge = `<span class="text-[9px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">LACT</span>`;
-                        btnSecar = `<button onclick="abrirModalSecagem('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 transition bg-white border border-gray-100 shadow-sm"><i class="fas fa-power-off text-xs"></i></button>`;
+                        // Grid com 2 botões
+                        btns = `<div class="grid grid-cols-2 gap-2 w-16 mx-auto"><button onclick="abrirModalSecagem('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 transition bg-white border border-gray-100 shadow-sm"><i class="fas fa-power-off text-xs"></i></button><button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100"><i class="fas fa-clipboard-list text-xs"></i></button></div>`;
                     } else if (st.includes('SECA')) {
                         badge = `<span class="text-[9px] font-bold text-red-400 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">SECA</span>`;
                     }
@@ -321,12 +292,7 @@
                             <td class="px-4 py-3 font-bold text-slate-700">${a.id}</td>
                             <td class="px-4 py-3">${badge}</td>
                             <td class="px-4 py-3 text-xs text-gray-400 font-mono">${formatarDataBr(a.data_evento || a.nascimento)}</td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center justify-center gap-2">
-                                    ${btnSecar}
-                                    <button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100"><i class="fas fa-clipboard-list text-xs"></i></button>
-                                </div>
-                            </td>
+                            <td class="px-4 py-3 text-center">${btns}</td>
                         </tr>`;
                 });
             } catch(e) { console.error(e); }
@@ -341,18 +307,14 @@
                 document.getElementById('chart-msg').classList.add('hidden');
                 chartStatus = new Chart(ctx1, {
                     type: 'doughnut',
-                    data: {
-                        labels: ['Lactação', 'Secas', 'Outros'],
-                        datasets: [{ data: [lact, secas, total - lact - secas], backgroundColor: ['#16a34a', '#ef4444', '#f1f5f9'], borderWidth: 0 }]
-                    },
+                    data: { labels: ['Lactação', 'Secas', 'Outros'], datasets: [{ data: [lact, secas, total - lact - secas], backgroundColor: ['#16a34a', '#ef4444', '#f1f5f9'], borderWidth: 0 }] },
                     options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'right', labels: { boxWidth: 8, font: {size: 10} } } } }
                 });
             }
-            
             const ctx2 = document.getElementById('chartNascimentos');
             if(chartNasc) chartNasc.destroy();
             const meses = Array(12).fill(0);
-            bezerros.forEach(b => { if(b.nascimento) { meses[new Date(b.nascimento).getMonth()]++; } });
+            bezerros.forEach(b => { if(b.nascimento) meses[new Date(b.nascimento).getMonth()]++; });
             chartNasc = new Chart(ctx2, {
                 type: 'bar',
                 data: { labels: ['J','F','M','A','M','J','J','A','S','O','N','D'], datasets: [{ data: meses, backgroundColor: '#3b82f6', borderRadius: 3 }] },
@@ -360,7 +322,6 @@
             });
         }
 
-        // MODAIS & AÇÕES
         window.abrirModalSecagem = (id) => {
             document.getElementById('lbl-id-vaca-sec').innerText = id;
             document.getElementById('input-id-secagem').value = id;
@@ -381,33 +342,24 @@
             document.getElementById('modal-dossie').classList.remove('hidden');
             document.getElementById('dossie-id').innerText = id;
             document.getElementById('dossie-timeline').innerHTML = '<p class="text-xs text-gray-400 p-2">Carregando...</p>';
-            
             const docSnap = await getDoc(doc(db, "animais", id));
             if(docSnap.exists()){
                 const d = docSnap.data();
                 document.getElementById('dossie-resumo').innerHTML = `${d.tipo} | Mãe: ${d.id_mae||'?'} | ${calcularIdade(d.nascimento)}`;
             }
-            
             const q = query(collection(db, "historico"), where("animal_id", "==", id));
             const snap = await getDocs(q);
             let evts = [];
             snap.forEach(d => evts.push(d.data()));
             if(docSnap.exists() && docSnap.data().nascimento) evts.push({ evento: 'NASCIMENTO', data: docSnap.data().nascimento, obs: 'Registro' });
             evts.sort((a,b) => new Date(b.data) - new Date(a.data));
-            
             const tl = document.getElementById('dossie-timeline');
             tl.innerHTML = '';
             evts.forEach(e => {
                 let color = 'bg-gray-300';
                 if(e.evento.includes('PARTO')||e.evento.includes('NASCIMENTO')) color = 'bg-blue-400';
                 if(e.evento.includes('SECAGEM')) color = 'bg-red-400';
-                tl.innerHTML += `
-                    <div class="relative pl-6 pb-6 border-l border-gray-100 last:pb-0">
-                        <div class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${color} ring-2 ring-white"></div>
-                        <p class="text-[10px] font-bold text-gray-400 uppercase">${formatarDataBr(e.data)}</p>
-                        <p class="text-sm font-bold text-slate-700">${e.evento}</p>
-                        <p class="text-xs text-gray-500 bg-white p-2 rounded border border-gray-100 mt-1 shadow-sm">${e.obs||''}</p>
-                    </div>`;
+                tl.innerHTML += `<div class="relative pl-6 pb-6 border-l border-gray-100 last:pb-0"><div class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${color} ring-2 ring-white"></div><p class="text-[10px] font-bold text-gray-400 uppercase">${formatarDataBr(e.data)}</p><p class="text-sm font-bold text-slate-700">${e.evento}</p><p class="text-xs text-gray-500 bg-white p-2 rounded border border-gray-100 mt-1 shadow-sm">${e.obs||''}</p></div>`;
             });
         }
         window.fecharDossie = () => document.getElementById('modal-dossie').classList.add('hidden');
@@ -419,7 +371,6 @@
             try { await addDoc(collection(db,"historico"),{animal_id:id, evento:"OCORRÊNCIA", data, obs, created_at:new Date()}); document.getElementById('dossie-nova-obs').value=''; abrirDossie(id); } catch(e){ alert(e.message); }
         }
 
-        // CADASTRO
         document.getElementById('formNascimento').addEventListener('submit', async (e) => {
             e.preventDefault();
             const idBez = document.getElementById('cad-idBezerro').value.toUpperCase();
@@ -434,7 +385,6 @@
             } catch(e) { alert(e.message); }
         });
 
-        // HELPERS E IMPORT
         function calcularMeses(d) { return (new Date()-new Date(d))/2629746000; }
         function calcularIdade(d) { if(!d) return '-'; const m=Math.floor(calcularMeses(d)); return m<12?m+"m":Math.floor(m/12)+"a"; }
         function formatarDataBr(d) { if(!d)return'-'; const p=d.split('-'); return `${p[2]}/${p[1]}/${p[0].slice(2)}`; }
