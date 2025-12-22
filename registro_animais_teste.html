@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gado Pro Mobile v18 (Corrigido)</title>
+    <title>Gado Pro Mobile v18</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -80,11 +80,6 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border-l-4 border-yellow-400 overflow-hidden">
-                <div class="p-3 bg-yellow-50 border-b border-yellow-100 flex justify-between items-center"><h3 class="font-bold text-yellow-800 text-sm flex items-center gap-2"><i class="fas fa-exclamation-triangle"></i> Secagem Pendente</h3><span class="text-[10px] bg-white text-yellow-800 px-2 py-0.5 rounded-full font-bold shadow-sm">> 300d</span></div>
-                <div class="overflow-x-auto"><table class="w-full text-sm text-left whitespace-nowrap"><tbody id="lista-alertas-dash" class="divide-y divide-gray-100"></tbody></table></div>
-            </div>
-
             <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                 <div class="p-4 bg-slate-50 border-b border-slate-100 flex flex-col md:flex-row justify-between md:items-center gap-3">
                     <div><h3 class="font-bold text-slate-700 text-sm flex items-center gap-2"><i class="fas fa-stopwatch text-slate-400"></i> Cronograma</h3><p class="text-xs text-gray-400 mt-1">Tempo em Produção/Seca</p></div>
@@ -132,7 +127,7 @@
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <h3 class="font-bold text-slate-700 mb-4 text-center">Importar Planilhas (Correção)</h3>
-                <p class="text-xs text-center text-gray-400 mb-4">Se os dados estiverem errados, reenvie os arquivos aqui.</p>
+                <p class="text-xs text-center text-gray-400 mb-4">Reenvie as planilhas para corrigir dados zerados.</p>
                 <div class="space-y-3">
                     <div class="p-3 border border-dashed rounded hover:border-pink-400 relative"><span class="text-xs font-bold text-pink-500">RG FÊMEA</span><input type="file" id="fileFemea" class="absolute inset-0 opacity-0" onchange="importarCSV('FEMEA')"></div>
                     <div class="p-3 border border-dashed rounded hover:border-blue-400 relative"><span class="text-xs font-bold text-blue-500">RG MACHO</span><input type="file" id="fileMacho" class="absolute inset-0 opacity-0" onchange="importarCSV('MACHO')"></div>
@@ -152,7 +147,7 @@
                     <div><label class="block text-xs font-bold text-gray-400 mb-1">ID Bezerro</label><input type="text" id="cad-idBezerro" class="w-full border p-3 rounded-xl bg-gray-50" required></div>
                     <div><label class="block text-xs font-bold text-gray-400 mb-1">Data Parto</label><input type="date" id="cad-data" class="w-full border p-3 rounded-xl bg-gray-50" required></div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-xs font-bold text-gray-400 mb-1">Sexo</label><select id="cad-sexo" class="w-full border p-3 rounded-xl bg-gray-50"><option value="MACHO">Macho</option><option value="FEMEA">Fêmea</option></select></div>
+                        <div><label class="block text-xs font-bold text-gray-400 mb-1">Sexo Bezerro</label><select id="cad-sexo" class="w-full border p-3 rounded-xl bg-gray-50"><option value="MACHO">Macho</option><option value="FEMEA">Fêmea</option></select></div>
                         <div><label class="block text-xs font-bold text-gray-400 mb-1">ID Mãe</label><input type="text" id="cad-idMae" class="w-full border p-3 rounded-xl bg-gray-50" required></div>
                     </div>
                     <button type="submit" class="w-full bg-slate-800 text-white font-bold py-3.5 rounded-xl mt-2">SALVAR NASCIMENTO</button>
@@ -162,7 +157,7 @@
                 <form id="formAdulto" class="space-y-4">
                     <div class="grid grid-cols-2 gap-4">
                         <div><label class="block text-xs font-bold text-gray-400 mb-1">ID Animal</label><input type="text" id="adulto-id" class="w-full border p-3 rounded-xl bg-gray-50" required></div>
-                        <div><label class="block text-xs font-bold text-gray-400 mb-1">Data</label><input type="date" id="adulto-data" class="w-full border p-3 rounded-xl bg-gray-50" required></div>
+                        <div><label class="block text-xs font-bold text-gray-400 mb-1">Data Entrada</label><input type="date" id="adulto-data" class="w-full border p-3 rounded-xl bg-gray-50" required></div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div><label class="block text-xs font-bold text-gray-400 mb-1">Sexo</label><select id="adulto-sexo" class="w-full border p-3 rounded-xl bg-gray-50"><option value="FEMEA">Fêmea</option><option value="MACHO">Macho</option></select></div>
@@ -185,14 +180,14 @@
         <button onclick="nav('dashboard')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-dashboard"><i class="fas fa-chart-pie text-xl mb-1"></i><span class="text-[10px] font-bold">Painel</span></button>
         <button onclick="nav('lista')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-lista"><i class="fas fa-list text-xl mb-1"></i><span class="text-[10px] font-bold">Rebanho</span></button>
         <button onclick="nav('cadastro')" class="flex flex-col items-center -mt-8"><div class="w-14 h-14 bg-slate-900 rounded-full flex items-center justify-center text-white shadow-lg shadow-slate-400 border-4 border-gray-50 active:scale-95 transition"><i class="fas fa-plus text-xl"></i></div></button>
-        <button onclick="nav('exportar')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-exportar"><i class="fas fa-database text-xl mb-1"></i><span class="text-[10px] font-bold">Dados</span></button>
+        <button onclick="nav('exportar')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-exportar"><i class="fas fa-file-export text-xl mb-1"></i><span class="text-[10px] font-bold">Dados</span></button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, doc, writeBatch, getDocs, setDoc, addDoc, query, where, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // CONFIGURAÇÃO
+        // CREDENCIAIS
         const firebaseConfig = {
             apiKey: "AIzaSyDT93mKi2kTXKLxdQngup6D-czdu9_vTYk",
             authDomain: "registro-animais.firebaseapp.com",
@@ -250,18 +245,28 @@
                     document.getElementById('kpi-detalhe-bezerros').innerHTML = `<span class="text-blue-500"><i class="fas fa-mars"></i> ${bezM}</span><span class="text-pink-500"><i class="fas fa-venus"></i> ${bezF}</span>`;
                     
                     const alertas = []; const cronograma = []; const hoje = new Date();
-                    lactacao.forEach(a => {
-                        if(a.data_evento) {
-                            const dias = Math.floor((hoje - new Date(a.data_evento)) / 86400000);
-                            cronograma.push({id: a.id, status: 'LACTAÇÃO', dias});
-                            if(dias > 300) alertas.push({id: a.id, dias});
-                        }
-                    });
-                    secas.forEach(a => { if(a.data_evento) cronograma.push({id: a.id, status: 'SECA', dias: Math.floor((hoje - new Date(a.data_evento)) / 86400000)}); });
-                    window.cronogramaGlobal = cronograma;
                     
-                    const tblAlertas = document.getElementById('lista-alertas-dash'); tblAlertas.innerHTML = '';
-                    alertas.forEach(al => tblAlertas.innerHTML += `<tr class="hover:bg-yellow-50 border-b border-gray-50"><td class="px-4 py-2 font-bold text-slate-700">${al.id}</td><td class="px-4 py-2 text-yellow-600 font-bold">${al.dias}d</td><td class="px-4 py-2 text-right"><button onclick="abrirModalSecagem('${al.id}')" class="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-bold">Secar</button></td></tr>`);
+                    // CRONOGRAMA: Incluir TODOS mesmo sem data
+                    lactacao.forEach(a => {
+                        let dias = 0; let strDias = "Data N/D";
+                        if(a.data_evento) {
+                            dias = Math.floor((hoje - new Date(a.data_evento)) / 86400000);
+                            strDias = dias + " dias";
+                            if(dias > 300) alertas.push({id: a.id, dias: dias});
+                        }
+                        cronograma.push({id: a.id, status: 'LACTAÇÃO', diasNum: dias, diasStr: strDias});
+                    });
+                    
+                    secas.forEach(a => {
+                        let dias = 0; let strDias = "Data N/D";
+                        if(a.data_evento) {
+                            dias = Math.floor((hoje - new Date(a.data_evento)) / 86400000);
+                            strDias = dias + " dias";
+                        }
+                        cronograma.push({id: a.id, status: 'SECA', diasNum: dias, diasStr: strDias});
+                    });
+
+                    window.cronogramaGlobal = cronograma;
                     document.getElementById('kpi-alertas').innerText = alertas.length;
                     atualizarCronograma();
                     renderCharts(lactacao.length, window.todosAnimais.length - lactacao.length, window.todosAnimais.length, bezerros);
@@ -279,9 +284,9 @@
                 if(filtroStatus === 'ALL') return true;
                 return stClean === filtroStatus;
             });
-            lista.sort((a,b) => filtroOrdem === 'DESC' ? b.dias - a.dias : a.dias - b.dias);
+            lista.sort((a,b) => filtroOrdem === 'DESC' ? b.diasNum - a.diasNum : a.diasNum - b.diasNum);
             const tbl = document.getElementById('lista-cronograma'); tbl.innerHTML = '';
-            if(lista.length === 0) { document.getElementById('crono-msg').classList.remove('hidden'); } else { document.getElementById('crono-msg').classList.add('hidden'); lista.forEach(c => { let cor = c.status === 'LACTAÇÃO' ? 'text-green-600 bg-green-50' : 'text-red-500 bg-red-50'; tbl.innerHTML += `<tr class="hover:bg-slate-50 border-b border-slate-50"><td class="px-4 py-3 font-bold text-slate-700">${c.id}</td><td class="px-4 py-3"><span class="text-[10px] font-bold px-2 py-1 rounded-full ${cor}">${c.status}</span></td><td class="px-4 py-3 text-right font-mono text-slate-500">${c.dias} dias</td></tr>`; }); }
+            if(lista.length === 0) { document.getElementById('crono-msg').classList.remove('hidden'); } else { document.getElementById('crono-msg').classList.add('hidden'); lista.forEach(c => { let cor = c.status === 'LACTAÇÃO' ? 'text-green-600 bg-green-50' : 'text-red-500 bg-red-50'; tbl.innerHTML += `<tr class="hover:bg-slate-50 border-b border-slate-50"><td class="px-4 py-3 font-bold text-slate-700">${c.id}</td><td class="px-4 py-3"><span class="text-[10px] font-bold px-2 py-1 rounded-full ${cor}">${c.status}</span></td><td class="px-4 py-3 text-right font-mono text-slate-500">${c.diasStr}</td></tr>`; }); }
         }
 
         window.aplicarFiltros = () => {
@@ -369,7 +374,7 @@
             }});
         }
 
-        // AÇÕES
+        // AÇÕES (Mantidas)
         window.abrirModalSecagem = (id) => { document.getElementById('lbl-id-vaca-sec').innerText=id; document.getElementById('input-id-secagem').value=id; document.getElementById('input-data-secagem').value=new Date().toISOString().split('T')[0]; document.getElementById('modal-secagem').classList.remove('hidden'); }
         window.confirmarSecagem = async () => { const id=document.getElementById('input-id-secagem').value; const data=document.getElementById('input-data-secagem').value; try{ await setDoc(doc(db,"animais",id),{status_produtivo:"SECA",data_evento:data,data_secagem:data},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"SECAGEM",data,obs:"Via App",created_at:new Date()}); document.getElementById('modal-secagem').classList.add('hidden'); carregarDados(); }catch(e){alert(e.message);} }
         window.abrirModalEditar = (id) => { document.getElementById('edit-id-antigo').value=id; document.getElementById('view-id-antigo').value=id; document.getElementById('edit-id-novo').value=''; document.getElementById('modal-editar').classList.remove('hidden'); }
@@ -381,6 +386,7 @@
         window.salvarOcorrencia = async () => { const id=document.getElementById('dossie-id').innerText; const data=document.getElementById('dossie-nova-data').value||new Date().toISOString().split('T')[0]; const obs=document.getElementById('dossie-nova-obs').value; if(!obs)return; try{ await addDoc(collection(db,"historico"),{animal_id:id,evento:"OCORRÊNCIA",data,obs,created_at:new Date()}); document.getElementById('dossie-nova-obs').value=''; abrirDossie(id); }catch(e){alert(e.message);} }
         document.getElementById('formNascimento').addEventListener('submit', async (e) => { e.preventDefault(); const idBez=document.getElementById('cad-idBezerro').value.toUpperCase(); const idMae=document.getElementById('cad-idMae').value.toUpperCase(); const data=document.getElementById('cad-data').value; const sexo=document.getElementById('cad-sexo').value; try{ await setDoc(doc(db,"animais",idBez),{id:idBez,tipo:sexo,nascimento:data,id_mae:idMae,status:'Ativo'}); await setDoc(doc(db,"animais",idMae),{id:idMae,status_produtivo:'LACTAÇÃO',data_evento:data},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:idMae,evento:"PARTO",data,obs:`Pariu ${idBez}`,created_at:new Date()}); alert('Parto Registrado!'); document.getElementById('formNascimento').reset(); }catch(e){alert(e.message);} });
         document.getElementById('formAdulto').addEventListener('submit', async (e) => { e.preventDefault(); const id=document.getElementById('adulto-id').value.toUpperCase().trim(); const data=document.getElementById('adulto-data').value; const sexo=document.getElementById('adulto-sexo').value; const status=document.getElementById('adulto-status').value; const obs=document.getElementById('adulto-obs').value; try{ await setDoc(doc(db,"animais",id),{id:id,tipo:sexo,status_produtivo:status,data_evento:data,status:'Ativo',categoria_manual:'ADULTO'},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"CADASTRO/COMPRA",data:data,obs:obs||"Cadastro Avulso",created_at:new Date()}); alert('Cadastrado!'); document.getElementById('formAdulto').reset(); }catch(e){alert(e.message);} });
+
         function calcularMeses(d) { return (new Date()-new Date(d))/2629746000; }
         function calcularIdade(d) { if(!d)return'-'; const m=Math.floor(calcularMeses(d)); return m<12?m+"m":Math.floor(m/12)+"a"; }
         function formatarDataBr(d) { if(!d)return'-'; const p=d.split('-'); return `${p[2]}/${p[1]}/${p[0].slice(2)}`; }
