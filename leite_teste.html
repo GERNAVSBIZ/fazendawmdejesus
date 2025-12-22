@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Leite - Fazenda WM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .chart-container { position: relative; margin: auto; height: 300px; width: 100%; }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #2d3748; }
+        ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #718096; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+
+    <div class="relative container mx-auto p-4 md:p-8">
+        <a href="https://gernavsbiz.github.io/fazendawmdejesus/" class="absolute top-4 right-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 z-10 text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+            <span class="hidden sm:inline">Home</span>
+        </a>
+
+        <header class="text-center mb-8 pt-12 md:pt-0">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Controle de Leite</h1>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Gerenciamento de produção e análise financeira.</p>
+            <div id="userInfo" class="mt-4 text-sm text-gray-500 dark:text-gray-400"></div>
+        </header>
+
+        <div id="loginScreen" class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 border border-gray-200 dark:border-gray-700">
+            <h2 class="text-2xl font-bold text-center mb-6">Acesso Restrito</h2>
+            <div id="loginError" class="hidden text-red-600 bg-red-100 p-3 rounded mb-4 text-center text-sm"></div>
+            <button id="googleSignInBtn" class="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6" alt="Google">
+                Entrar com Google
+            </button>
+        </div>
+
+        <main id="mainContent" class="hidden space-y-8">
+            
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-blue-100 dark:border-gray-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        Novo Registro / Edição
+                    </h2>
+                    <span id="formModeLabel" class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded hidden">MODO EDIÇÃO</span>
+                </div>
+                
+                <form id="milkForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div class="col-span-1">
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
+                        <input type="date" id="inputData" required class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <div class="col-span-1">
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Manhã (L)</label>
+                        <input type="number" step="0.01" id="inputManha" required placeholder="0.00" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <div class="col-span-1">
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Tarde (L) <span class="text-gray-400 font-normal">(Opcional)</span></label>
+                        <input type="number" step="0.01" id="inputTarde" placeholder="0.00" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <div class="col-span-1 relative group">
+                        <label class="block text-xs font-medium text-gray-500 mb-1 flex justify-between">
+                            Preço (R$)
+                            <button type="button" id="btnSaveDefaultPrice" class="text-blue-500 hover:text-blue-700 text-xs underline" title="Salvar este valor como padrão para futuros lançamentos">Definir padrão</button>
+                        </label>
+                        <input type="number" step="0.01" id="inputPreco" required class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <div class="col-span-1 flex items-end">
+                        <button type="submit" id="btnSalvar" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg shadow transition-colors flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                            Salvar Registro
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
+                <div class="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-700 dark:text-gray-200">Últimos Registros</h3>
+                    <div class="text-xs text-gray-500">Mostrando os 5 mais recentes</div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+                            <tr>
+                                <th scope="col" class="px-6 py-3">Data</th>
+                                <th scope="col" class="px-6 py-3">Manhã</th>
+                                <th scope="col" class="px-6 py-3">Tarde</th>
+                                <th scope="col" class="px-6 py-3">Total</th>
+                                <th scope="col" class="px-6 py-3">Preço</th>
+                                <th scope="col" class="px-6 py-3">Valor</th>
+                                <th scope="col" class="px-6 py-3 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentRecordsTable">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-300 dark:border-gray-700 pt-8">
+                <details class="group bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-8">
+                    <summary class="flex justify-between items-center font-medium cursor-pointer list-none text-gray-600 dark:text-gray-300">
+                        <span>Opções Avançadas (Importar CSV)</span>
+                        <span class="transition group-open:rotate-180">
+                            <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                        </span>
+                    </summary>
+                    <div class="text-neutral-600 mt-4 group-open:animate-fadeIn">
+                        <div class="flex items-center justify-center w-full">
+                            <label for="csvFile" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-white dark:bg-gray-700 hover:bg-gray-100">
+                                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Clique para carregar CSV</span></p>
+                                </div>
+                                <input id="csvFile" type="file" class="hidden" accept=".csv" />
+                            </label>
+                        </div>
+                        <button id="analyzeBtn" class="w-full mt-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded" disabled>
+                            Processar Arquivo CSV
+                        </button>
+                        <p id="fileName" class="text-center text-xs mt-2 text-gray-500"></p>
+                    </div>
+                </details>
+
+                <div id="status" class="text-center my-8 hidden">
+                    <p id="statusText" class="animate-pulse text-blue-600">Carregando dados...</p>
+                </div>
+
+                <div id="reportContainer" class="hidden space-y-8 pb-12">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-blue-50 dark:bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500">
+                            <p class="text-xs text-gray-500">Total Litros</p>
+                            <p class="text-xl font-bold text-blue-700 dark:text-blue-400" id="cardTotalLitros">0</p>
+                        </div>
+                        <div class="bg-green-50 dark:bg-gray-800 p-4 rounded-lg border-l-4 border-green-500">
+                            <p class="text-xs text-gray-500">Receita Total</p>
+                            <p class="text-xl font-bold text-green-700 dark:text-green-400" id="cardReceita">R$ 0</p>
+                        </div>
+                        <div class="bg-purple-50 dark:bg-gray-800 p-4 rounded-lg border-l-4 border-purple-500">
+                            <p class="text-xs text-gray-500">Média Diária</p>
+                            <p class="text-xl font-bold text-purple-700 dark:text-purple-400" id="cardMedia">0</p>
+                        </div>
+                        <div class="bg-orange-50 dark:bg-gray-800 p-4 rounded-lg border-l-4 border-orange-500">
+                            <p class="text-xs text-gray-500">Preço Médio</p>
+                            <p class="text-xl font-bold text-orange-700 dark:text-orange-400" id="cardPrecoMedio">R$ 0</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-bold mb-4 text-sm">Evolução da Produção</h3>
+                            <div class="chart-container"><canvas id="productionChart"></canvas></div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-bold mb-4 text-sm">Produção x Receita</h3>
+                            <div class="chart-container"><canvas id="revenueChart"></canvas></div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-bold mb-4 text-sm">Comparativo Anual</h3>
+                            <div class="chart-container"><canvas id="comparisonChart"></canvas></div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-bold mb-4 text-sm">Manhã vs Tarde</h3>
+                            <div class="chart-container"><canvas id="proportionChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, writeBatch, getDocs, doc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // --- Configuração ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
+            authDomain: "fazendawm-83f34.firebaseapp.com",
+            projectId: "fazendawm-83f34",
+            storageBucket: "fazendawm-83f34.firebasestorage.app",
+            messagingSenderId: "40894938435",
+            appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
+            measurementId: "G-QQVTP0CQ4H"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = firebaseConfig.projectId;
+
+        // --- Referências DOM ---
+        const dom = {
+            loginScreen: document.getElementById('loginScreen'),
+            mainContent: document.getElementById('mainContent'),
+            userInfo: document.getElementById('userInfo'),
+            signInBtn: document.getElementById('googleSignInBtn'),
+            loginError: document.getElementById('loginError'),
+            
+            // Formulário
+            form: document.getElementById('milkForm'),
+            inputData: document.getElementById('inputData'),
+            inputManha: document.getElementById('inputManha'),
+            inputTarde: document.getElementById('inputTarde'),
+            inputPreco: document.getElementById('inputPreco'),
+            btnSaveDefaultPrice: document.getElementById('btnSaveDefaultPrice'),
+            formModeLabel: document.getElementById('formModeLabel'),
+            recentTable: document.getElementById('recentRecordsTable'),
+            
+            // CSV e Status
+            csvInput: document.getElementById('csvFile'),
+            analyzeBtn: document.getElementById('analyzeBtn'),
+            fileName: document.getElementById('fileName'),
+            status: document.getElementById('status'),
+            statusText: document.getElementById('statusText'),
+            reportContainer: document.getElementById('reportContainer'),
+            
+            // Cards
+            cardTotal: document.getElementById('cardTotalLitros'),
+            cardReceita: document.getElementById('cardReceita'),
+            cardMedia: document.getElementById('cardMedia'),
+            cardPreco: document.getElementById('cardPrecoMedio')
+        };
+
+        let currentUser = null;
+        let productionRef, settingsRef;
+        let unsubscribeData = null;
+        let chartInstances = {};
+        let allDataCache = []; // Armazena dados localmente para uso rápido
+
+        // --- Autenticação ---
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                currentUser = user;
+                dom.loginScreen.classList.add('hidden');
+                dom.mainContent.classList.remove('hidden');
+                dom.userInfo.innerHTML = `Logado como: <b>${user.displayName}</b> <button id="logout" class="ml-2 text-red-500 hover:underline">Sair</button>`;
+                document.getElementById('logout').onclick = () => signOut(auth);
+                
+                // Configurar Referências
+                productionRef = collection(db, `artifacts/${appId}/public/data/production_records`);
+                settingsRef = doc(db, `artifacts/${appId}/public/settings/config`);
+                
+                // Iniciar
+                initSystem();
+            } else {
+                currentUser = null;
+                dom.loginScreen.classList.remove('hidden');
+                dom.mainContent.classList.add('hidden');
+                dom.userInfo.innerHTML = '';
+                if(unsubscribeData) unsubscribeData();
+            }
+        });
+
+        dom.signInBtn.onclick = async () => {
+            try {
+                await signInWithPopup(auth, new GoogleAuthProvider());
+            } catch (e) {
+                dom.loginError.textContent = "Erro no login: " + e.message;
+                dom.loginError.classList.remove('hidden');
+            }
+        };
+
+        // --- Inicialização do Sistema ---
+        async function initSystem() {
+            // 1. Carregar Preço Padrão
+            await loadDefaultPrice();
+            
+            // 2. Setar Data de Hoje no Input
+            dom.inputData.valueAsDate = new Date();
+            
+            // 3. Ouvir Dados em Tempo Real
+            listenToData();
+        }
+
+        // --- Lógica de Preço ---
+        async function loadDefaultPrice() {
+            try {
+                const docSnap = await getDoc(settingsRef);
+                if (docSnap.exists() && docSnap.data().defaultMilkPrice) {
+                    dom.inputPreco.value = docSnap.data().defaultMilkPrice;
+                } else {
+                    dom.inputPreco.value = 2.50; // Valor inicial padrão se não existir
+                }
+            } catch (e) {
+                console.error("Erro ao ler preço padrão", e);
+            }
+        }
+
+        dom.btnSaveDefaultPrice.onclick = async () => {
+            const newPrice = parseFloat(dom.inputPreco.value);
+            if (!newPrice || newPrice <= 0) return alert("Insira um preço válido.");
+            
+            try {
+                await setDoc(settingsRef, { defaultMilkPrice: newPrice }, { merge: true });
+                showToast("Preço padrão atualizado!", "success");
+            } catch (e) {
+                showToast("Erro ao salvar padrão.", "error");
+            }
+        };
+
+        // --- Lógica de Dados (CRUD) ---
+        function listenToData() {
+            dom.status.classList.remove('hidden');
+            
+            unsubscribeData = onSnapshot(productionRef, (snapshot) => {
+                const data = [];
+                snapshot.forEach(doc => {
+                    const d = doc.data();
+                    // Conversão segura de data
+                    d.Data = d.Data.toDate ? d.Data.toDate() : new Date(d.Data);
+                    data.push(d);
+                });
+
+                allDataCache = data.sort((a, b) => a.Data - b.Data); // Ordena cronologicamente
+                
+                updateDashboard(allDataCache);
+                updateRecentRecordsTable(allDataCache);
+                dom.status.classList.add('hidden');
+                dom.reportContainer.classList.remove('hidden');
+            });
+        }
+
+        // Salvar Registro (Formulário)
+        dom.form.onsubmit = async (e) => {
+            e.preventDefault();
+            
+            const btn = dom.form.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = "Salvando...";
+
+            try {
+                const dateVal = dom.inputData.value; // YYYY-MM-DD
+                const manha = parseFloat(dom.inputManha.value);
+                const tarde = parseFloat(dom.inputTarde.value) || 0;
+                const price = parseFloat(dom.inputPreco.value);
+
+                // Criar objeto de Data corrigindo fuso horário (meio-dia)
+                const [ano, mes, dia] = dateVal.split('-').map(Number);
+                const dataObj = new Date(ano, mes - 1, dia, 12, 0, 0);
+
+                const total = manha + tarde;
+                const receita = total * price;
+
+                const payload = {
+                    Data: dataObj,
+                    Manha: manha,
+                    Tarde: tarde,
+                    Preco_Venda: price,
+                    Producao_Total: total,
+                    Total_Venda: receita,
+                    Total_Laticinio: receita, // Assumindo tudo para laticínio
+                    Mes: mes,
+                    Ano: ano,
+                    Joza: 0, // Campos legados
+                    Observacoes: "Inserido via Sistema"
+                };
+
+                // ID do documento é a data (YYYY-MM-DD) para evitar duplicatas no mesmo dia
+                await setDoc(doc(productionRef, dateVal), payload);
+                
+                showToast("Registro salvo com sucesso!", "success");
+                
+                // Resetar formulário (mantendo preço e data)
+                dom.inputManha.value = "";
+                dom.inputTarde.value = "";
+                dom.formModeLabel.classList.add('hidden');
+                
+            } catch (error) {
+                console.error(error);
+                showToast("Erro ao salvar: " + error.message, "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        };
+
+        // Preencher tabela de recentes
+        function updateRecentRecordsTable(data) {
+            const tableBody = dom.recentTable;
+            tableBody.innerHTML = '';
+            
+            // Pegar os últimos 5 (inverter a array ordenada)
+            const recent = [...data].reverse().slice(0, 5);
+
+            recent.forEach(row => {
+                const dateStr = row.Data.toISOString().split('T')[0]; // ID e Display
+                const tr = document.createElement('tr');
+                tr.className = "bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600";
+                
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                        ${row.Data.toLocaleDateString('pt-BR')}
+                    </td>
+                    <td class="px-6 py-4 text-blue-600">${row.Manha.toFixed(1)}</td>
+                    <td class="px-6 py-4 text-orange-500">${row.Tarde ? row.Tarde.toFixed(1) : '-'}</td>
+                    <td class="px-6 py-4 font-bold">${row.Producao_Total.toFixed(1)}</td>
+                    <td class="px-6 py-4">R$ ${row.Preco_Venda.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-green-600 font-bold">R$ ${row.Total_Venda.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right">
+                        <button class="btn-edit text-blue-600 hover:underline mr-3" data-date="${dateStr}">Editar</button>
+                        <button class="btn-del text-red-600 hover:underline" data-date="${dateStr}">Excluir</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            // Listeners para botões dinâmicos
+            document.querySelectorAll('.btn-del').forEach(btn => {
+                btn.onclick = async () => {
+                    if(confirm('Tem certeza que deseja excluir este registro?')) {
+                        await deleteDoc(doc(productionRef, btn.dataset.date));
+                        showToast("Registro excluído.", "success");
+                    }
+                };
+            });
+
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.onclick = () => {
+                    const record = data.find(d => d.Data.toISOString().split('T')[0] === btn.dataset.date);
+                    if (record) {
+                        dom.inputData.value = btn.dataset.date;
+                        dom.inputManha.value = record.Manha;
+                        dom.inputTarde.value = record.Tarde || "";
+                        dom.inputPreco.value = record.Preco_Venda;
+                        dom.formModeLabel.classList.remove('hidden');
+                        dom.inputManha.focus();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                };
+            });
+        }
+
+        // --- Gráficos e Dashboard (Visualização) ---
+        function updateDashboard(data) {
+            if (data.length === 0) return;
+
+            // Cards
+            const totalProd = data.reduce((acc, curr) => acc + curr.Producao_Total, 0);
+            const totalRev = data.reduce((acc, curr) => acc + curr.Total_Venda, 0);
+            
+            dom.cardTotal.textContent = totalProd.toLocaleString('pt-BR', {maximumFractionDigits: 1}) + " L";
+            dom.cardReceita.textContent = totalRev.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+            dom.cardMedia.textContent = (totalProd / data.length).toFixed(1) + " L/dia";
+            dom.cardPreco.textContent = (totalRev / totalProd).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+
+            // Charts
+            renderCharts(data);
+        }
+
+        function renderCharts(data) {
+            // Destruir anteriores
+            Object.values(chartInstances).forEach(c => c.destroy());
+
+            // Labels
+            const labels = data.map(d => d.Data.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}));
+            const values = data.map(d => d.Producao_Total);
+            const revenues = data.map(d => d.Total_Venda);
+
+            // 1. Produção (Line)
+            chartInstances.production = new Chart(document.getElementById('productionChart'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Litros',
+                        data: values,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            // 2. Receita vs Produção
+            chartInstances.revenue = new Chart(document.getElementById('revenueChart'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Receita (R$)', data: revenues, backgroundColor: '#16a34a', yAxisID: 'y' },
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // 3. Comparativo Mensal (Agregado)
+            const monthly = {};
+            data.forEach(d => {
+                const key = `${d.Ano}-${d.Mes}`;
+                if(!monthly[key]) monthly[key] = 0;
+                monthly[key] += d.Producao_Total;
+            });
+            
+            chartInstances.comparison = new Chart(document.getElementById('comparisonChart'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(monthly),
+                    datasets: [{ label: 'Total Mensal', data: Object.values(monthly), backgroundColor: '#9333ea' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // 4. Pie (Manhã vs Tarde)
+            const totalM = data.reduce((a,b) => a + b.Manha, 0);
+            const totalT = data.reduce((a,b) => a + (b.Tarde||0), 0);
+            
+            chartInstances.proportion = new Chart(document.getElementById('proportionChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Manhã', 'Tarde'],
+                    datasets: [{ data: [totalM, totalT], backgroundColor: ['#3b82f6', '#f97316'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // --- CSV Upload (Legado mantido para compatibilidade) ---
+        dom.csvInput.onchange = () => {
+            if(dom.csvInput.files[0]) {
+                dom.fileName.textContent = dom.csvInput.files[0].name;
+                dom.analyzeBtn.disabled = false;
+                dom.analyzeBtn.classList.replace('bg-gray-600', 'bg-blue-600');
+            }
+        };
+
+        dom.analyzeBtn.onclick = async () => {
+            const file = dom.csvInput.files[0];
+            if(!file) return;
+            
+            dom.analyzeBtn.textContent = "Processando...";
+            const text = await file.text();
+            
+            // Parse simples (adaptar conforme seu CSV padrão)
+            const lines = text.split('\n').slice(1); // Ignora header
+            const batch = writeBatch(db);
+            let count = 0;
+
+            lines.forEach(line => {
+                const cols = line.split(';');
+                if(cols.length < 5) return;
+                
+                // Exemplo: Data;Manha;Tarde...
+                const [d, m, y] = cols[0].split('/');
+                if(!y) return;
+                
+                const dateIso = `${y}-${m}-${d}`; // YYYY-MM-DD
+                const manha = parseFloat(cols[1].replace(',','.')) || 0;
+                const tarde = parseFloat(cols[2].replace(',','.')) || 0;
+                const preco = parseFloat(cols[4].replace(',','.')) || 0;
+
+                const ref = doc(productionRef, dateIso);
+                batch.set(ref, {
+                    Data: new Date(y, m-1, d, 12),
+                    Manha: manha,
+                    Tarde: tarde,
+                    Preco_Venda: preco,
+                    Producao_Total: manha + tarde,
+                    Total_Venda: (manha + tarde) * preco,
+                    Mes: parseInt(m),
+                    Ano: parseInt(y),
+                    Observacoes: "Importado via CSV"
+                });
+                count++;
+            });
+
+            await batch.commit();
+            showToast(`${count} registros importados!`, "success");
+            dom.analyzeBtn.textContent = "Processar Arquivo CSV";
+            dom.analyzeBtn.classList.replace('bg-blue-600', 'bg-gray-600');
+            dom.analyzeBtn.disabled = true;
+        };
+
+        // --- Utils ---
+        function showToast(msg, type = "info") {
+            const colors = { success: "#16a34a", error: "#dc2626", info: "#2563eb" };
+            Toastify({
+                text: msg,
+                duration: 3000,
+                gravity: "bottom", 
+                position: "right", 
+                style: { background: colors[type] }
+            }).showToast();
+        }
+
+    </script>
+</body>
+</html>
