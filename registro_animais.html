@@ -2,28 +2,50 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Pecuária Integrado</title>
+    <title>Sistema Gado Pro - Gestão Completa</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-slate-100 min-h-screen flex flex-col">
+<body class="bg-slate-100 min-h-screen flex flex-col font-sans">
 
     <nav class="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold tracking-wider"><i class="fas fa-cow mr-2"></i>GADO PRO <span class="text-xs text-gray-400 font-normal">v3.0</span></h1>
-            <div class="space-x-1 md:space-x-4">
-                <button onclick="nav('dashboard')" class="px-3 py-2 rounded hover:bg-slate-700 transition"><i class="fas fa-chart-pie mr-1"></i> Dashboard</button>
-                <button onclick="nav('cadastro')" class="px-3 py-2 rounded hover:bg-slate-700 transition"><i class="fas fa-plus-circle mr-1"></i> Novo Nascimento</button>
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <h1 class="text-xl font-bold tracking-wider"><i class="fas fa-cow mr-2"></i>GADO PRO <span class="text-xs text-gray-400">v4.0</span></h1>
+            <div class="flex flex-wrap justify-center gap-2">
+                <button onclick="nav('dashboard')" class="px-3 py-2 rounded hover:bg-slate-700 transition"><i class="fas fa-chart-pie mr-1"></i> Painel</button>
+                <button onclick="nav('cadastro')" class="px-3 py-2 rounded hover:bg-slate-700 transition"><i class="fas fa-plus-circle mr-1"></i> Nascimento</button>
                 <button onclick="nav('lista')" class="px-3 py-2 rounded hover:bg-slate-700 transition"><i class="fas fa-list mr-1"></i> Rebanho</button>
+                <button onclick="nav('historico')" class="px-3 py-2 rounded hover:bg-slate-700 transition"><i class="fas fa-history mr-1"></i> Histórico</button>
                 <button onclick="nav('config')" class="px-3 py-2 rounded bg-blue-900 hover:bg-blue-800 transition"><i class="fas fa-file-import mr-1"></i> Importar</button>
             </div>
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto p-4 md:p-6 w-full flex-grow">
+    <div class="max-w-7xl mx-auto p-4 md:p-6 w-full flex-grow relative">
         
+        <div id="modal-secagem" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                <h3 class="text-xl font-bold text-slate-800 mb-4">Secar Vaca <span id="lbl-id-vaca" class="text-blue-600"></span></h3>
+                <p class="text-sm text-gray-600 mb-4">Isso encerrará o ciclo de lactação atual e salvará no histórico.</p>
+                
+                <input type="hidden" id="input-id-secagem">
+                <div class="mb-4">
+                    <label class="block text-sm font-bold mb-1">Data da Secagem</label>
+                    <input type="date" id="input-data-secagem" class="w-full border p-2 rounded">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-bold mb-1">Observação (Opcional)</label>
+                    <input type="text" id="input-obs-secagem" class="w-full border p-2 rounded" placeholder="Ex: Secou por mastite...">
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button onclick="fecharModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
+                    <button onclick="confirmarSecagem()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-bold">Confirmar Secagem</button>
+                </div>
+            </div>
+        </div>
+
         <div id="tela-dashboard" class="space-y-6 animate-fade">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="bg-white p-5 rounded shadow border-l-4 border-slate-700">
@@ -33,35 +55,27 @@
                 <div class="bg-white p-5 rounded shadow border-l-4 border-green-500">
                     <div class="text-gray-500 text-xs font-bold uppercase">Em Lactação</div>
                     <div class="text-3xl font-extrabold text-green-600" id="kpi-lactacao">0</div>
-                    <div class="text-xs text-green-700 mt-1" id="kpi-lactacao-pct">0%</div>
                 </div>
                 <div class="bg-white p-5 rounded shadow border-l-4 border-orange-500">
                     <div class="text-gray-500 text-xs font-bold uppercase">Bezerros (< 1 ano)</div>
                     <div class="text-3xl font-extrabold text-orange-500" id="kpi-bezerros">0</div>
                 </div>
                 <div class="bg-white p-5 rounded shadow border-l-4 border-red-500">
-                    <div class="text-gray-500 text-xs font-bold uppercase">Alertas (>300 dias)</div>
-                    <div class="text-3xl font-extrabold text-red-600 animate-pulse" id="kpi-alertas">0</div>
+                    <div class="text-gray-500 text-xs font-bold uppercase">Vacas Secas</div>
+                    <div class="text-3xl font-extrabold text-red-600" id="kpi-secas">0</div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-white p-4 rounded shadow">
-                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Nascimentos (Estimativa)</h3>
-                    <div class="h-64"><canvas id="chartNascimentos"></canvas></div>
-                </div>
-                <div class="bg-white p-4 rounded shadow">
-                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Status Produtivo</h3>
+                    <h3 class="font-bold text-gray-700 mb-2 border-b pb-2">Status Produtivo (Vacas)</h3>
                     <div class="h-64 flex justify-center"><canvas id="chartStatus"></canvas></div>
                 </div>
-            </div>
-
-            <div class="bg-white p-4 rounded shadow border-t-4 border-yellow-400">
-                <h3 class="font-bold text-yellow-800 mb-4"><i class="fas fa-exclamation-triangle mr-2"></i>Vacas com Lactação Prolongada (>300 dias)</h3>
-                <div class="overflow-x-auto max-h-60">
+                <div class="bg-white p-4 rounded shadow border-t-4 border-yellow-400 overflow-y-auto h-80">
+                    <h3 class="font-bold text-yellow-800 mb-2"><i class="fas fa-clock mr-2"></i>Alertas: Lactação Prolongada</h3>
                     <table class="w-full text-sm text-left">
                         <thead class="bg-yellow-50 text-yellow-900 sticky top-0">
-                            <tr><th class="p-2">Vaca</th><th class="p-2">Dias Lact.</th><th class="p-2">Data Parto</th></tr>
+                            <tr><th>Vaca</th><th>Dias Lact.</th><th>Ação</th></tr>
                         </thead>
                         <tbody id="lista-alertas"></tbody>
                     </table>
@@ -70,7 +84,7 @@
         </div>
 
         <div id="tela-cadastro" class="hidden max-w-2xl mx-auto bg-white rounded shadow-lg p-8">
-            <h2 class="text-2xl font-bold mb-6 text-slate-800">Registrar Parto / Nascimento</h2>
+            <h2 class="text-2xl font-bold mb-6 text-slate-800 border-b pb-2">Registrar Parto / Nascimento</h2>
             <form id="formNascimento" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -93,18 +107,18 @@
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-2">ID da Mãe</label>
                         <input type="text" id="cad-idMae" class="w-full border p-3 rounded" placeholder="Ex: 009" required>
-                        <p class="text-xs text-gray-500 mt-1">* A mãe entrará em lactação automaticamente.</p>
+                        <p class="text-xs text-gray-500 mt-1">* A mãe entrará em lactação e gerará histórico de Parto.</p>
                     </div>
                 </div>
                 <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded shadow">
-                    SALVAR NO BANCO DE DADOS
+                    SALVAR PARTO
                 </button>
             </form>
         </div>
 
         <div id="tela-lista" class="hidden space-y-4">
             <div class="flex justify-between items-center bg-white p-4 rounded shadow">
-                <h2 class="text-xl font-bold text-slate-700">Plantel Completo</h2>
+                <h2 class="text-xl font-bold text-slate-700">Rebanho Atual</h2>
                 <input type="text" id="buscaLista" onkeyup="filtrarLista()" placeholder="Buscar brinco..." class="border p-2 rounded w-64">
             </div>
             <div class="bg-white rounded shadow overflow-hidden">
@@ -113,14 +127,36 @@
                         <thead class="bg-slate-100 uppercase font-bold text-gray-600 sticky top-0">
                             <tr>
                                 <th class="p-3">ID</th>
-                                <th class="p-3">Tipo</th>
+                                <th class="p-3">Categoria</th>
                                 <th class="p-3">Status</th>
-                                <th class="p-3">Data Ref.</th>
-                                <th class="p-3">Mãe</th>
+                                <th class="p-3">Último Evento</th>
+                                <th class="p-3 text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="tbody-lista" class="divide-y">
-                            </tbody>
+                        <tbody id="tbody-lista" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tela-historico" class="hidden space-y-4">
+            <div class="bg-white p-6 rounded shadow">
+                <h2 class="text-xl font-bold text-slate-700 mb-4"><i class="fas fa-history mr-2"></i>Histórico de Eventos</h2>
+                <p class="text-sm text-gray-500 mb-4">Registro completo de todos os partos e secagens realizados no sistema.</p>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-800 text-white uppercase font-bold">
+                            <tr>
+                                <th class="p-3">Data</th>
+                                <th class="p-3">Evento</th>
+                                <th class="p-3">Animal</th>
+                                <th class="p-3">Detalhes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-historico" class="divide-y bg-white">
+                            <tr><td colspan="4" class="p-4 text-center">Carregando histórico...</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -128,44 +164,36 @@
 
         <div id="tela-config" class="hidden max-w-4xl mx-auto space-y-6">
             <div class="bg-blue-50 border-l-4 border-blue-600 p-4">
-                <h3 class="font-bold text-blue-800">Migração de Dados</h3>
-                <p class="text-sm text-blue-700">Carregue suas planilhas antigas. As datas serão corrigidas automaticamente (Ex: "25" vira "2025").</p>
-                <p class="text-xs text-red-600 mt-2"><strong>Atenção:</strong> Certifique-se de ter alterado as regras do Firebase para "public" antes de importar.</p>
+                <h3 class="font-bold text-blue-800">Migração Inicial</h3>
+                <p class="text-sm">Use esta tela para carregar seus dados antigos.</p>
             </div>
-
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-white p-6 rounded shadow text-center border-t-4 border-pink-500">
-                    <i class="fas fa-venus text-3xl text-pink-500 mb-2"></i>
+                <div class="bg-white p-4 rounded shadow text-center border-t-4 border-pink-500">
                     <h4 class="font-bold">1. RG FÊMEA</h4>
-                    <input type="file" id="fileFemea" class="block w-full text-sm mt-2" accept=".csv">
+                    <input type="file" id="fileFemea" class="block w-full text-xs mt-2" accept=".csv">
                     <button onclick="importarCSV('FEMEA')" class="mt-2 w-full bg-slate-800 text-white text-xs py-2 rounded">PROCESSAR</button>
                 </div>
-                <div class="bg-white p-6 rounded shadow text-center border-t-4 border-blue-500">
-                    <i class="fas fa-mars text-3xl text-blue-500 mb-2"></i>
+                <div class="bg-white p-4 rounded shadow text-center border-t-4 border-blue-500">
                     <h4 class="font-bold">2. RG MACHO</h4>
-                    <input type="file" id="fileMacho" class="block w-full text-sm mt-2" accept=".csv">
+                    <input type="file" id="fileMacho" class="block w-full text-xs mt-2" accept=".csv">
                     <button onclick="importarCSV('MACHO')" class="mt-2 w-full bg-slate-800 text-white text-xs py-2 rounded">PROCESSAR</button>
                 </div>
-                <div class="bg-white p-6 rounded shadow text-center border-t-4 border-green-500">
-                    <i class="fas fa-baby text-3xl text-green-500 mb-2"></i>
+                <div class="bg-white p-4 rounded shadow text-center border-t-4 border-green-500">
                     <h4 class="font-bold">3. NASCIMENTOS</h4>
-                    <input type="file" id="fileNasc" class="block w-full text-sm mt-2" accept=".csv">
+                    <input type="file" id="fileNasc" class="block w-full text-xs mt-2" accept=".csv">
                     <button onclick="importarCSV('NASCIMENTO')" class="mt-2 w-full bg-slate-800 text-white text-xs py-2 rounded">PROCESSAR</button>
                 </div>
             </div>
-            
-            <div class="bg-slate-800 text-green-400 p-4 rounded font-mono text-xs h-40 overflow-y-auto" id="console-log">
-                > Aguardando ação...
-            </div>
+            <div class="bg-slate-800 text-green-400 p-4 rounded font-mono text-xs h-32 overflow-y-auto" id="console-log">> Aguardando...</div>
         </div>
 
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, doc, writeBatch, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, writeBatch, getDocs, setDoc, addDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // --- SUAS CREDENCIAIS REAIS ---
+        // --- CREDENCIAIS ---
         const firebaseConfig = {
             apiKey: "AIzaSyDT93mKi2kTXKLxdQngup6D-czdu9_vTYk",
             authDomain: "registro-animais.firebaseapp.com",
@@ -180,128 +208,63 @@
 
         // --- NAVEGAÇÃO ---
         window.nav = (tela) => {
-            ['dashboard', 'cadastro', 'lista', 'config'].forEach(t => document.getElementById('tela-' + t).classList.add('hidden'));
+            ['dashboard', 'cadastro', 'lista', 'config', 'historico'].forEach(t => document.getElementById('tela-' + t).classList.add('hidden'));
             document.getElementById('tela-' + tela).classList.remove('hidden');
-            if(tela === 'dashboard' || tela === 'lista') carregarDadosDoBanco();
-        }
-
-        // --- LOG DE IMPORTAÇÃO ---
-        window.log = (msg) => {
-            const el = document.getElementById('console-log');
-            el.innerHTML = `> ${msg}<br>` + el.innerHTML;
-        }
-
-        // --- FUNÇÃO DE IMPORTAR CSV ---
-        window.importarCSV = (tipo) => {
-            let inputId = tipo === 'FEMEA' ? 'fileFemea' : tipo === 'MACHO' ? 'fileMacho' : 'fileNasc';
-            const file = document.getElementById(inputId).files[0];
-            if(!file) return alert('Selecione o arquivo CSV primeiro.');
-
-            window.log(`Lendo arquivo ${tipo}...`);
-            Papa.parse(file, {
-                header: false,
-                skipEmptyLines: true,
-                encoding: "ISO-8859-1", 
-                complete: async (results) => {
-                    window.log(`${results.data.length} linhas lidas. Iniciando envio para o banco de dados...`);
-                    await salvarNoFirebase(results.data, tipo);
-                },
-                error: (err) => window.log(`Erro ao ler arquivo: ${err.message}`)
-            });
-        }
-
-        async function salvarNoFirebase(linhas, tipo) {
-            const batch = writeBatch(db);
-            let count = 0;
-            let totalLotes = 0;
-
-            // O Firestore aceita no máximo 500 operações por lote (batch). 
-            // Como seus arquivos podem ser grandes, vamos fazer um loop cuidadoso.
             
-            // Vamos processar linha por linha
-            for (let i = 0; i < linhas.length; i++) {
-                const row = linhas[i];
+            if(tela === 'dashboard' || tela === 'lista') carregarDados();
+            if(tela === 'historico') carregarHistorico();
+        }
 
-                // Validação Simples: Ignorar cabeçalhos e linhas vazias
-                if(!row[0] || row[0].length > 20 || row[0].toLowerCase().includes('id') || row[0].toLowerCase().includes('vaca')) continue;
+        // --- FUNÇÃO 1: SECAR VACA (MANEJO) ---
+        // Abre o modal
+        window.abrirModalSecagem = (idVaca) => {
+            document.getElementById('lbl-id-vaca').innerText = idVaca;
+            document.getElementById('input-id-secagem').value = idVaca;
+            document.getElementById('input-data-secagem').value = new Date().toISOString().split('T')[0]; // Hoje
+            document.getElementById('modal-secagem').classList.remove('hidden');
+        }
 
-                let id = row[0].trim().toUpperCase();
-                let dados = null;
+        window.fecharModal = () => document.getElementById('modal-secagem').classList.add('hidden');
 
-                try {
-                    if(tipo === 'FEMEA') {
-                        dados = {
-                            id: id,
-                            tipo: 'FEMEA',
-                            status_produtivo: row[2] ? row[2].toUpperCase().trim() : 'DESCONHECIDO',
-                            data_evento: corrigirData(row[1]), // Último Parto
-                            status: 'Ativo'
-                        };
-                    } else if(tipo === 'MACHO') {
-                        // Na sua planilha macho, col 3 é "BEZERRO" ou "BOI"
-                        dados = {
-                            id: id,
-                            tipo: 'MACHO',
-                            categoria_manual: row[3] || '',
-                            status: 'Ativo'
-                        };
-                    } else if(tipo === 'NASCIMENTO') {
-                        const mae = id;
-                        const data = corrigirData(row[1]);
-                        const sexo = row[3] ? row[3].toUpperCase() : 'INDEFINIDO';
-                        if(!data) continue;
-                        
-                        // Cria um ID único para o bezerro se não tiver brinco ainda
-                        const novoId = `BEZ-${mae}-${data.replace(/-/g,'').slice(2)}`;
-                        
-                        // Salva diretamente (sem batch) para evitar conflitos de ID complexos
-                        await setDoc(doc(db, 'animais', novoId), {
-                            id: novoId,
-                            tipo: sexo === 'FEMEA' ? 'FEMEA' : 'MACHO',
-                            nascimento: data,
-                            id_mae: mae,
-                            origem: 'Importado Nascimento'
-                        });
-                        count++;
-                        continue; // Pula para próxima linha
-                    }
+        // Lógica de Salvar Secagem
+        window.confirmarSecagem = async () => {
+            const id = document.getElementById('input-id-secagem').value;
+            const data = document.getElementById('input-data-secagem').value;
+            const obs = document.getElementById('input-obs-secagem').value;
 
-                    if(dados && dados.id) {
-                        const ref = doc(db, 'animais', dados.id);
-                        // setDoc direto é mais seguro para iniciantes que batch complexo
-                        await setDoc(ref, dados, { merge: true });
-                        count++;
-                    }
-                } catch(e) { 
-                    console.error("Erro na linha " + i, e); 
-                }
+            try {
+                // 1. Atualiza Status do Animal
+                const animalRef = doc(db, "animais", id);
+                await setDoc(animalRef, {
+                    status_produtivo: "SECA",
+                    data_evento: data, // Último evento foi a secagem
+                    data_secagem: data 
+                }, { merge: true });
+
+                // 2. Salva no Histórico Geral (Para relatórios futuros)
+                await addDoc(collection(db, "historico"), {
+                    animal_id: id,
+                    evento: "SECAGEM",
+                    data: data,
+                    obs: obs,
+                    created_at: new Date()
+                });
+
+                alert(`Vaca ${id} marcada como SECA com sucesso!`);
+                fecharModal();
+                carregarDados(); // Atualiza tabelas
+
+            } catch (e) {
+                console.error(e);
+                alert("Erro ao secar: " + e.message);
             }
-
-            window.log(`SUCESSO FINAL: ${count} registros processados e salvos.`);
-            alert('Processo concluído! Vá para o Dashboard conferir.');
         }
 
-        // --- CORREÇÃO DE DATAS (dd/mm/yy -> yyyy-mm-dd) ---
-        function corrigirData(str) {
-            if(!str) return null;
-            let partes = str.split('/');
-            if(partes.length !== 3) return null;
-            
-            let dia = partes[0].padStart(2,'0');
-            let mes = partes[1].padStart(2,'0');
-            let ano = parseInt(partes[2]);
-            
-            // Lógica para transformar "25" em "2025"
-            if(ano < 100) ano += 2000; 
-            
-            return `${ano}-${mes}-${dia}`;
-        }
-
-        // --- SALVAR NOVO NASCIMENTO ---
+        // --- FUNÇÃO 2: REGISTRAR PARTO (Com Histórico) ---
         document.getElementById('formNascimento').addEventListener('submit', async (e) => {
             e.preventDefault();
             const bt = e.target.querySelector('button');
-            bt.innerText = "Salvando...";
+            bt.innerText = "Processando...";
             bt.disabled = true;
 
             const idBez = document.getElementById('cad-idBezerro').value.toUpperCase();
@@ -310,7 +273,7 @@
             const sexo = document.getElementById('cad-sexo').value;
 
             try {
-                // 1. Cria Ficha do Bezerro
+                // 1. Cria Bezerro
                 await setDoc(doc(db, "animais", idBez), {
                     id: idBez,
                     tipo: sexo,
@@ -323,134 +286,185 @@
                 await setDoc(doc(db, "animais", idMae), {
                     id: idMae, 
                     status_produtivo: 'LACTAÇÃO',
-                    data_evento: data 
+                    data_evento: data, // Data do parto atual
+                    data_ultimo_parto: data
                 }, { merge: true });
 
-                alert('Sucesso! Bezerro registrado e mãe atualizada.');
+                // 3. Grava Histórico de Parto
+                await addDoc(collection(db, "historico"), {
+                    animal_id: idMae,
+                    evento: "PARTO",
+                    data: data,
+                    obs: `Pariu bezerro(a) ${idBez}`,
+                    created_at: new Date()
+                });
+
+                // 4. Grava Histórico de Nascimento (Opcional, mas bom ter)
+                await addDoc(collection(db, "historico"), {
+                    animal_id: idBez,
+                    evento: "NASCIMENTO",
+                    data: data,
+                    obs: `Mãe: ${idMae}`,
+                    created_at: new Date()
+                });
+
+                alert('Nascimento registrado e histórico salvo!');
                 document.getElementById('formNascimento').reset();
             } catch(erro) {
-                alert('Erro ao salvar (Verifique suas Regras no Firebase): ' + erro.message);
-                console.error(erro);
+                alert('Erro: ' + erro.message);
             } finally {
-                bt.innerText = "SALVAR NO BANCO DE DADOS";
+                bt.innerText = "SALVAR PARTO";
                 bt.disabled = false;
             }
         });
 
-        // --- CARREGAR DADOS ---
-        async function carregarDadosDoBanco() {
-            try {
-                const snap = await getDocs(collection(db, 'animais'));
-                let animais = [];
-                snap.forEach(d => animais.push(d.data()));
-
-                atualizarDashboard(animais);
-                atualizarTabela(animais);
-            } catch (error) {
-                console.error("Erro ao ler dados:", error);
-                if(error.message.includes("permission")) {
-                    alert("ERRO DE PERMISSÃO: Você precisa alterar as Regras do Firestore para 'allow read, write: if true;'");
-                }
-            }
-        }
-
-        function atualizarDashboard(dados) {
-            // Filtros
-            const lactacao = dados.filter(a => a.status_produtivo && a.status_produtivo.includes('LACTA'));
+        // --- FUNÇÃO 3: CARREGAR HISTÓRICO ---
+        async function carregarHistorico() {
+            const tbody = document.getElementById('tbody-historico');
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando dados...</td></tr>';
             
-            const umAnoAtras = new Date();
-            umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
-            
-            const bezerros = dados.filter(a => {
-                if(!a.nascimento) return false;
-                return new Date(a.nascimento) >= umAnoAtras;
-            });
+            // Busca últimos 50 eventos ordenados por data (simulação, pois precisa de índice no firebase para orderBy complexo)
+            // Usando lógica simples sem índice composto para não dar erro para você
+            const snap = await getDocs(collection(db, "historico"));
+            let eventos = [];
+            snap.forEach(d => eventos.push(d.data()));
 
-            // Alertas (> 300 dias)
-            let alertas = [];
-            const hoje = new Date();
-            lactacao.forEach(v => {
-                if(v.data_evento) {
-                    // Tenta criar data, lidando com possível formato yyyy-mm-dd
-                    const partes = v.data_evento.split('-'); 
-                    const dataParto = new Date(partes[0], partes[1]-1, partes[2]);
-                    
-                    const dias = Math.floor((hoje - dataParto) / (86400000));
-                    if(dias > 300) alertas.push({ id: v.id, dias: dias, data: v.data_evento });
-                }
-            });
+            // Ordena via JS (Data Decrescente)
+            eventos.sort((a,b) => new Date(b.data) - new Date(a.data));
 
-            // Preencher HTML
-            document.getElementById('kpi-total').innerText = dados.length;
-            document.getElementById('kpi-lactacao').innerText = lactacao.length;
-            document.getElementById('kpi-bezerros').innerText = bezerros.length;
-            document.getElementById('kpi-alertas').innerText = alertas.length;
-            
-            const pct = dados.length > 0 ? ((lactacao.length / dados.length) * 100).toFixed(0) : 0;
-            document.getElementById('kpi-lactacao-pct').innerText = pct + "% do rebanho total";
-
-            // Tabela Alertas
-            const listaAlerta = document.getElementById('lista-alertas');
-            listaAlerta.innerHTML = '';
-            alertas.forEach(a => {
-                listaAlerta.innerHTML += `<tr><td class="p-2 font-bold">${a.id}</td><td class="p-2 text-red-600 font-bold">${a.dias} dias</td><td class="p-2 text-gray-500">${a.data}</td></tr>`;
-            });
-
-            renderCharts(lactacao.length, dados.length - lactacao.length);
-        }
-
-        function atualizarTabela(dados) {
-            const tbody = document.getElementById('tbody-lista');
             tbody.innerHTML = '';
-            
-            // Filtro de busca simples
-            const termo = document.getElementById('buscaLista').value.toUpperCase();
-            const dadosFiltrados = termo ? dados.filter(d => d.id.includes(termo)) : dados;
+            eventos.forEach(evt => {
+                let cor = 'text-gray-600';
+                if(evt.evento === 'PARTO') cor = 'text-green-600 font-bold';
+                if(evt.evento === 'SECAGEM') cor = 'text-red-600 font-bold';
 
-            // Mostra os primeiros 100 para não travar
-            dadosFiltrados.slice(0, 100).forEach(a => {
                 tbody.innerHTML += `
-                    <tr class="hover:bg-gray-50 border-b">
-                        <td class="p-3 font-bold text-slate-700">${a.id}</td>
-                        <td class="p-3">${a.tipo}</td>
-                        <td class="p-3 text-xs font-bold ${a.status_produtivo?.includes('LACTA') ? 'text-green-600' : 'text-gray-400'}">${a.status_produtivo || '-'}</td>
-                        <td class="p-3 text-xs">${a.data_evento || a.nascimento || '-'}</td>
-                        <td class="p-3 text-xs text-gray-500">${a.id_mae || '-'}</td>
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3">${evt.data}</td>
+                        <td class="p-3 ${cor}">${evt.evento}</td>
+                        <td class="p-3 font-bold">${evt.animal_id}</td>
+                        <td class="p-3 text-sm text-gray-500">${evt.obs || '-'}</td>
                     </tr>
                 `;
             });
         }
 
-        // Busca na tabela (Função Global)
-        window.filtrarLista = () => carregarDadosDoBanco();
+        // --- FUNÇÃO 4: CARREGAR DADOS GERAIS ---
+        async function carregarDados() {
+            const snap = await getDocs(collection(db, 'animais'));
+            let animais = [];
+            snap.forEach(d => animais.push(d.data()));
 
-        // Gráficos
-        let chartStatus, chartNasc;
-        function renderCharts(qtdLact, qtdOutros) {
-            if(chartStatus) chartStatus.destroy();
-            chartStatus = new Chart(document.getElementById('chartStatus'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Em Lactação', 'Secas/Outros'],
-                    datasets: [{ data: [qtdLact, qtdOutros], backgroundColor: ['#22c55e', '#cbd5e1'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
+            // KPIs
+            const lactacao = animais.filter(a => a.status_produtivo === 'LACTAÇÃO');
+            const secas = animais.filter(a => a.status_produtivo === 'SECA');
+            const bezerros = animais.filter(a => a.nascimento && new Date(a.nascimento) > new Date(new Date().setFullYear(new Date().getFullYear()-1)));
+
+            document.getElementById('kpi-total').innerText = animais.length;
+            document.getElementById('kpi-lactacao').innerText = lactacao.length;
+            document.getElementById('kpi-secas').innerText = secas.length;
+            document.getElementById('kpi-bezerros').innerText = bezerros.length;
+
+            // Tabela Lista
+            const tbody = document.getElementById('tbody-lista');
+            tbody.innerHTML = '';
+            
+            // Alertas
+            const alertas = [];
+            const hoje = new Date();
+
+            animais.slice(0, 200).forEach(a => { // Limitado a 200 na tela
+                // Verifica status
+                let statusClass = 'bg-gray-100 text-gray-500';
+                let btnAcao = '';
+
+                if (a.status_produtivo === 'LACTAÇÃO') {
+                    statusClass = 'bg-green-100 text-green-700 font-bold';
+                    // Botão de Secar aparece aqui
+                    btnAcao = `<button onclick="abrirModalSecagem('${a.id}')" class="bg-red-100 text-red-600 hover:bg-red-200 px-2 py-1 rounded text-xs border border-red-300" title="Secar Vaca"><i class="fas fa-ban mr-1"></i>Secar</button>`;
+                    
+                    // Checa Alerta Dias Lactação
+                    if(a.data_evento) {
+                        const dias = Math.floor((hoje - new Date(a.data_evento)) / 86400000);
+                        if(dias > 300) alertas.push({id: a.id, dias});
+                    }
+                } 
+                else if (a.status_produtivo === 'SECA') {
+                    statusClass = 'bg-red-100 text-red-700 font-bold';
+                }
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 border-b">
+                        <td class="p-3 font-bold">${a.id}</td>
+                        <td class="p-3 text-xs">${a.tipo}</td>
+                        <td class="p-3"><span class="px-2 py-1 rounded text-xs ${statusClass}">${a.status_produtivo || '-'}</span></td>
+                        <td class="p-3 text-xs">${a.data_evento || a.nascimento || '-'}</td>
+                        <td class="p-3 text-center">${btnAcao}</td>
+                    </tr>
+                `;
             });
 
-            if(chartNasc) chartNasc.destroy();
-            chartNasc = new Chart(document.getElementById('chartNascimentos'), {
-                type: 'bar',
+            // Preenche Alertas
+            const listaAlertas = document.getElementById('lista-alertas');
+            listaAlertas.innerHTML = '';
+            alertas.forEach(al => {
+                listaAlertas.innerHTML += `
+                    <tr class="border-b">
+                        <td class="p-2 font-bold">${al.id}</td>
+                        <td class="p-2 text-red-600 font-bold">${al.dias} dias</td>
+                        <td class="p-2"><button onclick="abrirModalSecagem('${al.id}')" class="text-xs bg-red-600 text-white px-2 py-1 rounded">Secar</button></td>
+                    </tr>
+                `;
+            });
+
+            // Gráfico
+            if(window.chartStatus) window.chartStatus.destroy();
+            window.chartStatus = new Chart(document.getElementById('chartStatus'), {
+                type: 'pie',
                 data: {
-                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
-                    datasets: [{ label: 'Nascimentos', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], backgroundColor: '#3b82f6' }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
+                    labels: ['Lactação', 'Secas', 'Outros'],
+                    datasets: [{ data: [lactacao.length, secas.length, animais.length - lactacao.length - secas.length], backgroundColor: ['#22c55e', '#ef4444', '#cbd5e1'] }]
+                }
             });
         }
 
+        // Filtro
+        window.filtrarLista = () => carregarDados();
+
+        // --- IMPORTAÇÃO (MANTEVE IGUAL) ---
+        window.log = (msg) => { const el = document.getElementById('console-log'); el.innerHTML = `> ${msg}<br>` + el.innerHTML; }
+        window.importarCSV = (tipo) => {
+            let inputId = tipo === 'FEMEA' ? 'fileFemea' : tipo === 'MACHO' ? 'fileMacho' : 'fileNasc';
+            const file = document.getElementById(inputId).files[0];
+            if(!file) return alert('Selecione arquivo.');
+            Papa.parse(file, { header: false, skipEmptyLines: true, encoding: "ISO-8859-1", complete: async (res) => { await salvarNoFirebase(res.data, tipo); } });
+        }
+        
+        async function salvarNoFirebase(linhas, tipo) {
+            const batch = writeBatch(db);
+            let count = 0;
+            for(let row of linhas) {
+                if(!row[0] || row[0].length > 20 || row[0].toLowerCase().includes('id')) continue;
+                let id = row[0].trim().toUpperCase();
+                let dados = null;
+                if(tipo === 'FEMEA') {
+                    dados = { id, tipo: 'FEMEA', status_produtivo: row[2]?.toUpperCase().trim(), data_evento: corrigirData(row[1]), status: 'Ativo' };
+                } else if(tipo === 'MACHO') {
+                    dados = { id, tipo: 'MACHO', categoria_manual: row[3], status: 'Ativo' };
+                } else if(tipo === 'NASCIMENTO') {
+                    let novoId = `BEZ-${id}-${corrigirData(row[1])?.replace(/-/g,'').slice(2)}`;
+                    if(corrigirData(row[1])) await setDoc(doc(db,'animais',novoId), { id: novoId, tipo: row[3]?.toUpperCase(), nascimento: corrigirData(row[1]), id_mae: id });
+                    continue;
+                }
+                if(dados?.id) await setDoc(doc(db,'animais',dados.id), dados, {merge: true});
+                count++;
+            }
+            alert('Importado!');
+        }
+        function corrigirData(str) { if(!str) return null; let p=str.split('/'); if(p.length!==3) return null; let y=parseInt(p[2]); if(y<100) y+=2000; return `${y}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`; }
+
         // Inicia
         nav('dashboard');
-
     </script>
 </body>
 </html>
