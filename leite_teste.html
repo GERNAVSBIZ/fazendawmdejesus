@@ -251,9 +251,10 @@
                 dom.userInfo.innerHTML = `Logado como: <b>${user.displayName}</b> <button id="logout" class="ml-2 text-red-500 hover:underline">Sair</button>`;
                 document.getElementById('logout').onclick = () => signOut(auth);
                 
-                // Configurar Referências
+                // Configurar Referências CORRIGIDAS
                 productionRef = collection(db, `artifacts/${appId}/public/data/production_records`);
-                settingsRef = doc(db, `artifacts/${appId}/public/settings/config`);
+                // CORREÇÃO: Removido o '/config' extra. Agora tem 4 segmentos (Collection/Doc/Collection/Doc)
+                settingsRef = doc(db, `artifacts/${appId}/public/config_geral`);
                 
                 // Iniciar
                 initSystem();
@@ -277,14 +278,19 @@
 
         // --- Inicialização do Sistema ---
         async function initSystem() {
-            // 1. Carregar Preço Padrão
-            await loadDefaultPrice();
-            
-            // 2. Setar Data de Hoje no Input
-            dom.inputData.valueAsDate = new Date();
-            
-            // 3. Ouvir Dados em Tempo Real
-            listenToData();
+            try {
+                // 1. Carregar Preço Padrão
+                await loadDefaultPrice();
+                
+                // 2. Setar Data de Hoje no Input
+                dom.inputData.valueAsDate = new Date();
+                
+                // 3. Ouvir Dados em Tempo Real
+                listenToData();
+            } catch (e) {
+                console.error("Erro na inicialização:", e);
+                showToast("Erro ao iniciar sistema: " + e.message, "error");
+            }
         }
 
         // --- Lógica de Preço ---
@@ -298,6 +304,8 @@
                 }
             } catch (e) {
                 console.error("Erro ao ler preço padrão", e);
+                // Não trava o sistema, usa padrão
+                dom.inputPreco.value = 2.50;
             }
         }
 
@@ -309,7 +317,7 @@
                 await setDoc(settingsRef, { defaultMilkPrice: newPrice }, { merge: true });
                 showToast("Preço padrão atualizado!", "success");
             } catch (e) {
-                showToast("Erro ao salvar padrão.", "error");
+                showToast("Erro ao salvar padrão: " + e.message, "error");
             }
         };
 
@@ -332,6 +340,9 @@
                 updateRecentRecordsTable(allDataCache);
                 dom.status.classList.add('hidden');
                 dom.reportContainer.classList.remove('hidden');
+            }, (error) => {
+                 console.error("Erro no listener:", error);
+                 dom.statusText.textContent = "Erro ao carregar dados.";
             });
         }
 
@@ -457,7 +468,10 @@
             dom.cardTotal.textContent = totalProd.toLocaleString('pt-BR', {maximumFractionDigits: 1}) + " L";
             dom.cardReceita.textContent = totalRev.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
             dom.cardMedia.textContent = (totalProd / data.length).toFixed(1) + " L/dia";
-            dom.cardPreco.textContent = (totalRev / totalProd).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+            
+            // Evitar divisão por zero no preço médio
+            const precoMedio = totalProd > 0 ? (totalRev / totalProd) : 0;
+            dom.cardPreco.textContent = precoMedio.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
 
             // Charts
             renderCharts(data);
@@ -504,16 +518,19 @@
             // 3. Comparativo Mensal (Agregado)
             const monthly = {};
             data.forEach(d => {
-                const key = `${d.Ano}-${d.Mes}`;
+                const key = `${d.Ano}-${d.Mes.toString().padStart(2, '0')}`;
                 if(!monthly[key]) monthly[key] = 0;
                 monthly[key] += d.Producao_Total;
             });
             
+            // Ordenar meses
+            const sortedMonths = Object.keys(monthly).sort();
+            
             chartInstances.comparison = new Chart(document.getElementById('comparisonChart'), {
                 type: 'bar',
                 data: {
-                    labels: Object.keys(monthly),
-                    datasets: [{ label: 'Total Mensal', data: Object.values(monthly), backgroundColor: '#9333ea' }]
+                    labels: sortedMonths,
+                    datasets: [{ label: 'Total Mensal', data: sortedMonths.map(m => monthly[m]), backgroundColor: '#9333ea' }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
