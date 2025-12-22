@@ -12,7 +12,7 @@
 
     <nav class="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold tracking-wider"><i class="fas fa-cow mr-2"></i>GADO PRO <span class="text-xs text-gray-400 font-normal">v3.0 Final</span></h1>
+            <h1 class="text-xl font-bold tracking-wider"><i class="fas fa-cow mr-2"></i>GADO PRO <span class="text-xs text-gray-400 font-normal">v3.0</span></h1>
             <div class="space-x-1 md:space-x-4">
                 <button onclick="nav('dashboard')" class="px-3 py-2 rounded hover:bg-slate-700 transition"><i class="fas fa-chart-pie mr-1"></i> Dashboard</button>
                 <button onclick="nav('cadastro')" class="px-3 py-2 rounded hover:bg-slate-700 transition"><i class="fas fa-plus-circle mr-1"></i> Novo Nascimento</button>
@@ -47,7 +47,7 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-white p-4 rounded shadow">
-                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Nascimentos (Últimos 12 Meses)</h3>
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Nascimentos (Estimativa)</h3>
                     <div class="h-64"><canvas id="chartNascimentos"></canvas></div>
                 </div>
                 <div class="bg-white p-4 rounded shadow">
@@ -58,9 +58,9 @@
 
             <div class="bg-white p-4 rounded shadow border-t-4 border-yellow-400">
                 <h3 class="font-bold text-yellow-800 mb-4"><i class="fas fa-exclamation-triangle mr-2"></i>Vacas com Lactação Prolongada (>300 dias)</h3>
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto max-h-60">
                     <table class="w-full text-sm text-left">
-                        <thead class="bg-yellow-50 text-yellow-900">
+                        <thead class="bg-yellow-50 text-yellow-900 sticky top-0">
                             <tr><th class="p-2">Vaca</th><th class="p-2">Dias Lact.</th><th class="p-2">Data Parto</th></tr>
                         </thead>
                         <tbody id="lista-alertas"></tbody>
@@ -108,26 +108,29 @@
                 <input type="text" id="buscaLista" onkeyup="filtrarLista()" placeholder="Buscar brinco..." class="border p-2 rounded w-64">
             </div>
             <div class="bg-white rounded shadow overflow-hidden">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-100 uppercase font-bold text-gray-600">
-                        <tr>
-                            <th class="p-3">ID</th>
-                            <th class="p-3">Tipo</th>
-                            <th class="p-3">Status</th>
-                            <th class="p-3">Data Ref.</th>
-                            <th class="p-3">Mãe</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-lista" class="divide-y">
-                        </tbody>
-                </table>
+                <div class="overflow-x-auto max-h-[70vh]">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-100 uppercase font-bold text-gray-600 sticky top-0">
+                            <tr>
+                                <th class="p-3">ID</th>
+                                <th class="p-3">Tipo</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Data Ref.</th>
+                                <th class="p-3">Mãe</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-lista" class="divide-y">
+                            </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         <div id="tela-config" class="hidden max-w-4xl mx-auto space-y-6">
             <div class="bg-blue-50 border-l-4 border-blue-600 p-4">
                 <h3 class="font-bold text-blue-800">Migração de Dados</h3>
-                <p class="text-sm text-blue-700">Use esta tela apenas para carregar suas planilhas antigas para o sistema. As datas serão corrigidas automaticamente (Ex: "25" vira "2025").</p>
+                <p class="text-sm text-blue-700">Carregue suas planilhas antigas. As datas serão corrigidas automaticamente (Ex: "25" vira "2025").</p>
+                <p class="text-xs text-red-600 mt-2"><strong>Atenção:</strong> Certifique-se de ter alterado as regras do Firebase para "public" antes de importar.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -152,7 +155,7 @@
             </div>
             
             <div class="bg-slate-800 text-green-400 p-4 rounded font-mono text-xs h-40 overflow-y-auto" id="console-log">
-                > Console de Importação pronto...
+                > Aguardando ação...
             </div>
         </div>
 
@@ -162,62 +165,68 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, doc, writeBatch, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // --- 1. CONFIGURAÇÃO FIREBASE ---
+        // --- SUAS CREDENCIAIS REAIS ---
         const firebaseConfig = {
-            // COLOQUE SUAS CHAVES AQUI
-            apiKey: "AIzaSy...",
-            authDomain: "seu-projeto.firebaseapp.com",
-            projectId: "seu-projeto-id",
+            apiKey: "AIzaSyDT93mKi2kTXKLxdQngup6D-czdu9_vTYk",
+            authDomain: "registro-animais.firebaseapp.com",
+            projectId: "registro-animais",
+            storageBucket: "registro-animais.firebasestorage.app",
+            messagingSenderId: "343289114136",
+            appId: "1:343289114136:web:d98ed164d8bbd3f7b9dd6d"
         };
 
-        // Inicializa
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- 2. NAVEGAÇÃO ---
+        // --- NAVEGAÇÃO ---
         window.nav = (tela) => {
-            ['dashboard', 'cadastro', 'lista', 'config'].forEach(t => {
-                document.getElementById('tela-' + t).classList.add('hidden');
-            });
+            ['dashboard', 'cadastro', 'lista', 'config'].forEach(t => document.getElementById('tela-' + t).classList.add('hidden'));
             document.getElementById('tela-' + tela).classList.remove('hidden');
-            
-            // Recarrega dados se entrar no dashboard ou lista
             if(tela === 'dashboard' || tela === 'lista') carregarDadosDoBanco();
         }
 
-        // --- 3. IMPORTAÇÃO (MIGRAÇÃO) ---
+        // --- LOG DE IMPORTAÇÃO ---
         window.log = (msg) => {
             const el = document.getElementById('console-log');
             el.innerHTML = `> ${msg}<br>` + el.innerHTML;
         }
 
+        // --- FUNÇÃO DE IMPORTAR CSV ---
         window.importarCSV = (tipo) => {
             let inputId = tipo === 'FEMEA' ? 'fileFemea' : tipo === 'MACHO' ? 'fileMacho' : 'fileNasc';
             const file = document.getElementById(inputId).files[0];
-            if(!file) return alert('Selecione o arquivo primeiro.');
+            if(!file) return alert('Selecione o arquivo CSV primeiro.');
 
-            window.log(`Lendo ${tipo}...`);
+            window.log(`Lendo arquivo ${tipo}...`);
             Papa.parse(file, {
                 header: false,
                 skipEmptyLines: true,
-                encoding: "ISO-8859-1", // Tenta ler acentos corretamente
+                encoding: "ISO-8859-1", 
                 complete: async (results) => {
-                    window.log(`${results.data.length} linhas lidas. Enviando para Firebase...`);
+                    window.log(`${results.data.length} linhas lidas. Iniciando envio para o banco de dados...`);
                     await salvarNoFirebase(results.data, tipo);
-                }
+                },
+                error: (err) => window.log(`Erro ao ler arquivo: ${err.message}`)
             });
         }
 
         async function salvarNoFirebase(linhas, tipo) {
             const batch = writeBatch(db);
             let count = 0;
+            let totalLotes = 0;
 
-            for(let row of linhas) {
-                // Pula linhas de cabeçalho inúteis
-                if(!row[0] || row[0].length > 15 || row[0].includes('ID') || row[0].includes('VACA')) continue;
+            // O Firestore aceita no máximo 500 operações por lote (batch). 
+            // Como seus arquivos podem ser grandes, vamos fazer um loop cuidadoso.
+            
+            // Vamos processar linha por linha
+            for (let i = 0; i < linhas.length; i++) {
+                const row = linhas[i];
+
+                // Validação Simples: Ignorar cabeçalhos e linhas vazias
+                if(!row[0] || row[0].length > 20 || row[0].toLowerCase().includes('id') || row[0].toLowerCase().includes('vaca')) continue;
 
                 let id = row[0].trim().toUpperCase();
-                let dados = {};
+                let dados = null;
 
                 try {
                     if(tipo === 'FEMEA') {
@@ -229,7 +238,7 @@
                             status: 'Ativo'
                         };
                     } else if(tipo === 'MACHO') {
-                        // Na planilha macho, col 3 geralmente é "BEZERRO" ou "BOI"
+                        // Na sua planilha macho, col 3 é "BEZERRO" ou "BOI"
                         dados = {
                             id: id,
                             tipo: 'MACHO',
@@ -237,73 +246,71 @@
                             status: 'Ativo'
                         };
                     } else if(tipo === 'NASCIMENTO') {
-                        // Planilha Nascimento não tem ID do bezerro, criamos um ID provisório
                         const mae = id;
                         const data = corrigirData(row[1]);
                         const sexo = row[3] ? row[3].toUpperCase() : 'INDEFINIDO';
                         if(!data) continue;
                         
-                        // ID Provisório: BEZ-MAE-DATA
+                        // Cria um ID único para o bezerro se não tiver brinco ainda
                         const novoId = `BEZ-${mae}-${data.replace(/-/g,'').slice(2)}`;
                         
-                        // Salva Bezerro
-                        const refBez = doc(db, 'animais', novoId);
-                        batch.set(refBez, {
+                        // Salva diretamente (sem batch) para evitar conflitos de ID complexos
+                        await setDoc(doc(db, 'animais', novoId), {
                             id: novoId,
                             tipo: sexo === 'FEMEA' ? 'FEMEA' : 'MACHO',
                             nascimento: data,
                             id_mae: mae,
-                            origem: 'Importado'
+                            origem: 'Importado Nascimento'
                         });
-                        continue; // Importante: batch count manual abaixo não aplica aqui, pois usamos set direto se quiser, mas batch é melhor.
-                        // Para simplificar, nascimento vamos pular do batch principal neste loop e focar em Femea/Macho ou tratar diferente.
-                        // Mas vou manter no batch:
-                        /* Nota: Para nascimento, estamos criando um ID novo, diferente do `id` da variável. */
+                        count++;
+                        continue; // Pula para próxima linha
                     }
 
-                    if(dados.id) {
+                    if(dados && dados.id) {
                         const ref = doc(db, 'animais', dados.id);
-                        batch.set(ref, dados, { merge: true });
+                        // setDoc direto é mais seguro para iniciantes que batch complexo
+                        await setDoc(ref, dados, { merge: true });
                         count++;
                     }
-                } catch(e) { console.error(e); }
+                } catch(e) { 
+                    console.error("Erro na linha " + i, e); 
+                }
             }
 
-            if(count > 0) {
-                await batch.commit();
-                window.log(`SUCESSO: ${count} registros salvos!`);
-                alert('Importação concluída com sucesso!');
-            } else if (tipo === 'NASCIMENTO') {
-                 // Commit do batch de nascimento se tiver lógica ali dentro
-                 // Simplificação: Recomendo importar FEMEA e MACHO primeiro.
-                 alert('Processamento de nascimento finalizado (Verifique console para detalhes).');
-            }
+            window.log(`SUCESSO FINAL: ${count} registros processados e salvos.`);
+            alert('Processo concluído! Vá para o Dashboard conferir.');
         }
 
-        // --- 4. DATA CLEANING (O Segredo para não dar erro de data) ---
+        // --- CORREÇÃO DE DATAS (dd/mm/yy -> yyyy-mm-dd) ---
         function corrigirData(str) {
             if(!str) return null;
-            // Espera dd/mm/yy ou dd/mm/yyyy
             let partes = str.split('/');
             if(partes.length !== 3) return null;
             
+            let dia = partes[0].padStart(2,'0');
+            let mes = partes[1].padStart(2,'0');
             let ano = parseInt(partes[2]);
-            if(ano < 100) ano += 2000; // Transforma 25 em 2025
             
-            // Retorna ISO para o Banco (yyyy-mm-dd)
-            return `${ano}-${partes[1].padStart(2,'0')}-${partes[0].padStart(2,'0')}`;
+            // Lógica para transformar "25" em "2025"
+            if(ano < 100) ano += 2000; 
+            
+            return `${ano}-${mes}-${dia}`;
         }
 
-        // --- 5. CADASTRO DE NOVO NASCIMENTO ---
+        // --- SALVAR NOVO NASCIMENTO ---
         document.getElementById('formNascimento').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const bt = e.target.querySelector('button');
+            bt.innerText = "Salvando...";
+            bt.disabled = true;
+
             const idBez = document.getElementById('cad-idBezerro').value.toUpperCase();
             const idMae = document.getElementById('cad-idMae').value.toUpperCase();
             const data = document.getElementById('cad-data').value;
             const sexo = document.getElementById('cad-sexo').value;
 
             try {
-                // 1. Salva Bezerro
+                // 1. Cria Ficha do Bezerro
                 await setDoc(doc(db, "animais", idBez), {
                     id: idBez,
                     tipo: sexo,
@@ -312,112 +319,136 @@
                     status: 'Ativo'
                 });
 
-                // 2. Atualiza Mãe
+                // 2. Atualiza Mãe para Lactação
                 await setDoc(doc(db, "animais", idMae), {
-                    id: idMae, // Garante que existe
+                    id: idMae, 
                     status_produtivo: 'LACTAÇÃO',
-                    data_evento: data // Último parto
+                    data_evento: data 
                 }, { merge: true });
 
-                alert('Nascimento registrado!');
+                alert('Sucesso! Bezerro registrado e mãe atualizada.');
                 document.getElementById('formNascimento').reset();
             } catch(erro) {
-                alert('Erro: ' + erro.message);
+                alert('Erro ao salvar (Verifique suas Regras no Firebase): ' + erro.message);
+                console.error(erro);
+            } finally {
+                bt.innerText = "SALVAR NO BANCO DE DADOS";
+                bt.disabled = false;
             }
         });
 
-        // --- 6. CARREGAR DADOS (DASHBOARD E LISTA) ---
+        // --- CARREGAR DADOS ---
         async function carregarDadosDoBanco() {
-            const snap = await getDocs(collection(db, 'animais'));
-            let animais = [];
-            snap.forEach(d => animais.push(d.data()));
+            try {
+                const snap = await getDocs(collection(db, 'animais'));
+                let animais = [];
+                snap.forEach(d => animais.push(d.data()));
 
-            atualizarDashboard(animais);
-            atualizarTabela(animais);
+                atualizarDashboard(animais);
+                atualizarTabela(animais);
+            } catch (error) {
+                console.error("Erro ao ler dados:", error);
+                if(error.message.includes("permission")) {
+                    alert("ERRO DE PERMISSÃO: Você precisa alterar as Regras do Firestore para 'allow read, write: if true;'");
+                }
+            }
         }
 
         function atualizarDashboard(dados) {
-            // KPIs
+            // Filtros
             const lactacao = dados.filter(a => a.status_produtivo && a.status_produtivo.includes('LACTA'));
+            
+            const umAnoAtras = new Date();
+            umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
+            
             const bezerros = dados.filter(a => {
                 if(!a.nascimento) return false;
-                const nasc = new Date(a.nascimento);
-                const diff = new Date() - nasc;
-                return diff < (31536000000); // ~1 ano em ms
+                return new Date(a.nascimento) >= umAnoAtras;
             });
 
             // Alertas (> 300 dias)
             let alertas = [];
             const hoje = new Date();
             lactacao.forEach(v => {
-                if(v.data_evento) { // Data do parto
-                    const parto = new Date(v.data_evento);
-                    const dias = Math.floor((hoje - parto) / (86400000));
+                if(v.data_evento) {
+                    // Tenta criar data, lidando com possível formato yyyy-mm-dd
+                    const partes = v.data_evento.split('-'); 
+                    const dataParto = new Date(partes[0], partes[1]-1, partes[2]);
+                    
+                    const dias = Math.floor((hoje - dataParto) / (86400000));
                     if(dias > 300) alertas.push({ id: v.id, dias: dias, data: v.data_evento });
                 }
             });
 
-            // DOM Updates
+            // Preencher HTML
             document.getElementById('kpi-total').innerText = dados.length;
             document.getElementById('kpi-lactacao').innerText = lactacao.length;
             document.getElementById('kpi-bezerros').innerText = bezerros.length;
             document.getElementById('kpi-alertas').innerText = alertas.length;
+            
+            const pct = dados.length > 0 ? ((lactacao.length / dados.length) * 100).toFixed(0) : 0;
+            document.getElementById('kpi-lactacao-pct').innerText = pct + "% do rebanho total";
 
             // Tabela Alertas
             const listaAlerta = document.getElementById('lista-alertas');
             listaAlerta.innerHTML = '';
             alertas.forEach(a => {
-                listaAlerta.innerHTML += `<tr><td class="p-2 font-bold">${a.id}</td><td class="p-2 text-red-600">${a.dias} dias</td><td class="p-2">${a.data}</td></tr>`;
+                listaAlerta.innerHTML += `<tr><td class="p-2 font-bold">${a.id}</td><td class="p-2 text-red-600 font-bold">${a.dias} dias</td><td class="p-2 text-gray-500">${a.data}</td></tr>`;
             });
 
-            // Renderiza Gráficos (Simples)
-            renderCharts(bezerros, lactacao.length, dados.length - lactacao.length);
+            renderCharts(lactacao.length, dados.length - lactacao.length);
         }
 
         function atualizarTabela(dados) {
             const tbody = document.getElementById('tbody-lista');
             tbody.innerHTML = '';
-            // Limita a 100 para não travar se tiver mil bois, ideal seria paginação
-            dados.slice(0, 100).forEach(a => {
+            
+            // Filtro de busca simples
+            const termo = document.getElementById('buscaLista').value.toUpperCase();
+            const dadosFiltrados = termo ? dados.filter(d => d.id.includes(termo)) : dados;
+
+            // Mostra os primeiros 100 para não travar
+            dadosFiltrados.slice(0, 100).forEach(a => {
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 border-b">
-                        <td class="p-3 font-bold">${a.id}</td>
+                        <td class="p-3 font-bold text-slate-700">${a.id}</td>
                         <td class="p-3">${a.tipo}</td>
-                        <td class="p-3 text-xs">${a.status_produtivo || '-'}</td>
+                        <td class="p-3 text-xs font-bold ${a.status_produtivo?.includes('LACTA') ? 'text-green-600' : 'text-gray-400'}">${a.status_produtivo || '-'}</td>
                         <td class="p-3 text-xs">${a.data_evento || a.nascimento || '-'}</td>
-                        <td class="p-3">${a.id_mae || '-'}</td>
+                        <td class="p-3 text-xs text-gray-500">${a.id_mae || '-'}</td>
                     </tr>
                 `;
             });
         }
 
-        // Gráficos ChartJS
-        let chartNasc, chartStatus;
-        function renderCharts(bezerros, qtdLact, qtdOutros) {
-            // Se quiser gráficos reais, precisa processar as datas dos bezerros por mês aqui
-            // Simplificado para estrutura:
+        // Busca na tabela (Função Global)
+        window.filtrarLista = () => carregarDadosDoBanco();
+
+        // Gráficos
+        let chartStatus, chartNasc;
+        function renderCharts(qtdLact, qtdOutros) {
             if(chartStatus) chartStatus.destroy();
             chartStatus = new Chart(document.getElementById('chartStatus'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['Lactação', 'Outros/Secas'],
-                    datasets: [{ data: [qtdLact, qtdOutros], backgroundColor: ['#16a34a', '#cbd5e1'] }]
-                }
+                    labels: ['Em Lactação', 'Secas/Outros'],
+                    datasets: [{ data: [qtdLact, qtdOutros], backgroundColor: ['#22c55e', '#cbd5e1'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
             });
-            
-            // Nascimentos (Simulação visual se não tiver dados suficientes de data)
+
             if(chartNasc) chartNasc.destroy();
-             // Lógica real de agrupamento de meses seria aqui
             chartNasc = new Chart(document.getElementById('chartNascimentos'), {
                 type: 'bar',
                 data: {
-                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
-                    datasets: [{ label: 'Nascimentos', data: [2, 5, 3, 8, 1, 4], backgroundColor: '#3b82f6' }]
-                }
+                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+                    datasets: [{ label: 'Nascimentos', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], backgroundColor: '#3b82f6' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
 
-        // Inicia na Dashboard
+        // Inicia
         nav('dashboard');
 
     </script>
