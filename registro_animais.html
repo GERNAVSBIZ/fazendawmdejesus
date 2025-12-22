@@ -2,203 +2,227 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Gado Pro - Minimalist</title>
+    <title>Gado Pro - Sistema de Gestão</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Animação suave para os modais */
-        .fade-in { animation: fadeIn 0.2s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        /* Tooltip customizado para ícones minimalistas */
+        .tooltip-btn { position: relative; }
+        .tooltip-btn::after {
+            content: attr(data-tip);
+            position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+            background: #333; color: #fff; font-size: 10px; padding: 4px 8px; rounded: 4px;
+            opacity: 0; pointer-events: none; transition: 0.2s; white-space: nowrap; margin-bottom: 5px; border-radius: 4px;
+        }
+        .tooltip-btn:hover::after { opacity: 1; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col font-sans text-gray-700">
+<body class="bg-slate-100 min-h-screen flex flex-col font-sans text-slate-800">
 
-    <nav class="bg-white border-b border-gray-200 px-6 py-3 sticky top-0 z-40 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-            <div class="bg-slate-800 text-white p-2 rounded-lg"><i class="fas fa-cow"></i></div>
-            <h1 class="text-lg font-bold text-slate-800 tracking-tight">GADO PRO <span class="text-[10px] text-gray-400 font-normal border border-gray-200 px-1 rounded">v6.0</span></h1>
+    <nav class="bg-slate-900 text-white px-6 py-4 shadow-lg sticky top-0 z-50 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/50">
+                <i class="fas fa-cow text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight">GADO PRO</h1>
+                <p class="text-[10px] text-slate-400 font-medium tracking-wider">GESTÃO INTELIGENTE v7.0</p>
+            </div>
         </div>
-        <div class="flex gap-1 text-sm font-medium">
-            <button onclick="nav('dashboard')" class="px-4 py-2 rounded hover:bg-gray-100 text-gray-600 hover:text-slate-900 transition flex items-center gap-2"><i class="fas fa-chart-pie text-xs"></i> Painel</button>
-            <button onclick="nav('cadastro')" class="px-4 py-2 rounded hover:bg-gray-100 text-gray-600 hover:text-slate-900 transition flex items-center gap-2"><i class="fas fa-plus text-xs"></i> Novo</button>
-            <button onclick="nav('lista')" class="px-4 py-2 rounded hover:bg-gray-100 text-gray-600 hover:text-slate-900 transition flex items-center gap-2"><i class="fas fa-list-ul text-xs"></i> Rebanho</button>
-            <button onclick="nav('config')" class="px-4 py-2 rounded hover:bg-gray-100 text-gray-600 hover:text-slate-900 transition flex items-center gap-2"><i class="fas fa-cloud-upload-alt text-xs"></i> Dados</button>
+        <div class="flex gap-2 text-sm font-medium">
+            <button onclick="nav('dashboard')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2" id="nav-dashboard"><i class="fas fa-chart-line"></i> Dashboard</button>
+            <button onclick="nav('lista')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2" id="nav-lista"><i class="fas fa-list"></i> Rebanho</button>
+            <button onclick="nav('cadastro')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2" id="nav-cadastro"><i class="fas fa-plus"></i> Novo</button>
+            <button onclick="nav('config')" class="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 shadow transition flex items-center gap-2" id="nav-config"><i class="fas fa-database"></i> Dados</button>
         </div>
     </nav>
 
     <div class="max-w-7xl mx-auto p-6 w-full flex-grow relative">
         
-        <div id="modal-secagem" class="hidden fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm fade-in">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold text-slate-800">Encerrar Lactação</h3>
-                    <button onclick="document.getElementById('modal-secagem').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
-                </div>
-                <p class="text-sm text-gray-500 mb-4">Confirmar secagem da vaca <strong id="lbl-id-vaca-sec" class="text-slate-800"></strong>?</p>
-                <input type="hidden" id="input-id-secagem">
-                
-                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data do Evento</label>
-                <input type="date" id="input-data-secagem" class="w-full border border-gray-300 p-2 rounded mb-4 text-sm focus:outline-none focus:border-slate-500">
-                
-                <button onclick="confirmarSecagem()" class="w-full bg-slate-800 text-white rounded py-2 text-sm font-bold hover:bg-slate-700 transition">CONFIRMAR SECAGEM</button>
-            </div>
-        </div>
-
-        <div id="modal-dossie" class="hidden fixed inset-0 bg-slate-900/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col fade-in overflow-hidden">
-                <div class="bg-slate-50 border-b border-gray-100 p-6 flex justify-between items-start">
-                    <div class="flex items-center gap-4">
-                        <div class="h-12 w-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 text-xl">
-                            <i class="fas fa-cow"></i>
-                        </div>
-                        <div>
-                            <h2 class="text-2xl font-bold text-slate-800" id="dossie-id">---</h2>
-                            <div class="text-xs text-gray-500 flex gap-3 mt-1" id="dossie-resumo"></div>
-                        </div>
-                    </div>
-                    <button onclick="fecharDossie()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
-                </div>
-
-                <div class="flex-grow flex flex-col md:flex-row overflow-hidden">
-                    <div class="w-full md:w-1/3 bg-white p-6 border-r border-gray-100 overflow-y-auto">
-                        <h4 class="text-xs font-bold text-gray-400 uppercase mb-4">Adicionar Registro</h4>
-                        
-                        <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">Data</label>
-                                <input type="date" id="dossie-nova-data" class="w-full border p-2 rounded text-sm bg-gray-50">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">Observação / Ocorrência</label>
-                                <textarea id="dossie-nova-obs" class="w-full border p-2 rounded text-sm bg-gray-50 h-24 resize-none" placeholder="Ex: Vacina, Medicamento..."></textarea>
-                            </div>
-                            <button onclick="salvarOcorrencia()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded text-sm shadow-sm transition">
-                                Salvar no Histórico
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="w-full md:w-2/3 p-6 bg-slate-50 overflow-y-auto">
-                        <h4 class="text-xs font-bold text-gray-400 uppercase mb-4">Linha do Tempo</h4>
-                        <div class="space-y-6 border-l-2 border-gray-200 ml-2 pl-6" id="dossie-timeline">
-                            </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="tela-dashboard" class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-                    <p class="text-xs font-medium text-gray-400 uppercase">Total Animais</p>
-                    <p class="text-3xl font-bold text-slate-800 mt-1" id="kpi-total">0</p>
-                </div>
-                <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+        <div id="tela-dashboard" class="space-y-6 fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-slate-600 hover:-translate-y-1 transition duration-300">
                     <div class="flex justify-between items-start">
                         <div>
-                            <p class="text-xs font-medium text-gray-400 uppercase">Em Lactação</p>
-                            <p class="text-3xl font-bold text-green-600 mt-1" id="kpi-lactacao">0</p>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Rebanho</p>
+                            <p class="text-4xl font-extrabold text-slate-800 mt-2" id="kpi-total">0</p>
                         </div>
-                        <span class="bg-green-50 text-green-600 text-[10px] px-2 py-1 rounded-full font-bold">PRODUZINDO</span>
+                        <div class="p-3 bg-slate-100 rounded-xl text-slate-600"><i class="fas fa-layer-group text-xl"></i></div>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-                    <p class="text-xs font-medium text-gray-400 uppercase">Bezerros (< 1 ano)</p>
-                    <p class="text-3xl font-bold text-blue-600 mt-1" id="kpi-bezerros">0</p>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-green-500 hover:-translate-y-1 transition duration-300">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Em Lactação</p>
+                            <div class="flex items-baseline gap-2 mt-2">
+                                <p class="text-4xl font-extrabold text-green-600" id="kpi-lactacao">0</p>
+                                <span class="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full" id="pct-lactacao">0%</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-green-50 rounded-xl text-green-600"><i class="fas fa-fill-drip text-xl"></i></div>
+                    </div>
                 </div>
-                <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-                    <p class="text-xs font-medium text-gray-400 uppercase">Vacas Secas</p>
-                    <p class="text-3xl font-bold text-gray-500 mt-1" id="kpi-secas">0</p>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-500 hover:-translate-y-1 transition duration-300">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Bezerros (< 1 ano)</p>
+                            <p class="text-4xl font-extrabold text-blue-600 mt-2" id="kpi-bezerros">0</p>
+                        </div>
+                        <div class="p-3 bg-blue-50 rounded-xl text-blue-600"><i class="fas fa-baby text-xl"></i></div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-red-500 hover:-translate-y-1 transition duration-300">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Alertas (Secagem)</p>
+                            <p class="text-4xl font-extrabold text-red-500 mt-2" id="kpi-alertas">0</p>
+                        </div>
+                        <div class="p-3 bg-red-50 rounded-xl text-red-500 animate-pulse"><i class="fas fa-bell text-xl"></i></div>
+                    </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col">
-                    <h3 class="font-bold text-gray-700 mb-4 text-sm">Composição do Rebanho</h3>
-                    <div class="flex-grow flex items-center justify-center relative h-64">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm lg:col-span-1 border border-slate-100">
+                    <h3 class="font-bold text-slate-700 mb-6 flex items-center gap-2"><i class="fas fa-chart-pie text-slate-400"></i> Composição do Rebanho</h3>
+                    <div class="h-64 relative flex items-center justify-center">
                         <canvas id="chartStatus"></canvas>
-                        <div id="chart-msg" class="absolute text-xs text-gray-400 hidden">Sem dados para exibir</div>
+                        <div id="chart-msg" class="absolute text-sm text-gray-400 hidden">Carregue dados primeiro</div>
                     </div>
                 </div>
 
-                <div class="bg-white p-0 rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-80">
-                    <div class="p-4 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
-                        <h3 class="font-bold text-gray-700 text-sm">Alertas: Secagem Pendente</h3>
-                        <span class="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full">> 300 dias</span>
+                <div class="bg-white p-6 rounded-2xl shadow-sm lg:col-span-2 border border-slate-100">
+                    <h3 class="font-bold text-slate-700 mb-6 flex items-center gap-2"><i class="fas fa-chart-bar text-slate-400"></i> Nascimentos (Últimos 12 Meses)</h3>
+                    <div class="h-64">
+                        <canvas id="chartNascimentos"></canvas>
                     </div>
-                    <div class="overflow-y-auto flex-grow p-0">
-                        <table class="w-full text-sm text-left">
-                            <tbody id="lista-alertas" class="divide-y divide-gray-50">
-                                </tbody>
-                        </table>
-                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border-l-4 border-yellow-400 overflow-hidden">
+                <div class="p-4 bg-yellow-50 border-b border-yellow-100 flex justify-between items-center">
+                    <h3 class="font-bold text-yellow-800 flex items-center gap-2"><i class="fas fa-exclamation-triangle"></i> Vacas com Lactação Prolongada (>300 dias)</h3>
+                    <span class="text-xs bg-white text-yellow-800 px-3 py-1 rounded-full font-bold shadow-sm">Ação Necessária</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-white text-gray-500 text-xs uppercase">
+                            <tr><th class="px-6 py-3">Animal</th><th class="px-6 py-3">Dias em Lactação</th><th class="px-6 py-3 text-right">Ação</th></tr>
+                        </thead>
+                        <tbody id="lista-alertas-dash" class="divide-y divide-gray-100"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <div id="tela-lista" class="hidden space-y-4">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-slate-700">Rebanho Geral</h2>
+        <div id="tela-lista" class="hidden space-y-4 fade-in">
+            <div class="flex justify-between items-center mb-4 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2"><i class="fas fa-list text-slate-400"></i> Lista Geral</h2>
                 <div class="relative">
-                    <i class="fas fa-search absolute left-3 top-3 text-gray-300 text-xs"></i>
-                    <input type="text" id="buscaLista" onkeyup="filtrarLista()" placeholder="Filtrar por brinco..." class="pl-8 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400 w-64 bg-white shadow-sm">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
+                    <input type="text" id="buscaLista" onkeyup="filtrarLista()" placeholder="Buscar brinco..." class="pl-8 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-slate-50 w-64">
                 </div>
             </div>
-            
-            <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50/50 text-gray-400 uppercase font-medium text-[11px] tracking-wider">
-                            <tr>
-                                <th class="px-6 py-4 font-semibold">Animal</th>
-                                <th class="px-6 py-4 font-semibold">Categoria</th>
-                                <th class="px-6 py-4 font-semibold">Status</th>
-                                <th class="px-6 py-4 font-semibold">Ref. Data</th>
-                                <th class="px-6 py-4 font-semibold text-center">Ações</th>
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-xs font-bold text-slate-400 uppercase bg-slate-50 border-b border-slate-100">
+                                <th class="px-6 py-4">ID Animal</th>
+                                <th class="px-6 py-4">Categoria</th>
+                                <th class="px-6 py-4">Status</th>
+                                <th class="px-6 py-4">Ref. Data</th>
+                                <th class="px-6 py-4 text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="tbody-lista" class="divide-y divide-gray-50 text-gray-600">
+                        <tbody id="tbody-lista" class="text-sm text-slate-600 divide-y divide-slate-50">
                             </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <div id="tela-cadastro" class="hidden max-w-lg mx-auto bg-white rounded-xl shadow-sm border border-gray-100 p-8 mt-10">
-            <h2 class="text-xl font-bold mb-6 text-slate-800">Registrar Nascimento</h2>
+        <div id="modal-secagem" class="hidden fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Encerrar Lactação</h3>
+                <p class="text-sm text-gray-500 mb-4">Vaca: <strong id="lbl-id-vaca-sec" class="text-blue-600"></strong></p>
+                <input type="hidden" id="input-id-secagem">
+                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data Secagem</label>
+                <input type="date" id="input-data-secagem" class="w-full border p-2 rounded-lg mb-4 text-sm bg-slate-50">
+                <div class="flex gap-2">
+                    <button onclick="document.getElementById('modal-secagem').classList.add('hidden')" class="w-1/2 py-2 text-gray-500 hover:bg-gray-100 rounded-lg text-sm font-bold">Cancelar</button>
+                    <button onclick="confirmarSecagem()" class="w-1/2 py-2 bg-red-500 text-white rounded-lg text-sm font-bold hover:bg-red-600 shadow-md shadow-red-200">Confirmar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-dossie" class="hidden fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col fade-in overflow-hidden">
+                <div class="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-start">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-2xl text-slate-700"><i class="fas fa-id-card-alt"></i></div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-800" id="dossie-id">---</h2>
+                            <div class="flex gap-3 text-xs text-gray-500 mt-1" id="dossie-resumo"></div>
+                        </div>
+                    </div>
+                    <button onclick="fecharDossie()" class="text-gray-400 hover:text-slate-800"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                <div class="flex-grow flex flex-col md:flex-row overflow-hidden">
+                    <div class="w-full md:w-1/3 p-6 border-r border-slate-100 bg-white overflow-y-auto">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase mb-4">Adicionar Ocorrência</h4>
+                        <div class="space-y-3">
+                            <input type="date" id="dossie-nova-data" class="w-full border p-2 rounded-lg text-sm bg-slate-50">
+                            <textarea id="dossie-nova-obs" class="w-full border p-2 rounded-lg text-sm bg-slate-50 h-24 resize-none" placeholder="Vacinas, Pesagem, Doenças..."></textarea>
+                            <button onclick="salvarOcorrencia()" class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md shadow-blue-200">Salvar Registro</button>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-2/3 p-6 bg-slate-50 overflow-y-auto">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase mb-4">Histórico Completo</h4>
+                        <div class="space-y-6 pl-2" id="dossie-timeline"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tela-cadastro" class="hidden max-w-lg mx-auto bg-white rounded-2xl shadow-sm p-8 mt-10">
+            <h2 class="text-xl font-bold mb-6 text-slate-800">Novo Nascimento</h2>
             <form id="formNascimento" class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-xs font-bold text-gray-500 mb-1">ID Bezerro</label><input type="text" id="cad-idBezerro" class="w-full border p-2 rounded" required></div>
-                    <div><label class="block text-xs font-bold text-gray-500 mb-1">Data</label><input type="date" id="cad-data" class="w-full border p-2 rounded" required></div>
+                    <div><label class="block text-xs font-bold text-gray-400 mb-1">ID Bezerro</label><input type="text" id="cad-idBezerro" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label class="block text-xs font-bold text-gray-400 mb-1">Data</label><input type="date" id="cad-data" class="w-full border p-2 rounded-lg" required></div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-xs font-bold text-gray-500 mb-1">Sexo</label><select id="cad-sexo" class="w-full border p-2 rounded"><option value="MACHO">Macho</option><option value="FEMEA">Fêmea</option></select></div>
-                    <div><label class="block text-xs font-bold text-gray-500 mb-1">ID Mãe</label><input type="text" id="cad-idMae" class="w-full border p-2 rounded" required></div>
+                    <div><label class="block text-xs font-bold text-gray-400 mb-1">Sexo</label><select id="cad-sexo" class="w-full border p-2 rounded-lg"><option value="MACHO">Macho</option><option value="FEMEA">Fêmea</option></select></div>
+                    <div><label class="block text-xs font-bold text-gray-400 mb-1">ID Mãe</label><input type="text" id="cad-idMae" class="w-full border p-2 rounded-lg" required></div>
                 </div>
-                <button type="submit" class="w-full bg-slate-800 text-white font-bold py-3 rounded hover:bg-slate-700 mt-4">SALVAR REGISTRO</button>
+                <button type="submit" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-700 mt-2">SALVAR</button>
             </form>
         </div>
 
         <div id="tela-config" class="hidden max-w-3xl mx-auto space-y-6">
-            <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm text-center">
-                <h3 class="font-bold text-gray-700 mb-4">Área de Importação</h3>
+            <div class="bg-white p-8 rounded-2xl shadow-sm text-center">
+                <h3 class="font-bold text-slate-700 mb-6">Importar Dados CSV</h3>
                 <div class="flex gap-4 justify-center">
-                    <div class="w-1/3 p-4 border rounded hover:border-blue-400 cursor-pointer relative">
-                        <p class="font-bold text-xs text-pink-500">RG FÊMEA</p>
+                    <div class="w-1/3 p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-pink-400 cursor-pointer relative group">
+                        <i class="fas fa-venus text-2xl text-pink-300 mb-2 group-hover:text-pink-500"></i><p class="font-bold text-xs text-slate-500">RG FÊMEA</p>
                         <input type="file" id="fileFemea" class="absolute inset-0 opacity-0 cursor-pointer" onchange="importarCSV('FEMEA')">
                     </div>
-                    <div class="w-1/3 p-4 border rounded hover:border-blue-400 cursor-pointer relative">
-                        <p class="font-bold text-xs text-blue-500">RG MACHO</p>
+                    <div class="w-1/3 p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-blue-400 cursor-pointer relative group">
+                        <i class="fas fa-mars text-2xl text-blue-300 mb-2 group-hover:text-blue-500"></i><p class="font-bold text-xs text-slate-500">RG MACHO</p>
                         <input type="file" id="fileMacho" class="absolute inset-0 opacity-0 cursor-pointer" onchange="importarCSV('MACHO')">
                     </div>
-                    <div class="w-1/3 p-4 border rounded hover:border-blue-400 cursor-pointer relative">
-                        <p class="font-bold text-xs text-green-500">NASCIMENTO</p>
+                    <div class="w-1/3 p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-green-400 cursor-pointer relative group">
+                        <i class="fas fa-baby text-2xl text-green-300 mb-2 group-hover:text-green-500"></i><p class="font-bold text-xs text-slate-500">NASCIMENTO</p>
                         <input type="file" id="fileNasc" class="absolute inset-0 opacity-0 cursor-pointer" onchange="importarCSV('NASCIMENTO')">
                     </div>
                 </div>
-                <p id="import-status" class="text-xs text-gray-400 mt-4">Aguardando arquivo...</p>
+                <p id="import-status" class="text-xs text-blue-500 font-bold mt-4 h-4"></p>
             </div>
         </div>
 
@@ -208,7 +232,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, doc, writeBatch, getDocs, setDoc, addDoc, query, where, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // CONFIGURAÇÃO (COLOQUE SUAS CHAVES AQUI)
+        // CREDENCIAIS
         const firebaseConfig = {
             apiKey: "AIzaSyDT93mKi2kTXKLxdQngup6D-czdu9_vTYk",
             authDomain: "registro-animais.firebaseapp.com",
@@ -228,161 +252,166 @@
             if(tela === 'dashboard' || tela === 'lista') carregarDados();
         }
 
-        // CARREGAR DADOS (Lógica Refinada para Gráfico)
+        // --- CARREGAR DADOS & CORREÇÃO DE STRINGS ---
         async function carregarDados() {
             try {
                 const snap = await getDocs(collection(db, 'animais'));
                 let animais = [];
                 snap.forEach(d => animais.push(d.data()));
 
-                // --- FILTROS ROBUSTOS (CORREÇÃO DE STATUS) ---
-                const normalizar = (s) => (s || '').toUpperCase().trim();
+                // 1. Limpeza de Dados (O Segredo para o Gráfico Funcionar)
+                const limpar = (str) => str ? str.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
                 
-                const lactacao = animais.filter(a => normalizar(a.status_produtivo).includes('LACTA'));
-                const secas = animais.filter(a => normalizar(a.status_produtivo).includes('SECA'));
-                // Bezerros: Se tiver data (menos de 1 ano) ou Tipo = Bezerro
+                // 2. Filtros
+                const lactacao = animais.filter(a => limpar(a.status_produtivo).includes('LACTACAO'));
+                const secas = animais.filter(a => limpar(a.status_produtivo).includes('SECA'));
                 const bezerros = animais.filter(a => {
                     if (a.nascimento) return calcularMeses(a.nascimento) < 12;
-                    if (a.categoria_manual && a.categoria_manual.toUpperCase().includes('BEZERRO')) return true;
-                    return false;
+                    return limpar(a.categoria_manual).includes('BEZERRO');
                 });
 
-                // --- ATUALIZAR KPIs ---
+                // 3. Atualizar Dashboard
                 document.getElementById('kpi-total').innerText = animais.length;
                 document.getElementById('kpi-lactacao').innerText = lactacao.length;
-                document.getElementById('kpi-secas').innerText = secas.length;
+                document.getElementById('pct-lactacao').innerText = animais.length ? Math.round((lactacao.length / animais.length)*100) + '%' : '0%';
                 document.getElementById('kpi-bezerros').innerText = bezerros.length;
-
-                // --- RENDERIZAR TABELA (VISUAL CLEAN) ---
-                const tbody = document.getElementById('tbody-lista');
-                tbody.innerHTML = '';
+                
+                // Alertas e Tabela Dash
                 const alertas = [];
                 const hoje = new Date();
+                const tabelaDash = document.getElementById('lista-alertas-dash');
+                tabelaDash.innerHTML = '';
+                
+                lactacao.forEach(a => {
+                    if(a.data_evento) {
+                        const dias = Math.floor((hoje - new Date(a.data_evento)) / 86400000);
+                        if(dias > 300) {
+                            alertas.push({id: a.id, dias});
+                            tabelaDash.innerHTML += `
+                                <tr class="hover:bg-yellow-50 border-b border-gray-50">
+                                    <td class="px-6 py-3 font-bold text-slate-700">${a.id}</td>
+                                    <td class="px-6 py-3 text-yellow-600 font-bold">${dias} dias</td>
+                                    <td class="px-6 py-3 text-right"><button onclick="abrirModalSecagem('${a.id}')" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200">Secar Agora</button></td>
+                                </tr>
+                            `;
+                        }
+                    }
+                });
+                document.getElementById('kpi-alertas').innerText = alertas.length;
 
-                // Ordenar por ID
-                animais.sort((a,b) => (a.id > b.id) ? 1 : -1);
+                // 4. Gráficos
+                renderizarGraficos(lactacao.length, secas.length, animais.length, bezerros);
 
-                animais.slice(0, 300).forEach(a => {
-                    const statusRaw = normalizar(a.status_produtivo);
-                    let badge = `<span class="px-2 py-1 rounded text-[10px] font-bold bg-gray-100 text-gray-400">OUTROS</span>`;
+                // 5. Tabela Lista (Minimalista)
+                const tbody = document.getElementById('tbody-lista');
+                tbody.innerHTML = '';
+                animais.sort((a,b) => (a.id > b.id) ? 1 : -1).slice(0, 300).forEach(a => {
+                    const st = limpar(a.status_produtivo);
+                    let badge = `<span class="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded">OUTROS</span>`;
                     let btnSecar = '';
                     
-                    if(statusRaw.includes('LACTA')) {
-                        badge = `<span class="px-2 py-1 rounded text-[10px] font-bold bg-green-50 text-green-600 border border-green-100">LACTAÇÃO</span>`;
-                        // Botão Power (Ghost)
-                        btnSecar = `<button onclick="abrirModalSecagem('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition" title="Encerrar Ciclo"><i class="fas fa-power-off"></i></button>`;
-                        
-                        // Check Alerta
-                        if(a.data_evento) {
-                            const dias = Math.floor((hoje - new Date(a.data_evento)) / 86400000);
-                            if(dias > 300) alertas.push({id: a.id, dias});
-                        }
-                    } else if (statusRaw.includes('SECA')) {
-                        badge = `<span class="px-2 py-1 rounded text-[10px] font-bold bg-red-50 text-red-400 border border-red-100">SECA</span>`;
+                    if(st.includes('LACTACAO')) {
+                        badge = `<span class="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded border border-green-100">LACTAÇÃO</span>`;
+                        // Ícone Minimalista (Ghost)
+                        btnSecar = `<button onclick="abrirModalSecagem('${a.id}')" class="tooltip-btn w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition" data-tip="Secar"><i class="fas fa-power-off"></i></button>`;
+                    } else if (st.includes('SECA')) {
+                        badge = `<span class="text-[10px] font-bold text-red-400 bg-red-50 px-2 py-1 rounded border border-red-100">SECA</span>`;
                     }
 
-                    // Linha da Tabela Minimalista
                     tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50 transition-colors group">
+                        <tr class="hover:bg-slate-50 transition group border-b border-slate-50">
                             <td class="px-6 py-3 font-medium text-slate-700">${a.id}</td>
-                            <td class="px-6 py-3 text-xs uppercase">${a.tipo}</td>
+                            <td class="px-6 py-3 text-xs text-gray-500 uppercase">${a.tipo}</td>
                             <td class="px-6 py-3">${badge}</td>
-                            <td class="px-6 py-3 text-xs text-gray-400">${formatarDataBr(a.data_evento || a.nascimento)}</td>
+                            <td class="px-6 py-3 text-xs text-gray-400 font-mono">${formatarDataBr(a.data_evento || a.nascimento)}</td>
                             <td class="px-6 py-3">
                                 <div class="flex items-center justify-center gap-2">
                                     ${btnSecar}
-                                    <button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-blue-600 hover:bg-blue-50 transition" title="Prontuário"><i class="fas fa-clipboard-list"></i></button>
+                                    <button onclick="abrirDossie('${a.id}')" class="tooltip-btn w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-blue-600 hover:bg-blue-50 transition" data-tip="Dossiê"><i class="fas fa-clipboard-list"></i></button>
                                 </div>
                             </td>
                         </tr>
                     `;
                 });
 
-                // --- TABELA ALERTAS CLEAN ---
-                const listaAlertas = document.getElementById('lista-alertas');
-                listaAlertas.innerHTML = '';
-                if(alertas.length === 0) {
-                    listaAlertas.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-xs text-gray-400">Nenhuma vaca com lactação atrasada.</td></tr>';
-                } else {
-                    alertas.forEach(al => {
-                        listaAlertas.innerHTML += `
-                            <tr class="hover:bg-red-50/50">
-                                <td class="px-4 py-3 font-bold text-slate-700">${al.id}</td>
-                                <td class="px-4 py-3 text-red-500 font-medium text-xs">${al.dias} dias</td>
-                                <td class="px-4 py-3 text-right">
-                                    <button onclick="abrirModalSecagem('${al.id}')" class="text-xs text-red-600 hover:underline">Secar</button>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                }
-
-                // --- GRÁFICO (COM CHECK DE DADOS) ---
-                const ctx = document.getElementById('chartStatus');
-                if(window.chartStatus) window.chartStatus.destroy();
-                
-                if (animais.length === 0) {
-                    document.getElementById('chart-msg').classList.remove('hidden');
-                } else {
-                    document.getElementById('chart-msg').classList.add('hidden');
-                    window.chartStatus = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Lactação', 'Secas', 'Outros'],
-                            datasets: [{
-                                data: [lactacao.length, secas.length, animais.length - lactacao.length - secas.length],
-                                backgroundColor: ['#22c55e', '#ef4444', '#f1f5f9'],
-                                borderWidth: 0,
-                                hoverOffset: 4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: {size: 10} } } },
-                            cutout: '75%'
-                        }
-                    });
-                }
-
-            } catch (error) {
-                console.error("Erro ao carregar:", error);
-            }
+            } catch(e) { console.error(e); }
         }
 
-        // --- MANEJO DE SECAGEM ---
+        // FUNÇÃO GRÁFICOS
+        let chartStatusInstance, chartNascInstance;
+        function renderizarGraficos(lact, secas, total, bezerros) {
+            // Status
+            const ctx1 = document.getElementById('chartStatus');
+            if(chartStatusInstance) chartStatusInstance.destroy();
+            
+            if(total === 0) {
+                 document.getElementById('chart-msg').classList.remove('hidden');
+            } else {
+                 document.getElementById('chart-msg').classList.add('hidden');
+                 chartStatusInstance = new Chart(ctx1, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Lactação', 'Secas', 'Outros'],
+                        datasets: [{ data: [lact, secas, total - lact - secas], backgroundColor: ['#16a34a', '#ef4444', '#f1f5f9'], borderWidth: 0 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'right' } } }
+                });
+            }
+
+            // Nascimentos (Simulado por mês para exemplo)
+            const ctx2 = document.getElementById('chartNascimentos');
+            if(chartNascInstance) chartNascInstance.destroy();
+            // Agrupar bezerros por mês (lógica simples)
+            const meses = Array(12).fill(0);
+            bezerros.forEach(b => {
+                if(b.nascimento) {
+                    const mes = new Date(b.nascimento).getMonth();
+                    meses[mes]++;
+                }
+            });
+            
+            chartNascInstance = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],
+                    datasets: [{ label: 'Nascimentos', data: meses, backgroundColor: '#3b82f6', borderRadius: 4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } }
+            });
+        }
+
+        // DOSSIÊ & SECAGEM
         window.abrirModalSecagem = (id) => {
             document.getElementById('lbl-id-vaca-sec').innerText = id;
             document.getElementById('input-id-secagem').value = id;
             document.getElementById('input-data-secagem').value = new Date().toISOString().split('T')[0];
             document.getElementById('modal-secagem').classList.remove('hidden');
         }
-
         window.confirmarSecagem = async () => {
             const id = document.getElementById('input-id-secagem').value;
             const data = document.getElementById('input-data-secagem').value;
             try {
                 await setDoc(doc(db, "animais", id), { status_produtivo: "SECA", data_evento: data, data_secagem: data }, { merge: true });
-                await addDoc(collection(db, "historico"), { animal_id: id, evento: "SECAGEM", data: data, obs: "Ciclo encerrado manualmente", created_at: new Date() });
+                await addDoc(collection(db, "historico"), { animal_id: id, evento: "SECAGEM", data, obs: "Ciclo encerrado", created_at: new Date() });
                 document.getElementById('modal-secagem').classList.add('hidden');
                 carregarDados();
             } catch(e) { alert(e.message); }
         }
 
-        // --- DOSSIÊ (PRONTUÁRIO) ---
         window.abrirDossie = async (id) => {
             document.getElementById('modal-dossie').classList.remove('hidden');
             document.getElementById('dossie-id').innerText = id;
-            document.getElementById('dossie-timeline').innerHTML = '<p class="text-xs text-gray-400 italic">Buscando histórico...</p>';
+            const tl = document.getElementById('dossie-timeline');
+            tl.innerHTML = '<p class="text-xs text-gray-400 italic">Carregando...</p>';
             
-            // Info Básica
+            // Puxar Info
             const docSnap = await getDoc(doc(db, "animais", id));
             if(docSnap.exists()){
                 const d = docSnap.data();
                 document.getElementById('dossie-resumo').innerHTML = `
-                    <span class="bg-gray-100 px-2 py-0.5 rounded text-gray-600">${d.tipo}</span>
-                    <span class="bg-gray-100 px-2 py-0.5 rounded text-gray-600">Mãe: ${d.id_mae || '?'}</span>
-                    <span class="bg-gray-100 px-2 py-0.5 rounded text-gray-600">${calcularIdade(d.nascimento)}</span>
+                    <span class="bg-gray-100 px-2 py-1 rounded text-gray-600 font-bold">${d.tipo}</span>
+                    <span class="bg-gray-100 px-2 py-1 rounded text-gray-600">Mãe: ${d.id_mae || '?'}</span>
+                    <span class="bg-gray-100 px-2 py-1 rounded text-gray-600">${calcularIdade(d.nascimento)}</span>
                 `;
             }
 
@@ -391,92 +420,70 @@
             const snap = await getDocs(q);
             let evts = [];
             snap.forEach(d => evts.push(d.data()));
+            if(docSnap.exists() && docSnap.data().nascimento) evts.push({ evento: 'NASCIMENTO', data: docSnap.data().nascimento, obs: 'Registro Original' });
             
-            // Adiciona nascimento original se existir
-            if(docSnap.exists() && docSnap.data().nascimento) {
-                evts.push({ evento: 'NASCIMENTO', data: docSnap.data().nascimento, obs: 'Data de registro original' });
-            }
-
             evts.sort((a,b) => new Date(b.data) - new Date(a.data));
-
-            const tl = document.getElementById('dossie-timeline');
             tl.innerHTML = '';
-            
-            if(evts.length === 0) tl.innerHTML = '<p class="text-xs text-gray-400">Nenhum evento registrado.</p>';
 
             evts.forEach(e => {
-                let color = 'bg-gray-200';
-                if(e.evento.includes('PARTO') || e.evento.includes('NASCIMENTO')) color = 'bg-green-400';
-                if(e.evento.includes('SECAGEM')) color = 'bg-red-400';
-                if(e.evento.includes('OCORRÊNCIA')) color = 'bg-blue-400';
+                let color = 'bg-gray-300';
+                let icon = 'fa-circle';
+                if(e.evento.includes('PARTO') || e.evento.includes('NASCIMENTO')) { color = 'bg-blue-500'; icon='fa-baby'; }
+                if(e.evento.includes('SECAGEM')) { color = 'bg-red-500'; icon='fa-power-off'; }
+                if(e.evento.includes('OCORRÊNCIA')) { color = 'bg-purple-500'; icon='fa-notes-medical'; }
 
                 tl.innerHTML += `
-                    <div class="relative pb-6 border-l border-gray-200 pl-4 last:border-0 last:pb-0">
-                        <div class="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full ${color} border border-white shadow-sm"></div>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">${formatarDataBr(e.data)}</p>
-                        <p class="text-sm font-bold text-gray-700">${e.evento}</p>
-                        <p class="text-xs text-gray-500 mt-1 bg-white border border-gray-100 p-2 rounded">${e.obs || ''}</p>
+                    <div class="relative pl-8 pb-8 border-l-2 border-gray-100 last:border-0 last:pb-0 group">
+                        <div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full ${color} border-2 border-white shadow-sm flex items-center justify-center text-[8px] text-white">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">${formatarDataBr(e.data)}</p>
+                        <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm group-hover:shadow-md transition">
+                            <h4 class="font-bold text-sm text-slate-700">${e.evento}</h4>
+                            <p class="text-xs text-gray-500 mt-1">${e.obs || ''}</p>
+                        </div>
                     </div>
                 `;
             });
         }
         
         window.fecharDossie = () => document.getElementById('modal-dossie').classList.add('hidden');
-        
         window.salvarOcorrencia = async () => {
             const id = document.getElementById('dossie-id').innerText;
             const data = document.getElementById('dossie-nova-data').value || new Date().toISOString().split('T')[0];
             const obs = document.getElementById('dossie-nova-obs').value;
             if(!obs) return;
-            try {
-                await addDoc(collection(db, "historico"), { animal_id: id, evento: "OCORRÊNCIA", data, obs, created_at: new Date() });
-                document.getElementById('dossie-nova-obs').value = '';
-                abrirDossie(id);
-            } catch(e) { alert(e.message); }
+            try { await addDoc(collection(db,"historico"),{animal_id:id, evento:"OCORRÊNCIA", data, obs, created_at:new Date()}); document.getElementById('dossie-nova-obs').value=''; abrirDossie(id); } catch(e){ alert(e.message); }
         }
 
-        // HELPERS E IMPORTAÇÃO
-        function calcularMeses(d) { return (new Date() - new Date(d)) / 2629746000; }
-        function calcularIdade(d) { if(!d) return '-'; const m = Math.floor(calcularMeses(d)); return m<12 ? m+"m" : Math.floor(m/12)+"a"; }
-        function formatarDataBr(d) { if(!d) return '-'; const p=d.split('-'); return `${p[2]}/${p[1]}/${p[0].slice(2)}`; } // dd/mm/yy
-        window.filtrarLista = () => {
-            const t = document.getElementById('buscaLista').value.toUpperCase();
-            document.querySelectorAll('#tbody-lista tr').forEach(r => r.style.display = r.innerText.toUpperCase().includes(t) ? '' : 'none');
-        }
+        // UTILS & IMPORTAÇÃO
+        function calcularMeses(d) { return (new Date()-new Date(d))/2629746000; }
+        function calcularIdade(d) { if(!d) return '-'; const m=Math.floor(calcularMeses(d)); return m<12?m+"m":Math.floor(m/12)+"a"; }
+        function formatarDataBr(d) { if(!d)return'-'; const p=d.split('-'); return `${p[2]}/${p[1]}/${p[0].slice(2)}`; }
+        
+        window.filtrarLista = () => { const t = document.getElementById('buscaLista').value.toUpperCase(); document.querySelectorAll('#tbody-lista tr').forEach(r => r.style.display = r.innerText.toUpperCase().includes(t) ? '' : 'none'); }
 
         window.importarCSV = (tipo) => {
-            const input = document.getElementById(tipo==='FEMEA'?'fileFemea':tipo==='MACHO'?'fileMacho':'fileNasc');
-            const file = input.files[0];
-            if(!file) return;
-            document.getElementById('import-status').innerText = "Lendo arquivo...";
-            Papa.parse(file, {header:false, skipEmptyLines:true, encoding:"ISO-8859-1", complete:async(res)=>{
-                const batch = writeBatch(db);
-                let count = 0;
+            const f = document.getElementById(tipo==='FEMEA'?'fileFemea':tipo==='MACHO'?'fileMacho':'fileNasc').files[0];
+            if(!f) return;
+            document.getElementById('import-status').innerText = "Processando...";
+            Papa.parse(f, {header:false, skipEmptyLines:true, encoding:"ISO-8859-1", complete:async(res)=>{
+                const batch=writeBatch(db);
                 for(let r of res.data){
-                    if(!r[0] || r[0].length>20 || r[0].toLowerCase().includes('id')) continue;
-                    let id = r[0].trim().toUpperCase();
-                    let data = { id, status: 'Ativo' };
-                    
-                    if(tipo==='FEMEA') {
-                        data.tipo = 'FEMEA';
-                        data.status_produtivo = r[2]?.trim().toUpperCase(); // Normalização agressiva
-                        data.data_evento = corrigirData(r[1]);
-                    } else if(tipo==='MACHO') {
-                        data.tipo = 'MACHO';
-                    } else if(tipo==='NASCIMENTO') {
-                        let nid = `BEZ-${id}-${corrigirData(r[1])?.slice(2)}`;
-                        await setDoc(doc(db,'animais',nid), {id:nid, tipo:r[3]?.toUpperCase(), nascimento:corrigirData(r[1]), id_mae:id});
-                        continue;
-                    }
-                    if(data.id) await setDoc(doc(db,'animais',data.id), data, {merge:true});
-                    count++;
+                    if(!r[0]||r[0].length>20||r[0].toLowerCase().includes('id')) continue;
+                    let id=r[0].trim().toUpperCase();
+                    let d = {id, status:'Ativo'};
+                    if(tipo==='FEMEA'){ d.tipo='FEMEA'; d.status_produtivo=r[2]?.toUpperCase().trim(); d.data_evento=corrigirData(r[1]); }
+                    else if(tipo==='MACHO'){ d.tipo='MACHO'; }
+                    else if(tipo==='NASCIMENTO'){ let nid=`BEZ-${id}-${corrigirData(r[1])?.slice(2)}`; await setDoc(doc(db,'animais',nid),{id:nid, tipo:r[3]?.toUpperCase(), nascimento:corrigirData(r[1]), id_mae:id}); continue; }
+                    if(d.id) await setDoc(doc(db,'animais',d.id),d,{merge:true});
                 }
-                document.getElementById('import-status').innerText = `Sucesso! ${count} registros processados.`;
-                carregarDados();
+                document.getElementById('import-status').innerText = "Concluído!"; carregarDados();
             }});
         }
         function corrigirData(s){ if(!s)return null; let p=s.split('/'); if(p.length!==3)return null; let y=parseInt(p[2]); if(y<100)y+=2000; return `${y}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`; }
 
+        // Start
         nav('dashboard');
     </script>
 </body>
