@@ -1,133 +1,237 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    
+    <link rel="icon" type="image/svg+xml" href="./leite/favicon.svg">
+    <link rel="apple-touch-icon" href="./leite/apple-touch-icon.png">
+    
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analisador de Produção Leiteira</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestão de Leite - Fazenda WM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        .chart-container { position: relative; margin: auto; height: 300px; width: 100%; }
+        
+        /* Correção específica para inputs no iOS */
+        input[type="date"], input[type="number"] {
+            -webkit-appearance: none;
+            appearance: none;
+            border-radius: 0.5rem;
         }
-        .chart-container {
-            position: relative;
-            margin: auto;
-            height: 400px;
-            width: 100%;
-        }
-        /* Custom scrollbar for better aesthetics */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #2d3748;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #4a5568;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #718096;
-        }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #2d3748; }
+        ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #718096; }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
 
     <div class="relative container mx-auto p-4 md:p-8">
-        <!-- Botão Home Adicionado -->
-        <a href="https://gernavsbiz.github.io/fazendawmdejesus/" class="absolute top-4 right-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-lg focus:outline-none focus:shadow-outline transition-all duration-300 transform hover:scale-110 flex items-center gap-2 z-10" title="Voltar para a Página Principal">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span class="hidden sm:inline">Página Principal</span>
+        <a href="https://gernavsbiz.github.io/fazendawmdejesus/" class="absolute top-4 right-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 z-10 text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+            <span class="hidden sm:inline">Home</span>
         </a>
 
-        <header class="text-center mb-8 pt-16 sm:pt-8 md:pt-0">
-            <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Dashboard de Análise Leiteira</h1>
-            <p id="header-subtitle" class="mt-2 text-lg text-gray-600 dark:text-gray-400">Faça login para acessar e gerenciar os dados colaborativos.</p>
+        <header class="text-center mb-8 pt-12 md:pt-0">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Controle de Leite</h1>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Gerenciamento de produção e análise financeira.</p>
             <div id="userInfo" class="mt-4 text-sm text-gray-500 dark:text-gray-400"></div>
         </header>
 
-        <!-- Login Screen -->
         <div id="loginScreen" class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 border border-gray-200 dark:border-gray-700">
-            <h2 class="text-2xl font-bold text-center mb-6">Acessar Painel</h2>
-            <div id="loginError" class="hidden text-red-600 dark:text-red-400 text-center mb-4 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-800"></div>
-            <div class="space-y-4">
-                 <button id="googleSignInBtn" class="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-                    <svg class="w-6 h-6" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
-                    Entrar com Google
-                </button>
-            </div>
-            <p class="text-xs text-center text-gray-500 mt-4">Os dados são compartilhados entre todos os usuários autenticados.</p>
+            <h2 class="text-2xl font-bold text-center mb-6">Acesso Restrito</h2>
+            <div id="loginError" class="hidden text-red-600 bg-red-100 p-3 rounded mb-4 text-center text-sm"></div>
+            <button id="googleSignInBtn" class="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6" alt="Google">
+                Entrar com Google
+            </button>
         </div>
 
-        <main id="mainContent" class="hidden">
-            <!-- File Upload Section -->
-            <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
-                <div class="flex items-center justify-center w-full">
-                    <label for="csvFile" class="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 dark:hover:border-gray-500 dark:hover:bg-gray-600 transition-colors">
-                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                            <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                            <p class="mb-2 text-sm text-gray-500 dark:text-gray-400"><span class="font-semibold">Clique para carregar</span> ou arraste e solte</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Arquivo CSV</p>
+        <main id="mainContent" class="hidden space-y-8">
+            
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-blue-100 dark:border-gray-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        Novo Registro / Edição
+                    </h2>
+                    <span id="formModeLabel" class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded hidden">MODO EDIÇÃO</span>
+                </div>
+                
+                <form id="milkForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div class="col-span-1">
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
+                        <input type="date" id="inputData" required class="w-full appearance-none bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-sm focus:ring-blue-500 focus:border-blue-500 h-[42px]">
+                    </div>
+
+                    <div class="col-span-1">
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Manhã (L)</label>
+                        <input type="number" step="0.01" id="inputManha" required placeholder="0.00" class="w-full appearance-none bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-sm focus:ring-blue-500 focus:border-blue-500 h-[42px]">
+                    </div>
+
+                    <div class="col-span-1">
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Tarde (L) <span class="text-gray-400 font-normal">(Opcional)</span></label>
+                        <input type="number" step="0.01" id="inputTarde" placeholder="0.00" class="w-full appearance-none bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-sm focus:ring-blue-500 focus:border-blue-500 h-[42px]">
+                    </div>
+
+                    <div class="col-span-1 relative group">
+                        <label class="block text-xs font-medium text-gray-500 mb-1 flex justify-between">
+                            Preço (R$)
+                            <button type="button" id="btnSaveDefaultPrice" class="text-blue-500 hover:text-blue-700 text-xs underline" title="Salvar este valor como padrão para futuros lançamentos">Definir padrão</button>
+                        </label>
+                        <input type="number" step="0.01" id="inputPreco" required class="w-full appearance-none bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-sm focus:ring-blue-500 focus:border-blue-500 h-[42px]">
+                    </div>
+
+                    <div class="col-span-1 flex items-end">
+                        <button type="submit" id="btnSalvar" class="w-full h-[42px] bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 rounded-lg shadow transition-colors flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                            Salvar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
+                <div class="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-700 dark:text-gray-200">Últimos Registros</h3>
+                    <div class="text-xs text-gray-500">Mostrando os 5 mais recentes</div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+                            <tr>
+                                <th scope="col" class="px-6 py-3">Data</th>
+                                <th scope="col" class="px-6 py-3">Manhã</th>
+                                <th scope="col" class="px-6 py-3">Tarde</th>
+                                <th scope="col" class="px-6 py-3">Total</th>
+                                <th scope="col" class="px-6 py-3">Preço</th>
+                                <th scope="col" class="px-6 py-3">Valor</th>
+                                <th scope="col" class="px-6 py-3 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentRecordsTable">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-300 dark:border-gray-700 pt-8">
+                <details class="group bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-8">
+                    <summary class="flex justify-between items-center font-medium cursor-pointer list-none text-gray-600 dark:text-gray-300">
+                        <span>Opções Avançadas (Importar/Exportar)</span>
+                        <span class="transition group-open:rotate-180">
+                            <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                        </span>
+                    </summary>
+                    <div class="text-neutral-600 mt-4 group-open:animate-fadeIn grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <div class="border p-4 rounded-lg bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                            <h4 class="font-bold mb-2 text-sm">Importar CSV</h4>
+                            <div class="flex items-center justify-center w-full mb-3">
+                                <label for="csvFile" class="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600">
+                                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <p class="mb-1 text-xs text-gray-500">Clique para carregar</p>
+                                    </div>
+                                    <input id="csvFile" type="file" class="hidden" accept=".csv" />
+                                </label>
+                            </div>
+                            <p id="fileName" class="text-center text-xs mb-2 text-gray-500 h-4"></p>
+                            <button id="analyzeBtn" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded text-sm" disabled>
+                                Processar Importação
+                            </button>
                         </div>
-                        <input id="csvFile" type="file" class="hidden" accept=".csv" />
-                    </label>
-                </div>
-                <div id="fileName" class="mt-4 text-center text-gray-500 dark:text-gray-400">Nenhum arquivo selecionado.</div>
-                <button id="analyzeBtn" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-all duration-300 transform hover:scale-105 disabled:bg-gray-400 disabled:dark:bg-gray-600 disabled:cursor-not-allowed disabled:transform-none" disabled>
-                    Atualizar Dados Colaborativos
-                </button>
-            </div>
 
-            <!-- Status/Loader -->
-            <div id="status" class="text-center my-8 hidden">
-                <div id="loader" class="flex justify-center items-center">
-                    <svg class="animate-spin h-8 w-8 text-blue-600 dark:text-blue-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </div>
-                <p id="statusText" class="mt-2">Conectando ao banco de dados...</p>
-            </div>
+                        <div class="border p-4 rounded-lg bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                            <h4 class="font-bold mb-2 text-sm">Exportar Dados</h4>
+                            <p class="text-xs text-gray-500 mb-4">Baixe todo o histórico de produção em formato CSV (compatível com Excel).</p>
+                            <button id="btnExportCsv" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-sm flex items-center justify-center gap-2 mt-auto">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                Baixar CSV Completo
+                            </button>
+                        </div>
+                    </div>
+                </details>
 
-            <!-- Report Container -->
-            <div id="reportContainer" class="hidden mt-10 space-y-8">
-                <!-- Report will be generated here -->
+                <div id="status" class="text-center my-8 hidden">
+                    <p id="statusText" class="animate-pulse text-blue-600">Carregando dados...</p>
+                </div>
+
+                <div id="reportContainer" class="hidden space-y-8 pb-12">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-blue-50 dark:bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500">
+                            <p class="text-xs text-gray-500">Total Litros</p>
+                            <p class="text-xl font-bold text-blue-700 dark:text-blue-400" id="cardTotalLitros">0</p>
+                        </div>
+                        <div class="bg-green-50 dark:bg-gray-800 p-4 rounded-lg border-l-4 border-green-500">
+                            <p class="text-xs text-gray-500">Receita Total</p>
+                            <p class="text-xl font-bold text-green-700 dark:text-green-400" id="cardReceita">R$ 0</p>
+                        </div>
+                        <div class="bg-purple-50 dark:bg-gray-800 p-4 rounded-lg border-l-4 border-purple-500">
+                            <p class="text-xs text-gray-500">Média Diária (Geral)</p>
+                            <p class="text-xl font-bold text-purple-700 dark:text-purple-400" id="cardMedia">0</p>
+                        </div>
+                        <div class="bg-orange-50 dark:bg-gray-800 p-4 rounded-lg border-l-4 border-orange-500">
+                            <p class="text-xs text-gray-500">Preço Médio</p>
+                            <p class="text-xl font-bold text-orange-700 dark:text-orange-400" id="cardPrecoMedio">R$ 0</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
+                        <div class="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                            <h3 class="font-bold text-gray-700 dark:text-gray-200">Desempenho por Ano</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+                                    <tr>
+                                        <th class="px-6 py-3 font-bold text-gray-900 dark:text-white">Ano</th>
+                                        <th class="px-6 py-3 text-purple-600 font-bold">Média Diária</th>
+                                        <th class="px-6 py-3">Total Produzido</th>
+                                        <th class="px-6 py-3">Receita Anual</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="yearSummaryTable">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-bold mb-4 text-sm">Evolução da Produção</h3>
+                            <div class="chart-container"><canvas id="productionChart"></canvas></div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-bold mb-4 text-sm">Produção x Receita</h3>
+                            <div class="chart-container"><canvas id="revenueChart"></canvas></div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-bold mb-4 text-sm">Comparativo Anual</h3>
+                            <div class="chart-container"><canvas id="comparisonChart"></canvas></div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-bold mb-4 text-sm">Manhã vs Tarde</h3>
+                            <div class="chart-container"><canvas id="proportionChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 
-    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, writeBatch, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, writeBatch, getDocs, doc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        // DOM Elements
-        const csvFileInput = document.getElementById('csvFile');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const fileNameDisplay = document.getElementById('fileName');
-        const loader = document.getElementById('loader');
-        const statusText = document.getElementById('statusText');
-        const statusContainer = document.getElementById('status');
-        const reportContainer = document.getElementById('reportContainer');
-        const loginScreen = document.getElementById('loginScreen');
-        const mainContent = document.getElementById('mainContent');
-        const googleSignInBtn = document.getElementById('googleSignInBtn');
-        const userInfo = document.getElementById('userInfo');
-        const headerSubtitle = document.getElementById('header-subtitle');
-        const loginError = document.getElementById('loginError');
-        
-        let chartInstances = {};
-        let db, auth;
-        let productionCollectionRef;
-        let unsubscribeFromData;
-        let currentUser = null;
-        
-        // --- Firebase Initialization ---
+        // --- Configuração ---
         const firebaseConfig = {
             apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
             authDomain: "fazendawm-83f34.firebaseapp.com",
@@ -138,442 +242,486 @@
             measurementId: "G-QQVTP0CQ4H"
         };
 
-        // Force the use of the projectId to ensure a consistent path across all environments
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
         const appId = firebaseConfig.projectId;
 
-        try {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-        } catch(e) {
-            console.error("Firebase initialization error:", e);
-            loginScreen.innerHTML = `<p class="text-red-500 text-center">Erro ao inicializar o Firebase. Verifique a configuração.</p>`;
-        }
+        // --- Referências DOM ---
+        const dom = {
+            loginScreen: document.getElementById('loginScreen'),
+            mainContent: document.getElementById('mainContent'),
+            userInfo: document.getElementById('userInfo'),
+            signInBtn: document.getElementById('googleSignInBtn'),
+            loginError: document.getElementById('loginError'),
+            
+            // Formulário
+            form: document.getElementById('milkForm'),
+            inputData: document.getElementById('inputData'),
+            inputManha: document.getElementById('inputManha'),
+            inputTarde: document.getElementById('inputTarde'),
+            inputPreco: document.getElementById('inputPreco'),
+            btnSaveDefaultPrice: document.getElementById('btnSaveDefaultPrice'),
+            formModeLabel: document.getElementById('formModeLabel'),
+            recentTable: document.getElementById('recentRecordsTable'),
+            
+            // CSV e Status
+            csvInput: document.getElementById('csvFile'),
+            analyzeBtn: document.getElementById('analyzeBtn'),
+            btnExportCsv: document.getElementById('btnExportCsv'),
+            fileName: document.getElementById('fileName'),
+            status: document.getElementById('status'),
+            statusText: document.getElementById('statusText'),
+            reportContainer: document.getElementById('reportContainer'),
+            
+            // Cards e Tabelas
+            cardTotal: document.getElementById('cardTotalLitros'),
+            cardReceita: document.getElementById('cardReceita'),
+            cardMedia: document.getElementById('cardMedia'),
+            cardPreco: document.getElementById('cardPrecoMedio'),
+            yearSummaryTable: document.getElementById('yearSummaryTable')
+        };
 
-        // --- Auth State Management ---
+        let currentUser = null;
+        let productionRef, settingsRef;
+        let unsubscribeData = null;
+        let chartInstances = {};
+        let allDataCache = []; 
+
+        // --- Autenticação ---
         onAuthStateChanged(auth, user => {
             if (user) {
-                // User is signed in
                 currentUser = user;
-                loginScreen.classList.add('hidden');
-                mainContent.classList.remove('hidden');
-                headerSubtitle.textContent = 'Carregue um arquivo CSV para atualizar os dados colaborativos.';
+                dom.loginScreen.classList.add('hidden');
+                dom.mainContent.classList.remove('hidden');
+                dom.userInfo.innerHTML = `Logado como: <b>${user.displayName}</b> <button id="logout" class="ml-2 text-red-500 hover:underline">Sair</button>`;
+                document.getElementById('logout').onclick = () => signOut(auth);
                 
-                userInfo.innerHTML = `
-                    <span class="font-semibold">Bem-vindo, ${user.displayName || user.email}!</span>
-                    <button id="logoutBtn" class="ml-4 bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">Sair</button>
-                `;
-                document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
-
-                // Agora os dados são colaborativos - todos os usuários acessam a mesma coleção
-                productionCollectionRef = collection(db, `artifacts/${appId}/public/data/production_records`);
-                listenForProductionData();
+                productionRef = collection(db, `artifacts/${appId}/public/data/production_records`);
+                settingsRef = doc(db, `artifacts/${appId}/public/config_geral`);
+                
+                initSystem();
             } else {
-                // User is signed out
                 currentUser = null;
-                loginScreen.classList.remove('hidden');
-                mainContent.classList.add('hidden');
-                reportContainer.classList.add('hidden');
-                statusContainer.classList.add('hidden');
-                headerSubtitle.textContent = 'Faça login para acessar e gerenciar os dados colaborativos.';
-                userInfo.innerHTML = '';
-                if (unsubscribeFromData) unsubscribeFromData();
+                dom.loginScreen.classList.remove('hidden');
+                dom.mainContent.classList.add('hidden');
+                dom.userInfo.innerHTML = '';
+                if(unsubscribeData) unsubscribeData();
             }
         });
 
-        // --- Event Listeners ---
-        googleSignInBtn.addEventListener('click', async () => {
+        dom.signInBtn.onclick = async () => {
             try {
-                console.log("Iniciando login com Google via popup...");
-                loginError.classList.add('hidden');
-                googleSignInBtn.disabled = true;
-                googleSignInBtn.textContent = 'Conectando...';
-                
-                const provider = new GoogleAuthProvider();
-                provider.addScope('email');
-                provider.addScope('profile');
-                
-                const result = await signInWithPopup(auth, provider);
-                console.log("Login realizado com sucesso:", result.user.email);
-                
-            } catch (error) {
-                console.error("Erro no login:", error);
-                let errorMessage = "Erro ao fazer login. Tente novamente.";
-                
-                if (error.code === 'auth/popup-closed-by-user') {
-                    errorMessage = "Login cancelado pelo usuário.";
-                } else if (error.code === 'auth/popup-blocked') {
-                    errorMessage = "Popup bloqueado pelo navegador. Permita popups para este site.";
-                } else if (error.code === 'auth/cancelled-popup-request') {
-                    errorMessage = "Solicitação de login cancelada.";
+                await signInWithPopup(auth, new GoogleAuthProvider());
+            } catch (e) {
+                dom.loginError.textContent = "Erro no login: " + e.message;
+                dom.loginError.classList.remove('hidden');
+            }
+        };
+
+        // --- Inicialização do Sistema ---
+        async function initSystem() {
+            try {
+                await loadDefaultPrice();
+                dom.inputData.valueAsDate = new Date();
+                listenToData();
+            } catch (e) {
+                console.error("Erro na inicialização:", e);
+                showToast("Erro ao iniciar sistema: " + e.message, "error");
+            }
+        }
+
+        // --- Lógica de Preço ---
+        async function loadDefaultPrice() {
+            try {
+                const docSnap = await getDoc(settingsRef);
+                if (docSnap.exists() && docSnap.data().defaultMilkPrice) {
+                    dom.inputPreco.value = docSnap.data().defaultMilkPrice;
+                } else {
+                    dom.inputPreco.value = 2.50;
                 }
-                
-                loginError.textContent = errorMessage;
-                loginError.classList.remove('hidden');
-            } finally {
-                googleSignInBtn.disabled = false;
-                googleSignInBtn.innerHTML = `
-                    <svg class="w-6 h-6" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
-                    Entrar com Google
-                `;
+            } catch (e) {
+                dom.inputPreco.value = 2.50;
             }
-        });
+        }
 
-        csvFileInput.addEventListener('change', () => {
-            if (csvFileInput.files.length > 0) {
-                const file = csvFileInput.files[0];
-                fileNameDisplay.textContent = `Arquivo: ${file.name}`;
-                analyzeBtn.disabled = false;
-            } else {
-                fileNameDisplay.textContent = 'Nenhum arquivo selecionado.';
-                analyzeBtn.disabled = true;
-            }
-        });
-
-        analyzeBtn.addEventListener('click', handleFileUploadAndSave);
-
-        // --- Core Functions ---
-        
-        function listenForProductionData() {
-            statusContainer.classList.remove('hidden');
-            loader.classList.remove('hidden');
-            statusText.textContent = "Buscando dados colaborativos...";
+        dom.btnSaveDefaultPrice.onclick = async () => {
+            const newPrice = parseFloat(dom.inputPreco.value);
+            if (!newPrice || newPrice <= 0) return alert("Insira um preço válido.");
             
-            if (unsubscribeFromData) unsubscribeFromData();
+            try {
+                await setDoc(settingsRef, { defaultMilkPrice: newPrice }, { merge: true });
+                showToast("Preço padrão atualizado!", "success");
+            } catch (e) {
+                showToast("Erro ao salvar padrão: " + e.message, "error");
+            }
+        };
 
-            unsubscribeFromData = onSnapshot(productionCollectionRef, (snapshot) => {
+        // --- Lógica de Dados (CRUD) ---
+        function listenToData() {
+            dom.status.classList.remove('hidden');
+            
+            unsubscribeData = onSnapshot(productionRef, (snapshot) => {
                 const data = [];
                 snapshot.forEach(doc => {
-                    data.push({ ...doc.data(), Data: doc.data().Data.toDate() });
+                    const d = doc.data();
+                    d.Data = d.Data.toDate ? d.Data.toDate() : new Date(d.Data);
+                    data.push(d);
                 });
 
-                if (data.length > 0) {
-                    const sortedData = data.sort((a, b) => a.Data - b.Data);
-                    generateReport(sortedData);
-                    statusContainer.classList.add('hidden');
-                } else {
-                    statusText.textContent = "Nenhum dado encontrado. Carregue um arquivo CSV para começar.";
-                    loader.classList.add('hidden');
-                    reportContainer.classList.add('hidden');
-                }
-            }, (error) => {
-                console.error("Error listening to data:", error);
-                statusText.textContent = "Erro ao buscar dados do banco de dados.";
-                loader.classList.add('hidden');
-            });
-        }
-
-        async function handleFileUploadAndSave() {
-            const file = csvFileInput.files[0];
-            if (!file || !currentUser) return;
-
-            statusContainer.classList.remove('hidden');
-            loader.classList.remove('hidden');
-            statusText.textContent = "Processando e salvando dados colaborativos...";
-            reportContainer.classList.add('hidden');
-            
-            try {
-                const fileContent = await file.text();
-                const parsedData = parseCSV(fileContent);
-
-                if (parsedData.length > 0) {
-                    const batch = writeBatch(db);
-                    
-                    // Remove dados existentes da coleção colaborativa
-                    const existingDocsSnapshot = await getDocs(productionCollectionRef);
-                    existingDocsSnapshot.forEach(doc => batch.delete(doc.ref));
-                    
-                    // Adiciona novos dados na coleção colaborativa
-                    parsedData.forEach(row => {
-                        const docId = row.Data.toISOString().split('T')[0];
-                        const docRef = doc(productionCollectionRef, docId);
-                        batch.set(docRef, row);
-                    });
-
-                    await batch.commit();
-                    console.log("Dados colaborativos salvos com sucesso por:", currentUser.email);
-                    generateReport(parsedData);
-                    statusContainer.classList.add('hidden');
-
-                } else {
-                     const errorP = document.createElement('p');
-                     errorP.textContent = "Não foi possível processar o arquivo. Verifique o formato.";
-                     errorP.className = 'text-red-500 text-center mt-2';
-                     analyzeBtn.parentElement.appendChild(errorP);
-                     setTimeout(() => errorP.remove(), 5000);
-                     statusText.textContent = "Falha ao processar o arquivo.";
-                     loader.classList.add('hidden');
-                }
-            } catch (error) {
-                console.error("Erro ao salvar os dados:", error);
-                statusText.textContent = "Erro ao salvar os dados na nuvem.";
-                loader.classList.add('hidden');
-            } 
-        }
-
-        function parseCSV(content) {
-            const lines = content.split(/\r\n|\n/).slice(2);
-            const data = [];
-            
-            if (lines.length < 2) return [];
-
-            const headerLine = lines[0];
-            if (!headerLine) return [];
-            
-            const headers = [
-                'Data', 'Manha', 'Tarde', 'Joza', 'Preco_Venda',
-                'Total_Venda', 'Total_Laticinio', 'Observacoes', 'Unnamed'
-            ];
-
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i];
-                if (!line.trim()) continue;
-
-                const values = line.split(';');
-                let row = {};
-
-                if (!values[0] || values[0].split('/').length !== 3) continue;
-
-                headers.forEach((header, index) => {
-                    if (header === 'Data') {
-                        const [day, month, year] = values[index].split('/');
-                        row[header] = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                    } else if (['Manha', 'Tarde', 'Joza', 'Preco_Venda', 'Total_Venda', 'Total_Laticinio'].includes(header)) {
-                        row[header] = parseFloat(values[index]?.replace(',', '.')) || 0;
-                    } else {
-                        row[header] = values[index] || '';
-                    }
-                });
-
-                row.Producao_Total = row.Manha + row.Tarde;
-                row.Mes = row.Data.getMonth() + 1;
-                row.Ano = row.Data.getFullYear();
-
-                data.push(row);
-            }
-
-            return data;
-        }
-
-        function generateReport(data) {
-            reportContainer.innerHTML = '';
-            reportContainer.classList.remove('hidden');
-
-            // Destroy existing charts
-            Object.values(chartInstances).forEach(chart => chart.destroy());
-            chartInstances = {};
-
-            const totalProduction = data.reduce((sum, row) => sum + row.Producao_Total, 0);
-            const totalRevenue = data.reduce((sum, row) => sum + row.Total_Venda, 0);
-            const averageDaily = totalProduction / data.length;
-            const averagePrice = totalRevenue / totalProduction;
-
-            const reportHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Produção Total</h3>
-                        <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">${totalProduction.toFixed(1)}L</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Receita Total</h3>
-                        <p class="text-3xl font-bold text-green-600 dark:text-green-400">R$ ${totalRevenue.toFixed(2)}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Média Diária</h3>
-                        <p class="text-3xl font-bold text-purple-600 dark:text-purple-400">${averageDaily.toFixed(1)}L</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Preço Médio</h3>
-                        <p class="text-3xl font-bold text-orange-600 dark:text-orange-400">R$ ${averagePrice.toFixed(2)}</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Produção ao Longo do Tempo</h3>
-                        <div class="chart-container">
-                            <canvas id="productionChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Produção Média Mensal</h3>
-                        <div class="chart-container">
-                            <canvas id="monthlyChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Comparação Anual</h3>
-                        <div class="chart-container">
-                            <canvas id="comparisonChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Produção vs Receita</h3>
-                        <div class="chart-container">
-                            <canvas id="revenueChart"></canvas>
-                        </div>
-                    </div>
-                </div>
+                allDataCache = data.sort((a, b) => a.Data - b.Data); 
                 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Proporção Manhã vs Tarde</h3>
-                        <div class="chart-container">
-                            <canvas id="proportionChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            reportContainer.innerHTML = reportHTML;
-
-            // Create charts
-            createProductionChart(data);
-            createMonthlyChart(data);
-            createComparisonChart(data);
-            createRevenueChart(data);
-            createProportionChart(data);
-        }
-
-        function createProductionChart(data) {
-            const ctx = document.getElementById('productionChart').getContext('2d');
-            const labels = data.map(d => d.Data.toLocaleDateString('pt-BR'));
-            
-            chartInstances.production = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Produção Total (Litros)',
-                        data: data.map(d => d.Producao_Total),
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.1,
-                        pointRadius: 2
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
+                updateDashboard(allDataCache);
+                updateRecentRecordsTable(allDataCache);
+                dom.status.classList.add('hidden');
+                dom.reportContainer.classList.remove('hidden');
+            }, (error) => {
+                 console.error("Erro no listener:", error);
+                 dom.statusText.textContent = "Erro ao carregar dados.";
             });
         }
 
-        function createMonthlyChart(data) {
-            const monthlyData = {};
-            data.forEach(row => {
-                const monthKey = `${row.Ano}-${row.Mes.toString().padStart(2, '0')}`;
-                if (!monthlyData[monthKey]) {
-                    monthlyData[monthKey] = { total: 0, count: 0 };
-                }
-                monthlyData[monthKey].total += row.Producao_Total;
-                monthlyData[monthKey].count++;
+        dom.form.onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = dom.form.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = "Salvando...";
+
+            try {
+                const dateVal = dom.inputData.value;
+                const manha = parseFloat(dom.inputManha.value);
+                const tarde = parseFloat(dom.inputTarde.value) || 0;
+                const price = parseFloat(dom.inputPreco.value);
+
+                // Força meio-dia para evitar problemas de fuso
+                const [ano, mes, dia] = dateVal.split('-').map(Number);
+                const dataObj = new Date(ano, mes - 1, dia, 12, 0, 0);
+
+                const total = manha + tarde;
+                const receita = total * price;
+
+                const payload = {
+                    Data: dataObj,
+                    Manha: manha,
+                    Tarde: tarde,
+                    Preco_Venda: price,
+                    Producao_Total: total,
+                    Total_Venda: receita,
+                    Total_Laticinio: receita,
+                    Mes: mes,
+                    Ano: ano,
+                    Joza: 0,
+                    Observacoes: "Inserido via Sistema"
+                };
+
+                await setDoc(doc(productionRef, dateVal), payload);
+                showToast("Registro salvo com sucesso!", "success");
+                
+                dom.inputManha.value = "";
+                dom.inputTarde.value = "";
+                dom.formModeLabel.classList.add('hidden');
+                
+            } catch (error) {
+                showToast("Erro ao salvar: " + error.message, "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        };
+
+        // --- Tabela e Exportação ---
+        function updateRecentRecordsTable(data) {
+            const tableBody = dom.recentTable;
+            tableBody.innerHTML = '';
+            
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+
+            // Filtra datas futuras para não mostrar sujeira do BD
+            const validData = data.filter(d => d.Data <= today);
+
+            // Pega os últimos 5 válidos
+            const recent = [...validData].reverse().slice(0, 5);
+
+            recent.forEach(row => {
+                const dateStr = row.Data.toISOString().split('T')[0];
+                const tr = document.createElement('tr');
+                tr.className = "bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600";
+                
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                        ${row.Data.toLocaleDateString('pt-BR')}
+                    </td>
+                    <td class="px-6 py-4 text-blue-600">${row.Manha.toFixed(1)}</td>
+                    <td class="px-6 py-4 text-orange-500">${row.Tarde ? row.Tarde.toFixed(1) : '-'}</td>
+                    <td class="px-6 py-4 font-bold">${row.Producao_Total.toFixed(1)}</td>
+                    <td class="px-6 py-4">R$ ${row.Preco_Venda.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-green-600 font-bold">R$ ${row.Total_Venda.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right">
+                        <button class="btn-edit text-blue-600 hover:underline mr-3" data-date="${dateStr}">Editar</button>
+                        <button class="btn-del text-red-600 hover:underline" data-date="${dateStr}">Excluir</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
             });
 
-            const sortedMonths = Object.keys(monthlyData).sort();
-            const averages = sortedMonths.map(month => monthlyData[month].total / monthlyData[month].count);
-            const monthNames = sortedMonths.map(month => {
-                const [year, monthNum] = month.split('-');
-                const monthName = new Date(year, monthNum - 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
-                return monthName;
-            });
-
-            const ctx = document.getElementById('monthlyChart').getContext('2d');
-            
-            chartInstances.monthly = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: monthNames,
-                    datasets: [{
-                        label: 'Produção Média Diária',
-                        data: averages,
-                        backgroundColor: '#10b981'
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-        
-        function createComparisonChart(data) {
-            const yearlyData = {};
-            data.forEach(row => {
-                if (!yearlyData[row.Ano]) {
-                    yearlyData[row.Ano] = Array(12).fill(0).map(() => ({ total: 0, count: 0 }));
-                }
-                const monthIndex = row.Mes - 1;
-                yearlyData[row.Ano][monthIndex].total += row.Producao_Total;
-                yearlyData[row.Ano][monthIndex].count++;
-            });
-            
-            const datasets = Object.keys(yearlyData).map(year => {
-                const averages = yearlyData[year].map(m => m.count > 0 ? m.total / m.count : 0);
-                return {
-                    label: `Ano ${year}`,
-                    data: averages,
+            document.querySelectorAll('.btn-del').forEach(btn => {
+                btn.onclick = async () => {
+                    if(confirm('Tem certeza que deseja excluir este registro?')) {
+                        await deleteDoc(doc(productionRef, btn.dataset.date));
+                        showToast("Registro excluído.", "success");
+                    }
                 };
             });
 
-            const ctx = document.getElementById('comparisonChart').getContext('2d');
-            const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-            
-            chartInstances.comparison = new Chart(ctx, {
-                type: 'bar',
-                data: { labels: monthNames, datasets: datasets },
-                options: { responsive: true, maintainAspectRatio: false }
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.onclick = () => {
+                    const record = data.find(d => d.Data.toISOString().split('T')[0] === btn.dataset.date);
+                    if (record) {
+                        dom.inputData.value = btn.dataset.date;
+                        dom.inputManha.value = record.Manha;
+                        dom.inputTarde.value = record.Tarde || "";
+                        dom.inputPreco.value = record.Preco_Venda;
+                        dom.formModeLabel.classList.remove('hidden');
+                        dom.inputManha.focus();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                };
             });
         }
 
-        function createRevenueChart(data) {
-            const ctx = document.getElementById('revenueChart').getContext('2d');
-            const labels = data.map(d => d.Data.toLocaleDateString('pt-BR'));
+        // --- Nova Função: Exportar CSV ---
+        dom.btnExportCsv.onclick = () => {
+            if (!allDataCache || allDataCache.length === 0) {
+                return showToast("Sem dados para exportar.", "error");
+            }
+
+            // Cabeçalho
+            let csvContent = "Data;Manha;Tarde;Total;Preco;Receita;Observacoes\n";
+
+            // Linhas
+            allDataCache.forEach(row => {
+                const dataFormatada = row.Data.toLocaleDateString('pt-BR');
+                const linha = [
+                    dataFormatada,
+                    row.Manha.toString().replace('.', ','),
+                    (row.Tarde || 0).toString().replace('.', ','),
+                    row.Producao_Total.toString().replace('.', ','),
+                    row.Preco_Venda.toString().replace('.', ','),
+                    row.Total_Venda.toString().replace('.', ','),
+                    row.Observacoes || ''
+                ].join(';');
+                csvContent += linha + "\n";
+            });
+
+            // Criar Blob e Link de Download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `leite_wm_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        // --- Gráficos e Dashboard ---
+        function updateDashboard(data) {
+            // Filtra datas futuras
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+            const validData = data.filter(d => d.Data <= today);
+
+            if (validData.length === 0) return;
+
+            // --- Atualiza Cards Gerais ---
+            const totalProd = validData.reduce((acc, curr) => acc + curr.Producao_Total, 0);
+            const totalRev = validData.reduce((acc, curr) => acc + curr.Total_Venda, 0);
             
-            chartInstances.revenue = new Chart(ctx, {
+            dom.cardTotal.textContent = totalProd.toLocaleString('pt-BR', {maximumFractionDigits: 1}) + " L";
+            dom.cardReceita.textContent = totalRev.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+            dom.cardMedia.textContent = (totalProd / validData.length).toFixed(1) + " L/dia";
+            
+            const precoMedio = totalProd > 0 ? (totalRev / totalProd) : 0;
+            dom.cardPreco.textContent = precoMedio.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+
+            // --- Preenche Tabela de Resumo Anual (NOVO) ---
+            updateYearlySummary(validData);
+
+            // --- Renderiza Gráficos ---
+            renderCharts(validData);
+        }
+
+        function updateYearlySummary(data) {
+            // Agrupar por ano
+            const years = {};
+            data.forEach(d => {
+                const year = d.Ano;
+                if (!years[year]) {
+                    years[year] = { total: 0, revenue: 0, count: 0 };
+                }
+                years[year].total += d.Producao_Total;
+                years[year].revenue += d.Total_Venda;
+                years[year].count += 1;
+            });
+
+            // Ordenar anos decrescente
+            const sortedYears = Object.keys(years).sort((a, b) => b - a);
+            
+            const tbody = dom.yearSummaryTable;
+            tbody.innerHTML = '';
+
+            sortedYears.forEach(year => {
+                const stats = years[year];
+                const avg = stats.total / stats.count;
+                
+                const tr = document.createElement('tr');
+                tr.className = "bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600";
+                
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-bold text-gray-900 dark:text-white">${year}</td>
+                    <td class="px-6 py-4 text-purple-600 font-bold text-lg">${avg.toFixed(1)} L</td>
+                    <td class="px-6 py-4">${stats.total.toLocaleString('pt-BR', {maximumFractionDigits: 1})} L</td>
+                    <td class="px-6 py-4 text-green-600 font-medium">${stats.revenue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderCharts(data) {
+            Object.values(chartInstances).forEach(c => c.destroy());
+
+            const labels = data.map(d => d.Data.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}));
+            const values = data.map(d => d.Producao_Total);
+            const revenues = data.map(d => d.Total_Venda);
+
+            chartInstances.production = new Chart(document.getElementById('productionChart'), {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels,
                     datasets: [{
-                        label: 'Produção Total (Litros)',
-                        data: data.map(d => d.Producao_Total),
-                        borderColor: '#3b82f6',
-                        yAxisID: 'y',
-                        pointRadius: 0
-                    }, {
-                        label: 'Receita (R$)',
-                        data: data.map(d => d.Total_Venda),
-                        borderColor: '#f97316',
-                        yAxisID: 'y1',
-                        pointRadius: 0
+                        label: 'Litros',
+                        data: values,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        fill: true,
+                        tension: 0.3
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Litros' } },
-                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'R$' }, grid: { drawOnChartArea: false } }
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
-        }
 
-        function createProportionChart(data) {
-            const totalManha = data.reduce((sum, row) => sum + row.Manha, 0);
-            const totalTarde = data.reduce((sum, row) => sum + row.Tarde, 0);
+            chartInstances.revenue = new Chart(document.getElementById('revenueChart'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Receita (R$)', data: revenues, backgroundColor: '#16a34a', yAxisID: 'y' },
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const monthly = {};
+            data.forEach(d => {
+                const key = `${d.Ano}-${d.Mes.toString().padStart(2, '0')}`;
+                if(!monthly[key]) monthly[key] = 0;
+                monthly[key] += d.Producao_Total;
+            });
             
-            const ctx = document.getElementById('proportionChart').getContext('2d');
+            const sortedMonths = Object.keys(monthly).sort();
             
-            chartInstances.proportion = new Chart(ctx, {
-                type: 'pie',
+            chartInstances.comparison = new Chart(document.getElementById('comparisonChart'), {
+                type: 'bar',
+                data: {
+                    labels: sortedMonths,
+                    datasets: [{ label: 'Total Mensal', data: sortedMonths.map(m => monthly[m]), backgroundColor: '#9333ea' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const totalM = data.reduce((a,b) => a + b.Manha, 0);
+            const totalT = data.reduce((a,b) => a + (b.Tarde||0), 0);
+            
+            chartInstances.proportion = new Chart(document.getElementById('proportionChart'), {
+                type: 'doughnut',
                 data: {
                     labels: ['Manhã', 'Tarde'],
-                    datasets: [{
-                        data: [totalManha, totalTarde],
-                        backgroundColor: ['#60a5fa', '#fb923c']
-                    }]
+                    datasets: [{ data: [totalM, totalT], backgroundColor: ['#3b82f6', '#f97316'] }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
         }
+
+        // --- CSV Import ---
+        dom.csvInput.onchange = () => {
+            if(dom.csvInput.files[0]) {
+                dom.fileName.textContent = dom.csvInput.files[0].name;
+                dom.analyzeBtn.disabled = false;
+                dom.analyzeBtn.classList.replace('bg-gray-600', 'bg-blue-600');
+            }
+        };
+
+        dom.analyzeBtn.onclick = async () => {
+            const file = dom.csvInput.files[0];
+            if(!file) return;
+            
+            dom.analyzeBtn.textContent = "Processando...";
+            const text = await file.text();
+            
+            const lines = text.split('\n').slice(1);
+            const batch = writeBatch(db);
+            let count = 0;
+
+            lines.forEach(line => {
+                const cols = line.split(';');
+                if(cols.length < 5) return;
+                
+                const [d, m, y] = cols[0].split('/');
+                if(!y) return;
+                
+                const dateIso = `${y}-${m}-${d}`;
+                const manha = parseFloat(cols[1].replace(',','.')) || 0;
+                const tarde = parseFloat(cols[2].replace(',','.')) || 0;
+                const preco = parseFloat(cols[4].replace(',','.')) || 0;
+
+                const ref = doc(productionRef, dateIso);
+                batch.set(ref, {
+                    Data: new Date(y, m-1, d, 12),
+                    Manha: manha,
+                    Tarde: tarde,
+                    Preco_Venda: preco,
+                    Producao_Total: manha + tarde,
+                    Total_Venda: (manha + tarde) * preco,
+                    Mes: parseInt(m),
+                    Ano: parseInt(y),
+                    Observacoes: "Importado via CSV"
+                });
+                count++;
+            });
+
+            await batch.commit();
+            showToast(`${count} registros importados!`, "success");
+            dom.analyzeBtn.textContent = "Processar Importação";
+            dom.analyzeBtn.classList.replace('bg-blue-600', 'bg-gray-600');
+            dom.analyzeBtn.disabled = true;
+        };
+
+        function showToast(msg, type = "info") {
+            const colors = { success: "#16a34a", error: "#dc2626", info: "#2563eb" };
+            Toastify({
+                text: msg,
+                duration: 3000,
+                gravity: "bottom", 
+                position: "right", 
+                style: { background: colors[type] }
+            }).showToast();
+        }
+
     </script>
 </body>
 </html>
+
+
