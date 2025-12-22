@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gado Pro Mobile v16</title>
+    <title>Gado Pro Mobile v17</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -37,7 +37,7 @@
     <nav id="menu-desktop" class="bg-slate-900 text-white px-6 py-4 shadow-lg sticky top-0 z-50 justify-between items-center">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><i class="fas fa-cow text-lg"></i></div>
-            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v16.0</p></div>
+            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v17.0</p></div>
         </div>
         <div class="flex gap-2 text-sm font-medium">
             <button onclick="nav('dashboard')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-chart-line"></i> Painel</button>
@@ -86,10 +86,24 @@
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                <div class="p-4 bg-slate-50 border-b border-slate-100">
-                    <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2"><i class="fas fa-stopwatch text-slate-400"></i> Cronograma de Produção</h3>
-                    <p class="text-xs text-gray-400 mt-1">Dias em Lactação (Produzindo) e Dias Seca (Descanso).</p>
+                <div class="p-4 bg-slate-50 border-b border-slate-100 flex flex-col md:flex-row justify-between md:items-center gap-3">
+                    <div>
+                        <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2"><i class="fas fa-stopwatch text-slate-400"></i> Cronograma de Produção</h3>
+                        <p class="text-xs text-gray-400 mt-1">Tempo em cada status</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <select id="filtro-crono-status" onchange="atualizarCronograma()" class="border border-gray-200 rounded-lg text-xs py-1.5 px-2 bg-white text-slate-600 focus:outline-none focus:border-blue-500">
+                            <option value="ALL">Todos os Status</option>
+                            <option value="LACTACAO">Em Lactação</option>
+                            <option value="SECA">Secas</option>
+                        </select>
+                        <select id="filtro-crono-ordem" onchange="atualizarCronograma()" class="border border-gray-200 rounded-lg text-xs py-1.5 px-2 bg-white text-slate-600 focus:outline-none focus:border-blue-500">
+                            <option value="DESC">Mais Dias (Topo)</option>
+                            <option value="ASC">Menos Dias (Topo)</option>
+                        </select>
+                    </div>
                 </div>
+                
                 <div class="overflow-x-auto max-h-96">
                     <table class="w-full text-sm text-left whitespace-nowrap">
                         <thead class="bg-slate-50 text-slate-400 text-[10px] uppercase font-bold sticky top-0">
@@ -98,6 +112,7 @@
                         <tbody id="lista-cronograma" class="divide-y divide-slate-50 text-slate-600">
                             </tbody>
                     </table>
+                    <div id="crono-msg" class="hidden p-4 text-center text-xs text-gray-400">Nenhum animal neste status.</div>
                 </div>
             </div>
         </div>
@@ -171,7 +186,7 @@
         <div id="modal-secagem" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in"><h3 class="text-lg font-bold text-slate-800 mb-2">Encerrar Lactação</h3><p class="text-sm text-gray-500 mb-4">Vaca: <strong id="lbl-id-vaca-sec" class="text-blue-600"></strong></p><input type="hidden" id="input-id-secagem"><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data Secagem</label><input type="date" id="input-data-secagem" class="w-full border p-3 rounded-xl mb-4 text-base bg-slate-50"><div class="flex gap-3"><button onclick="document.getElementById('modal-secagem').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl text-sm font-bold">Cancelar</button><button onclick="confirmarSecagem()" class="w-1/2 py-3 bg-red-600 text-white rounded-xl text-sm font-bold">Confirmar</button></div></div></div>
         <div id="modal-editar" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in"><h3 class="text-lg font-bold text-slate-800 mb-4">Trocar Brinco</h3><input type="hidden" id="edit-id-antigo"><div class="mb-3"><label class="text-xs font-bold text-gray-400">Atual</label><input type="text" id="view-id-antigo" disabled class="w-full border p-3 rounded-xl bg-gray-100"></div><div class="mb-6"><label class="text-xs font-bold text-gray-400">Novo</label><input type="text" id="edit-id-novo" class="w-full border-2 border-blue-100 p-3 rounded-xl font-bold text-lg"></div><div class="flex gap-3"><button onclick="document.getElementById('modal-editar').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl font-bold text-sm">Cancelar</button><button onclick="confirmarEdicao()" class="w-1/2 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm">Salvar</button></div></div></div>
         <div id="modal-excluir" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in border-t-4 border-red-500"><h3 class="text-lg font-bold text-slate-800 mb-2">Dar Baixa</h3><input type="hidden" id="input-id-excluir"><div class="space-y-3 mb-6"><select id="input-motivo-excluir" class="w-full border p-3 rounded-xl bg-slate-50"><option value="VENDIDO">Venda</option><option value="MORTO">Morte</option><option value="ROUBO">Roubo</option><option value="OUTRO">Outro</option></select><input type="date" id="input-data-excluir" class="w-full border p-3 rounded-xl"><input type="text" id="input-obs-excluir" class="w-full border p-3 rounded-xl" placeholder="Obs..."></div><div class="flex gap-3"><button onclick="document.getElementById('modal-excluir').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl font-bold text-sm">Cancelar</button><button onclick="confirmarExclusao()" class="w-1/2 py-3 bg-red-600 text-white rounded-xl font-bold text-sm">Baixar</button></div></div></div>
-        <div id="modal-dossie" class="hidden fixed inset-0 bg-white z-[70] flex flex-col fade-in"><div class="bg-slate-50 p-4 border-b border-gray-200 flex justify-between items-center shadow-sm sticky top-0 z-10"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 text-lg text-blue-600"><i class="fas fa-id-card"></i></div><div><h2 class="text-xl font-bold text-slate-800" id="dossie-id">---</h2><div class="text-[10px] text-gray-500" id="dossie-resumo"></div></div></div><button onclick="fecharDossie()" class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex justify-center items-center"><i class="fas fa-times"></i></button></div><div class="flex-grow overflow-y-auto p-4 bg-slate-50 space-y-6"><div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><div class="space-y-3"><input type="date" id="dossie-nova-data" class="w-full border p-3 rounded-lg text-sm bg-gray-50"><textarea id="dossie-nova-obs" class="w-full border p-3 rounded-lg text-sm bg-gray-50 h-20 resize-none" placeholder="Ocorrência..."></textarea><button onclick="salvarOcorrencia()" class="w-full bg-blue-600 text-white py-3 rounded-lg text-sm font-bold shadow-md">Salvar</button></div></div><div><div class="space-y-4 pl-2" id="dossie-timeline"></div></div></div></div>
+        <div id="modal-dossie" class="hidden fixed inset-0 bg-white z-[70] flex flex-col fade-in"><div class="bg-slate-50 p-4 border-b border-gray-200 flex justify-between items-center shadow-sm sticky top-0 z-10"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 text-lg text-blue-600"><i class="fas fa-id-card"></i></div><div><h2 class="text-xl font-bold text-slate-800" id="dossie-id">---</h2><div class="text-[10px] text-gray-500" id="dossie-resumo"></div></div></div><button onclick="fecharDossie()" class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex justify-center items-center"><i class="fas fa-times"></i></button></div><div class="flex-grow overflow-y-auto p-4 bg-slate-50 space-y-6"><div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><div class="space-y-3"><input type="date" id="dossie-nova-data" class="w-full border p-3 rounded-lg text-sm bg-gray-50"><textarea id="dossie-nova-obs" class="w-full border p-3 rounded-lg text-sm bg-gray-50 h-20 resize-none" placeholder="Ocorrência..."></textarea><button onclick="salvarOcorrencia()" class="w-full bg-blue-600 text-white py-3 rounded-lg text-sm font-bold shadow-md shadow-blue-200 active:scale-95 transition">Salvar</button></div></div><div><div class="space-y-4 pl-2" id="dossie-timeline"></div></div></div></div>
 
     </div>
 
@@ -242,19 +257,18 @@
                     document.getElementById('kpi-bezerros').innerText = bezerros.length;
                     document.getElementById('kpi-detalhe-bezerros').innerHTML = `<span class="text-blue-500"><i class="fas fa-mars"></i> ${bezM}</span><span class="text-pink-500"><i class="fas fa-venus"></i> ${bezF}</span>`;
                     
-                    // Alertas e Cronograma
                     const alertas = []; const cronograma = []; const hoje = new Date();
                     
-                    // Processa Lactação
                     lactacao.forEach(a => {
                         if(a.data_evento) {
                             const dias = Math.floor((hoje - new Date(a.data_evento)) / 86400000);
                             cronograma.push({id: a.id, status: 'LACTAÇÃO', dias: dias});
-                            if(dias > 300) alertas.push({id: a.id, dias: dias});
+                            if(dias > 300) {
+                                alertas.push({id: a.id, dias: dias});
+                            }
                         }
                     });
                     
-                    // Processa Secas
                     secas.forEach(a => {
                         if(a.data_evento) {
                             const dias = Math.floor((hoje - new Date(a.data_evento)) / 86400000);
@@ -262,27 +276,18 @@
                         }
                     });
 
-                    // Preenche Tabela Alertas (Dashboard)
+                    // Salvar cronograma globalmente para filtrar depois
+                    window.cronogramaGlobal = cronograma;
+                    
+                    // Alertas
                     const tblAlertas = document.getElementById('lista-alertas-dash'); tblAlertas.innerHTML = '';
                     alertas.forEach(al => {
                         tblAlertas.innerHTML += `<tr class="hover:bg-yellow-50 border-b border-gray-50"><td class="px-4 py-2 font-bold text-slate-700">${al.id}</td><td class="px-4 py-2 text-yellow-600 font-bold">${al.dias}d</td><td class="px-4 py-2 text-right"><button onclick="abrirModalSecagem('${al.id}')" class="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-bold">Secar</button></td></tr>`;
                     });
                     document.getElementById('kpi-alertas').innerText = alertas.length;
 
-                    // Preenche Cronograma (Dashboard - NOVA TABELA)
-                    cronograma.sort((a,b) => b.dias - a.dias); // Ordena quem tem mais dias primeiro
-                    const tblCronograma = document.getElementById('lista-cronograma'); tblCronograma.innerHTML = '';
-                    cronograma.forEach(c => {
-                        let cor = c.status === 'LACTAÇÃO' ? 'text-green-600 bg-green-50' : 'text-red-500 bg-red-50';
-                        let texto = c.status === 'LACTAÇÃO' ? 'Lactação' : 'Seca';
-                        tblCronograma.innerHTML += `
-                            <tr class="hover:bg-slate-50 border-b border-slate-50">
-                                <td class="px-4 py-3 font-bold text-slate-700">${c.id}</td>
-                                <td class="px-4 py-3"><span class="text-[10px] font-bold px-2 py-1 rounded-full ${cor}">${texto}</span></td>
-                                <td class="px-4 py-3 text-right font-mono text-slate-500">${c.dias} dias</td>
-                            </tr>
-                        `;
-                    });
+                    // Cronograma Inicial
+                    atualizarCronograma();
 
                     renderCharts(lactacao.length, window.todosAnimais.length - lactacao.length, window.todosAnimais.length, bezerros);
                 }
@@ -290,6 +295,42 @@
                 if (!document.getElementById('tela-lista').classList.contains('hidden')) aplicarFiltros();
 
             } catch(e) { console.error(e); }
+        }
+
+        // NOVA FUNÇÃO: FILTRAR CRONOGRAMA
+        window.atualizarCronograma = () => {
+            if (!window.cronogramaGlobal) return;
+            
+            const filtroStatus = document.getElementById('filtro-crono-status').value;
+            const filtroOrdem = document.getElementById('filtro-crono-ordem').value;
+            
+            let lista = window.cronogramaGlobal.filter(c => {
+                if(filtroStatus === 'ALL') return true;
+                return c.status === filtroStatus;
+            });
+
+            // Ordenação
+            lista.sort((a,b) => filtroOrdem === 'DESC' ? b.dias - a.dias : a.dias - b.dias);
+
+            const tbl = document.getElementById('lista-cronograma');
+            tbl.innerHTML = '';
+            
+            if(lista.length === 0) {
+                document.getElementById('crono-msg').classList.remove('hidden');
+            } else {
+                document.getElementById('crono-msg').classList.add('hidden');
+                lista.forEach(c => {
+                    let cor = c.status === 'LACTAÇÃO' ? 'text-green-600 bg-green-50' : 'text-red-500 bg-red-50';
+                    let texto = c.status === 'LACTAÇÃO' ? 'Lactação' : 'Seca';
+                    tbl.innerHTML += `
+                        <tr class="hover:bg-slate-50 border-b border-slate-50">
+                            <td class="px-4 py-3 font-bold text-slate-700">${c.id}</td>
+                            <td class="px-4 py-3"><span class="text-[10px] font-bold px-2 py-1 rounded-full ${cor}">${texto}</span></td>
+                            <td class="px-4 py-3 text-right font-mono text-slate-500">${c.dias} dias</td>
+                        </tr>
+                    `;
+                });
+            }
         }
 
         window.aplicarFiltros = () => {
@@ -356,6 +397,7 @@
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
+        // AÇÕES (Mantidas)
         window.abrirModalSecagem = (id) => { document.getElementById('lbl-id-vaca-sec').innerText=id; document.getElementById('input-id-secagem').value=id; document.getElementById('input-data-secagem').value=new Date().toISOString().split('T')[0]; document.getElementById('modal-secagem').classList.remove('hidden'); }
         window.confirmarSecagem = async () => { const id=document.getElementById('input-id-secagem').value; const data=document.getElementById('input-data-secagem').value; try{ await setDoc(doc(db,"animais",id),{status_produtivo:"SECA",data_evento:data,data_secagem:data},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"SECAGEM",data,obs:"Via App",created_at:new Date()}); document.getElementById('modal-secagem').classList.add('hidden'); carregarDados(); }catch(e){alert(e.message);} }
         window.abrirModalEditar = (id) => { document.getElementById('edit-id-antigo').value=id; document.getElementById('view-id-antigo').value=id; document.getElementById('edit-id-novo').value=''; document.getElementById('modal-editar').classList.remove('hidden'); }
