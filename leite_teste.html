@@ -18,7 +18,7 @@
         input[type="date"], input[type="number"] {
             -webkit-appearance: none;
             appearance: none;
-            border-radius: 0.5rem; /* 8px igual ao rounded-lg */
+            border-radius: 0.5rem;
         }
         
         ::-webkit-scrollbar { width: 8px; }
@@ -170,12 +170,32 @@
                             <p class="text-xl font-bold text-green-700 dark:text-green-400" id="cardReceita">R$ 0</p>
                         </div>
                         <div class="bg-purple-50 dark:bg-gray-800 p-4 rounded-lg border-l-4 border-purple-500">
-                            <p class="text-xs text-gray-500">Média Diária</p>
+                            <p class="text-xs text-gray-500">Média Diária (Geral)</p>
                             <p class="text-xl font-bold text-purple-700 dark:text-purple-400" id="cardMedia">0</p>
                         </div>
                         <div class="bg-orange-50 dark:bg-gray-800 p-4 rounded-lg border-l-4 border-orange-500">
                             <p class="text-xs text-gray-500">Preço Médio</p>
                             <p class="text-xl font-bold text-orange-700 dark:text-orange-400" id="cardPrecoMedio">R$ 0</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
+                        <div class="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                            <h3 class="font-bold text-gray-700 dark:text-gray-200">Desempenho por Ano</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+                                    <tr>
+                                        <th class="px-6 py-3 font-bold text-gray-900 dark:text-white">Ano</th>
+                                        <th class="px-6 py-3 text-purple-600 font-bold">Média Diária</th>
+                                        <th class="px-6 py-3">Total Produzido</th>
+                                        <th class="px-6 py-3">Receita Anual</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="yearSummaryTable">
+                                    </tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -250,11 +270,12 @@
             statusText: document.getElementById('statusText'),
             reportContainer: document.getElementById('reportContainer'),
             
-            // Cards
+            // Cards e Tabelas
             cardTotal: document.getElementById('cardTotalLitros'),
             cardReceita: document.getElementById('cardReceita'),
             cardMedia: document.getElementById('cardMedia'),
-            cardPreco: document.getElementById('cardPrecoMedio')
+            cardPreco: document.getElementById('cardPrecoMedio'),
+            yearSummaryTable: document.getElementById('yearSummaryTable')
         };
 
         let currentUser = null;
@@ -504,13 +525,14 @@
 
         // --- Gráficos e Dashboard ---
         function updateDashboard(data) {
-            // Filtra datas futuras também nos gráficos para não estragar a visualização
+            // Filtra datas futuras
             const today = new Date();
             today.setHours(23, 59, 59, 999);
             const validData = data.filter(d => d.Data <= today);
 
             if (validData.length === 0) return;
 
+            // --- Atualiza Cards Gerais ---
             const totalProd = validData.reduce((acc, curr) => acc + curr.Producao_Total, 0);
             const totalRev = validData.reduce((acc, curr) => acc + curr.Total_Venda, 0);
             
@@ -521,7 +543,47 @@
             const precoMedio = totalProd > 0 ? (totalRev / totalProd) : 0;
             dom.cardPreco.textContent = precoMedio.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
 
+            // --- Preenche Tabela de Resumo Anual (NOVO) ---
+            updateYearlySummary(validData);
+
+            // --- Renderiza Gráficos ---
             renderCharts(validData);
+        }
+
+        function updateYearlySummary(data) {
+            // Agrupar por ano
+            const years = {};
+            data.forEach(d => {
+                const year = d.Ano;
+                if (!years[year]) {
+                    years[year] = { total: 0, revenue: 0, count: 0 };
+                }
+                years[year].total += d.Producao_Total;
+                years[year].revenue += d.Total_Venda;
+                years[year].count += 1;
+            });
+
+            // Ordenar anos decrescente
+            const sortedYears = Object.keys(years).sort((a, b) => b - a);
+            
+            const tbody = dom.yearSummaryTable;
+            tbody.innerHTML = '';
+
+            sortedYears.forEach(year => {
+                const stats = years[year];
+                const avg = stats.total / stats.count;
+                
+                const tr = document.createElement('tr');
+                tr.className = "bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600";
+                
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-bold text-gray-900 dark:text-white">${year}</td>
+                    <td class="px-6 py-4 text-purple-600 font-bold text-lg">${avg.toFixed(1)} L</td>
+                    <td class="px-6 py-4">${stats.total.toLocaleString('pt-BR', {maximumFractionDigits: 1})} L</td>
+                    <td class="px-6 py-4 text-green-600 font-medium">${stats.revenue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
         function renderCharts(data) {
