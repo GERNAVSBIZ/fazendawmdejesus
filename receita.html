@@ -36,7 +36,7 @@
             PlusCircle, Upload, Home, List, Trash2, Edit2, Save, X, Check, 
             DollarSign, FileText, Calendar, Search, ArrowUpCircle, ArrowDownCircle,
             LogOut, User, Lock, Sprout, TrendingUp, TrendingDown, PieChart, Info,
-            Filter, Settings, Tag, Zap
+            Filter, Settings, Tag, Zap, ChevronLeft, ChevronRight
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -139,13 +139,24 @@
 
         // --- Componente: Painel de Balanço ---
         const BalancePanel = ({ revenues, expenses }) => {
+            const [viewDate, setViewDate] = useState(new Date());
+
+            // Cálculos Totais (Acumulado Geral)
             const totalRev = revenues.reduce((acc, curr) => acc + Number(curr.amount), 0);
             const totalExp = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
             const balance = totalRev - totalExp;
             
-            const currentMonth = new Date().getMonth();
-            const currentYear = new Date().getFullYear();
+            // Navegação de Datas
+            const changeMonth = (offset) => {
+                const newDate = new Date(viewDate);
+                newDate.setMonth(newDate.getMonth() + offset);
+                setViewDate(newDate);
+            };
+
+            const currentMonth = viewDate.getMonth();
+            const currentYear = viewDate.getFullYear();
             
+            // Cálculos do Mês Selecionado
             const monthRev = revenues.filter(r => {
                 const d = new Date(r.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
             }).reduce((acc, curr) => acc + Number(curr.amount), 0);
@@ -157,6 +168,10 @@
             const monthBalance = monthRev - monthExp;
             const totalVolume = totalRev + totalExp;
             const revPercent = totalVolume > 0 ? (totalRev / totalVolume) * 100 : 50;
+
+            const monthLabel = viewDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+            // Capitalizar primeira letra
+            const monthLabelFormatted = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
 
             if (totalVolume === 0) {
                  return (
@@ -226,7 +241,16 @@
                     </div>
 
                     <div className="px-6">
-                        <h3 className="text-gray-600 font-bold mb-3 flex items-center gap-2"><Calendar size={18}/> Este Mês</h3>
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-gray-600 font-bold flex items-center gap-2"><Calendar size={18}/> Mês de Referência</h3>
+                        </div>
+                        
+                        <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-4">
+                            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-600"><ChevronLeft size={20}/></button>
+                            <span className="font-bold text-gray-800 text-sm uppercase tracking-wide">{monthLabelFormatted}</span>
+                            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-600"><ChevronRight size={20}/></button>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-3">
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
                                 <div className="bg-emerald-100 w-8 h-8 rounded-full flex items-center justify-center text-emerald-600 mb-2"><TrendingUp size={16} /></div>
@@ -240,7 +264,7 @@
                             </div>
                         </div>
                         <div className={`mt-3 p-3 rounded-xl border flex justify-between items-center ${monthBalance >= 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
-                            <span className="text-sm font-semibold">Resultado do Mês</span>
+                            <span className="text-sm font-semibold">Resultado de {monthLabelFormatted.split(' ')[0]}</span>
                             <span className="font-bold">{formatCurrency(monthBalance)}</span>
                         </div>
                     </div>
