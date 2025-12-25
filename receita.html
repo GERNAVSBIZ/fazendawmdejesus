@@ -478,7 +478,7 @@
                             if (isRevenue) {
                                 if (descUpper.includes('CDB') || 
                                     descUpper.includes('RESGATE') || 
-                                    descUpper.includes('INVESTIMENTO') ||
+                                    descUpper.includes('INVESTIMENTO') || 
                                     descUpper.includes('APLICAÇÃO')) {
                                     return; // Pula este item
                                 }
@@ -514,7 +514,7 @@
                     });
                     setCsvItems(parsed);
                 };
-                reader.readAsText(file);
+                reader.readAsText(file, 'ISO-8859-1');
             };
 
             if (view === 'add') {
