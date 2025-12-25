@@ -36,7 +36,7 @@
             PlusCircle, Upload, Home, List, Trash2, Edit2, Save, X, Check, 
             DollarSign, FileText, Calendar, Search, ArrowUpCircle, ArrowDownCircle,
             LogOut, User, Lock, Sprout, TrendingUp, TrendingDown, PieChart, Info,
-            Filter
+            Filter, Settings, Tag, Zap
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -45,7 +45,7 @@
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { 
             getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, 
-            query, orderBy, serverTimestamp 
+            query, orderBy, serverTimestamp, setDoc 
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // --- CONFIGURAÇÃO (PROJETO UNIFICADO) ---
@@ -70,6 +70,15 @@
             if (!dateString) return '';
             const [year, month, day] = dateString.split('-');
             return `${day}/${month}/${year}`;
+        };
+
+        // --- Default Config ---
+        const defaultConfig = {
+            revenueCats: ['Venda de Leite', 'Venda de Animais', 'Venda de Queijo', 'Serviços', 'Outros'],
+            expenseCats: ['Ração/Sal', 'Medicamentos', 'Manutenção', 'Energia', 'Mão de Obra', 'Combustível', 'Outros'],
+            rules: [
+                { keyword: 'MARCELIO', category: 'Venda de Leite', type: 'revenue' }
+            ]
         };
 
         // --- Componente: Tela de Login ---
@@ -239,8 +248,139 @@
             );
         };
 
+        // --- Componente: Painel de Configurações (Ajustes) ---
+        const SettingsPanel = ({ config, onUpdateConfig }) => {
+            const [view, setView] = useState('categories'); // 'categories' or 'rules'
+            const [newItem, setNewItem] = useState('');
+            const [newRule, setNewRule] = useState({ keyword: '', category: '', type: 'revenue' });
+
+            const addCategory = (type) => {
+                if (!newItem.trim()) return;
+                const field = type === 'revenue' ? 'revenueCats' : 'expenseCats';
+                const newCats = [...config[field], newItem.trim()];
+                onUpdateConfig({ ...config, [field]: newCats });
+                setNewItem('');
+            };
+
+            const removeCategory = (type, cat) => {
+                if(!confirm(`Remover categoria "${cat}"?`)) return;
+                const field = type === 'revenue' ? 'revenueCats' : 'expenseCats';
+                const newCats = config[field].filter(c => c !== cat);
+                onUpdateConfig({ ...config, [field]: newCats });
+            };
+
+            const addRule = () => {
+                if (!newRule.keyword || !newRule.category) return;
+                const updatedRules = [...config.rules, { ...newRule, keyword: newRule.keyword.toUpperCase() }];
+                onUpdateConfig({ ...config, rules: updatedRules });
+                setNewRule({ ...newRule, keyword: '' });
+            };
+
+            const removeRule = (index) => {
+                const updatedRules = config.rules.filter((_, i) => i !== index);
+                onUpdateConfig({ ...config, rules: updatedRules });
+            };
+
+            return (
+                <div className="pb-24 fade-in bg-gray-50 min-h-full">
+                     <header className="bg-gray-800 text-white p-6 rounded-b-3xl shadow-lg mb-6">
+                        <h1 className="text-2xl font-bold flex items-center gap-2"><Settings size={24}/> Ajustes</h1>
+                        <p className="text-gray-400 text-sm">Personalize seu sistema</p>
+                        <div className="flex mt-6 bg-gray-700/50 p-1 rounded-xl">
+                            <button onClick={() => setView('categories')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === 'categories' ? 'bg-emerald-500 text-white shadow' : 'text-gray-300'}`}>Categorias</button>
+                            <button onClick={() => setView('rules')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === 'rules' ? 'bg-emerald-500 text-white shadow' : 'text-gray-300'}`}>Automação</button>
+                        </div>
+                    </header>
+
+                    {view === 'categories' && (
+                        <div className="px-4 space-y-6">
+                            {/* Receitas */}
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <h3 className="font-bold text-emerald-700 mb-3 flex items-center gap-2"><ArrowUpCircle size={18}/> Categorias de Receita</h3>
+                                <div className="flex gap-2 mb-3">
+                                    <input type="text" placeholder="Nova Categoria (ex: Aluguel)" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-sm" value={newItem} onChange={e => setNewItem(e.target.value)} />
+                                    <button onClick={() => addCategory('revenue')} className="bg-emerald-600 text-white px-4 rounded-lg font-bold">+</button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {config.revenueCats.map(cat => (
+                                        <div key={cat} className="bg-emerald-50 text-emerald-800 text-xs px-3 py-1.5 rounded-full flex items-center gap-2 border border-emerald-100">
+                                            {cat}
+                                            <button onClick={() => removeCategory('revenue', cat)} className="text-emerald-400 hover:text-red-500"><X size={12}/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Despesas */}
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <h3 className="font-bold text-red-700 mb-3 flex items-center gap-2"><ArrowDownCircle size={18}/> Categorias de Despesa</h3>
+                                <div className="flex gap-2 mb-3">
+                                    <input type="text" placeholder="Nova Categoria (ex: Adubo)" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-sm" value={newItem} onChange={e => setNewItem(e.target.value)} />
+                                    <button onClick={() => addCategory('expense')} className="bg-red-600 text-white px-4 rounded-lg font-bold">+</button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {config.expenseCats.map(cat => (
+                                        <div key={cat} className="bg-red-50 text-red-800 text-xs px-3 py-1.5 rounded-full flex items-center gap-2 border border-red-100">
+                                            {cat}
+                                            <button onClick={() => removeCategory('expense', cat)} className="text-red-400 hover:text-red-500"><X size={12}/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {view === 'rules' && (
+                        <div className="px-4">
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <div className="bg-blue-50 p-3 rounded-lg mb-4 text-xs text-blue-700 border border-blue-100">
+                                    <p className="font-bold mb-1 flex items-center gap-1"><Zap size={14}/> Como funciona:</p>
+                                    Quando importar um CSV, se a descrição contiver a <b>Palavra Chave</b>, o sistema aplicará a <b>Categoria</b> automaticamente.
+                                </div>
+
+                                <div className="space-y-3 mb-6 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                                    <h4 className="font-bold text-gray-700 text-sm">Nova Regra</h4>
+                                    <div className="flex gap-2">
+                                        <select className="bg-white border p-2 rounded-lg text-sm w-1/3" value={newRule.type} onChange={e => setNewRule({...newRule, type: e.target.value, category: ''})}>
+                                            <option value="revenue">Receita</option>
+                                            <option value="expense">Despesa</option>
+                                        </select>
+                                        <input type="text" placeholder="Palavra Chave (Ex: DOMINGOS)" className="flex-1 border p-2 rounded-lg text-sm" value={newRule.keyword} onChange={e => setNewRule({...newRule, keyword: e.target.value})} />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <select className="flex-1 bg-white border p-2 rounded-lg text-sm" value={newRule.category} onChange={e => setNewRule({...newRule, category: e.target.value})}>
+                                            <option value="">Escolha a Categoria...</option>
+                                            {(newRule.type === 'revenue' ? config.revenueCats : config.expenseCats).map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                        <button onClick={addRule} className="bg-gray-800 text-white px-4 rounded-lg font-bold text-sm">Adicionar</button>
+                                    </div>
+                                </div>
+
+                                <h4 className="font-bold text-gray-700 text-sm mb-3">Regras Ativas</h4>
+                                <div className="space-y-2">
+                                    {config.rules.length === 0 && <p className="text-gray-400 text-center text-sm py-4">Nenhuma regra criada.</p>}
+                                    {config.rules.map((rule, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 text-sm">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`w-2 h-2 rounded-full ${rule.type === 'revenue' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                                                    <span className="font-bold text-gray-800">"{rule.keyword}"</span>
+                                                </div>
+                                                <div className="text-gray-500 text-xs mt-0.5">vira <span className="font-medium text-gray-700">{rule.category}</span></div>
+                                            </div>
+                                            <button onClick={() => removeRule(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
         // --- Componente: Lista e Ações ---
-        const TransactionManager = ({ type, data, onAdd, onImport, onDelete, onUpdate }) => {
+        const TransactionManager = ({ type, data, onAdd, onImport, onDelete, onUpdate, config }) => {
             const [view, setView] = useState('list');
             const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], description: '', amount: '', category: '' });
             const [searchTerm, setSearchTerm] = useState('');
@@ -248,9 +388,8 @@
 
             const isRevenue = type === 'revenue';
             const themeColor = isRevenue ? 'emerald' : 'red';
-            const categories = isRevenue 
-                ? ['Venda de Leite', 'Venda de Animais', 'Venda de Queijo', 'Serviços', 'Outros']
-                : ['Ração/Sal', 'Medicamentos', 'Manutenção', 'Energia', 'Mão de Obra', 'Combustível', 'Outros'];
+            // Usando categorias do Config
+            const categories = isRevenue ? config.revenueCats : config.expenseCats;
 
             const filteredData = data.filter(item => 
                 item.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -295,10 +434,11 @@
                                 }
                             }
 
-                            // --- REGRA 2: CATEGORIZAÇÃO AUTOMÁTICA ---
+                            // --- REGRA 2: CATEGORIZAÇÃO AUTOMÁTICA (DINÂMICA) ---
                             let autoCategory = 'Importado';
-                            if (isRevenue && descUpper.includes('MARCELIO')) {
-                                autoCategory = 'Venda de Leite';
+                            const matchedRule = config.rules.find(r => r.type === type && descUpper.includes(r.keyword));
+                            if (matchedRule) {
+                                autoCategory = matchedRule.category;
                             }
 
                             const dParts = cols[0].split('/');
@@ -371,12 +511,11 @@
                                     <p className="text-xs text-blue-800 font-bold flex items-center gap-1"><Filter size={14}/> Filtros Ativos:</p>
                                     {isRevenue && (
                                         <p className="text-[10px] text-blue-600 leading-tight">
-                                            • Ignora CDB, Resgate e Investimentos.<br/>
-                                            • "Marcelio" vira "Venda de Leite".
+                                            • Ignora CDB, Resgate e Investimentos.
                                         </p>
                                     )}
                                     <p className="text-[10px] text-blue-600 leading-tight">
-                                        • Filtra apenas {isRevenue ? 'ENTRADAS (Positivas)' : 'SAÍDAS (Negativas)'}.
+                                        • Aplica suas <b>{config.rules.filter(r => r.type === type).length} regras</b> de automação.
                                     </p>
                                 </div>
                             </div>
@@ -486,6 +625,7 @@
             const [revenues, setRevenues] = useState([]);
             const [expenses, setExpenses] = useState([]);
             const [loading, setLoading] = useState(true);
+            const [config, setConfig] = useState(defaultConfig);
 
             useEffect(() => {
                 const unsub = onAuthStateChanged(auth, (u) => {
@@ -495,6 +635,17 @@
                         onSnapshot(qRev, (snap) => setRevenues(snap.docs.map(d => ({id: d.id, ...d.data()}))));
                         const qExp = query(collection(db, 'artifacts', appNamespace, 'users', u.uid, 'farm_expenses'), orderBy('date', 'desc'));
                         onSnapshot(qExp, (snap) => setExpenses(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+                        
+                        // Carregar Configurações do Firestore
+                        onSnapshot(doc(db, 'artifacts', appNamespace, 'users', u.uid, 'config', 'main'), (snap) => {
+                            if (snap.exists()) {
+                                setConfig(snap.data());
+                            } else {
+                                // Criar config inicial se não existir
+                                setDoc(doc(db, 'artifacts', appNamespace, 'users', u.uid, 'config', 'main'), defaultConfig);
+                            }
+                        });
+
                         setLoading(false);
                     } else {
                         setRevenues([]);
@@ -529,6 +680,11 @@
                 await updateDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, collName, id), data);
             };
 
+            const updateConfig = async (newConfig) => {
+                setConfig(newConfig);
+                await setDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, 'config', 'main'), newConfig);
+            };
+
             if (loading) return <div className="h-screen w-full flex items-center justify-center text-emerald-800 font-bold bg-emerald-50">Carregando Sistema...</div>;
             if (!user) return <AuthScreen />;
 
@@ -536,8 +692,9 @@
                 <div className="h-screen w-full flex flex-col font-sans overflow-hidden bg-gray-50">
                     <main className="flex-1 overflow-y-auto">
                         {activeTab === 'balance' && <BalancePanel revenues={revenues} expenses={expenses} />}
-                        {activeTab === 'revenues' && <TransactionManager type="revenue" data={revenues} onAdd={addTransaction} onImport={addBulk} onDelete={(id) => deleteTransaction(id, 'revenue')} onUpdate={(id, data) => updateTransaction(id, data, 'revenue')} />}
-                        {activeTab === 'expenses' && <TransactionManager type="expense" data={expenses} onAdd={addTransaction} onImport={addBulk} onDelete={(id) => deleteTransaction(id, 'expense')} onUpdate={(id, data) => updateTransaction(id, data, 'expense')} />}
+                        {activeTab === 'revenues' && <TransactionManager type="revenue" data={revenues} onAdd={addTransaction} onImport={addBulk} onDelete={(id) => deleteTransaction(id, 'revenue')} onUpdate={(id, data) => updateTransaction(id, data, 'revenue')} config={config} />}
+                        {activeTab === 'expenses' && <TransactionManager type="expense" data={expenses} onAdd={addTransaction} onImport={addBulk} onDelete={(id) => deleteTransaction(id, 'expense')} onUpdate={(id, data) => updateTransaction(id, data, 'expense')} config={config} />}
+                        {activeTab === 'settings' && <SettingsPanel config={config} onUpdateConfig={updateConfig} />}
                     </main>
                     <nav className="bg-white border-t border-gray-200 fixed bottom-0 w-full pb-safe z-50">
                         <div className="flex justify-around items-center h-16">
@@ -552,6 +709,10 @@
                             <button onClick={() => setActiveTab('expenses')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'expenses' ? 'text-red-600' : 'text-gray-400'}`}>
                                 <ArrowDownCircle size={22} strokeWidth={activeTab === 'expenses' ? 2.5 : 2} />
                                 <span className="text-[10px] font-medium">Despesas</span>
+                            </button>
+                            <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400'}`}>
+                                <Settings size={22} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
+                                <span className="text-[10px] font-medium">Ajustes</span>
                             </button>
                         </div>
                     </nav>
