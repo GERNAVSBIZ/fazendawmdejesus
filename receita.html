@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fazenda WM - Gestão Completa</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Babel para traduzir o React no navegador -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Configuração para evitar zoom no input em iOS e estilos globais -->
+    <style>
+        @layer utilities {
+            .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        }
+        input, select, textarea { font-size: 16px !important; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Barra de progresso para o balanço */
+        .progress-bar { transition: width 1s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 select-none">
+    <div id="root"></div>
+
+    <!-- Script Principal da Aplicação -->
+    <script type="text/babel" data-type="module" data-presets="react">
+        import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
+        import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
+        import { 
+            PlusCircle, Upload, Home, List, Trash2, Edit2, Save, X, Check, 
+            DollarSign, FileText, Calendar, Search, ArrowUpCircle, ArrowDownCircle,
+            LogOut, User, Lock, Sprout, TrendingUp, TrendingDown, PieChart
+        } from 'https://esm.sh/lucide-react@0.292.0';
+        
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { 
+            getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { 
+            getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, 
+            query, orderBy, serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // --- NOVA CONFIGURAÇÃO (PROJETO UNIFICADO) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
+            authDomain: "fazendawm-83f34.firebaseapp.com",
+            projectId: "fazendawm-83f34",
+            storageBucket: "fazendawm-83f34.firebasestorage.app",
+            messagingSenderId: "40894938435",
+            appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
+            measurementId: "G-QQVTP0CQ4H"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        // ID fixo para organização interna dos dados do usuário
+        const appNamespace = 'fazenda-wm-integrada'; 
+
+        // --- Utilitários ---
+        const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        const formatDate = (dateString) => {
+            if (!dateString) return '';
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        // --- Componente: Tela de Login ---
+        const AuthScreen = () => {
+            const [isRegistering, setIsRegistering] = useState(false);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleAuth = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+                try {
+                    if (isRegistering) await createUserWithEmailAndPassword(auth, email, password);
+                    else await signInWithEmailAndPassword(auth, email, password);
+                } catch (err) {
+                    console.error(err);
+                    setError("Erro ao autenticar. Verifique email e senha.");
+                }
+                setLoading(false);
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-emerald-800 to-green-900 text-white">
+                    <div className="w-full max-w-sm bg-white rounded-3xl p-8 shadow-2xl text-gray-800 fade-in">
+                        <div className="flex flex-col items-center mb-6">
+                            <div className="bg-emerald-100 p-4 rounded-full mb-3">
+                                <Sprout size={40} className="text-emerald-700" />
+                            </div>
+                            <h1 className="text-2xl font-bold text-emerald-900">Fazenda WM</h1>
+                            <p className="text-sm text-gray-500">Gestão Financeira Integrada</p>
+                        </div>
+                        <form onSubmit={handleAuth} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1 ml-1 uppercase">Email</label>
+                                <input type="email" required className="w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" value={email} onChange={e => setEmail(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1 ml-1 uppercase">Senha</label>
+                                <input type="password" required minLength={6} className="w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" value={password} onChange={e => setPassword(e.target.value)} />
+                            </div>
+                            {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+                            <button type="submit" disabled={loading} className="w-full bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg mt-2">
+                                {loading ? 'Processando...' : (isRegistering ? 'Criar Conta' : 'Acessar')}
+                            </button>
+                        </form>
+                        <button onClick={() => setIsRegistering(!isRegistering)} className="w-full text-center mt-6 text-emerald-700 text-sm font-semibold hover:underline">
+                            {isRegistering ? 'Já tenho conta' : 'Criar nova conta'}
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Componente: Painel de Balanço (Novo) ---
+        const BalancePanel = ({ revenues, expenses }) => {
+            const totalRev = revenues.reduce((acc, curr) => acc + Number(curr.amount), 0);
+            const totalExp = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+            const balance = totalRev - totalExp;
+            
+            // Cálculos do Mês Atual
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            const monthRev = revenues.filter(r => {
+                const d = new Date(r.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            }).reduce((acc, curr) => acc + Number(curr.amount), 0);
+            
+            const monthExp = expenses.filter(r => {
+                const d = new Date(r.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            }).reduce((acc, curr) => acc + Number(curr.amount), 0);
+
+            const monthBalance = monthRev - monthExp;
+
+            // Barra de proporção
+            const totalVolume = totalRev + totalExp;
+            const revPercent = totalVolume > 0 ? (totalRev / totalVolume) * 100 : 50;
+
+            return (
+                <div className="space-y-6 pb-24 fade-in">
+                    <header className="bg-gray-900 text-white p-6 rounded-b-3xl shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-32 bg-emerald-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -translate-y-1/2 translate-x-1/2"></div>
+                        
+                        <div className="flex justify-between items-start mb-4 relative z-10">
+                            <div>
+                                <h1 className="text-2xl font-bold">Balanço Geral</h1>
+                                <p className="text-gray-400 text-sm">Resumo Financeiro</p>
+                            </div>
+                            <button onClick={() => signOut(auth)} className="bg-white/10 p-2 rounded-lg hover:bg-white/20">
+                                <LogOut size={18} />
+                            </button>
+                        </div>
+
+                        <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 relative z-10">
+                            <span className="text-gray-400 text-xs uppercase tracking-wider">Saldo Acumulado</span>
+                            <div className={`text-4xl font-bold mt-1 ${balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatCurrency(balance)}
+                            </div>
+                            <div className="mt-4 flex gap-4">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-1 text-emerald-400 text-xs mb-1">
+                                        <ArrowUpCircle size={12} /> Receitas
+                                    </div>
+                                    <div className="font-semibold text-lg">{formatCurrency(totalRev)}</div>
+                                </div>
+                                <div className="w-px bg-white/20"></div>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-1 text-red-400 text-xs mb-1">
+                                        <ArrowDownCircle size={12} /> Despesas
+                                    </div>
+                                    <div className="font-semibold text-lg">{formatCurrency(totalExp)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Gráfico de Barra Simples */}
+                    <div className="px-6">
+                        <h3 className="text-gray-600 font-bold mb-3 flex items-center gap-2"><PieChart size={18}/> Proporção Global</h3>
+                        <div className="h-4 bg-gray-200 rounded-full overflow-hidden flex">
+                            <div className="h-full bg-emerald-500 progress-bar" style={{width: `${revPercent}%`}}></div>
+                            <div className="h-full bg-red-500 progress-bar" style={{width: `${100 - revPercent}%`}}></div>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-2 font-medium">
+                            <span>{revPercent.toFixed(0)}% Entrada</span>
+                            <span>{(100 - revPercent).toFixed(0)}% Saída</span>
+                        </div>
+                    </div>
+
+                    {/* Cartões do Mês */}
+                    <div className="px-6">
+                        <h3 className="text-gray-600 font-bold mb-3 flex items-center gap-2"><Calendar size={18}/> Este Mês</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <div className="bg-emerald-100 w-8 h-8 rounded-full flex items-center justify-center text-emerald-600 mb-2">
+                                    <TrendingUp size={16} />
+                                </div>
+                                <p className="text-xs text-gray-500">Entradas</p>
+                                <p className="font-bold text-gray-800 text-lg">{formatCurrency(monthRev)}</p>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <div className="bg-red-100 w-8 h-8 rounded-full flex items-center justify-center text-red-600 mb-2">
+                                    <TrendingDown size={16} />
+                                </div>
+                                <p className="text-xs text-gray-500">Saídas</p>
+                                <p className="font-bold text-gray-800 text-lg">{formatCurrency(monthExp)}</p>
+                            </div>
+                        </div>
+                        <div className={`mt-3 p-3 rounded-xl border flex justify-between items-center ${monthBalance >= 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
+                            <span className="text-sm font-semibold">Resultado do Mês</span>
+                            <span className="font-bold">{formatCurrency(monthBalance)}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Componente: Lista e Ações (Genérico para Receitas/Despesas) ---
+        const TransactionManager = ({ type, data, onAdd, onImport, onDelete, onUpdate }) => {
+            const [view, setView] = useState('list'); // 'list', 'add', 'import'
+            const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], description: '', amount: '', category: '' });
+            const [searchTerm, setSearchTerm] = useState('');
+            const [editItem, setEditItem] = useState(null); // ID do item em edição
+
+            const isRevenue = type === 'revenue';
+            const themeColor = isRevenue ? 'emerald' : 'red';
+            const categories = isRevenue 
+                ? ['Venda de Leite', 'Venda de Animais', 'Venda de Queijo', 'Serviços', 'Outros']
+                : ['Ração/Sal', 'Medicamentos', 'Manutenção', 'Energia', 'Mão de Obra', 'Combustível', 'Outros'];
+
+            // Filtro e Ordenação
+            const filteredData = data.filter(item => 
+                item.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase()))
+            ).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                await onAdd({ ...formData, amount: parseFloat(formData.amount), type, category: formData.category || 'Outros' });
+                setFormData({ date: new Date().toISOString().split('T')[0], description: '', amount: '', category: '' });
+                setView('list');
+            };
+
+            // Importação CSV (Lógica Simplificada Embutida)
+            const [csvItems, setCsvItems] = useState([]);
+            const handleFile = (file) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const text = e.target.result;
+                    const lines = text.split('\n');
+                    const parsed = [];
+                    lines.forEach((line, idx) => {
+                        if (!line.trim()) return;
+                        // Regex simples para CSV
+                        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim()); 
+                        if (cols.length < 5) return;
+                        // Ajuste baseado no padrão do banco do usuário (Valor no índice 5 ou último)
+                        let valStr = cols[cols.length - 1] || cols[5];
+                        let val = parseFloat(valStr);
+                        
+                        // Lógica de filtro: Receita > 0, Despesa < 0
+                        const isValid = isRevenue ? (val > 0) : (val < 0);
+                        
+                        if (!isNaN(val) && isValid) {
+                            // Converter data DD/MM/YYYY
+                            const dParts = cols[0].split('/');
+                            const dateIso = dParts.length === 3 ? `${dParts[2]}-${dParts[1]}-${dParts[0]}` : new Date().toISOString().split('T')[0];
+                            
+                            parsed.push({
+                                id: Date.now() + idx,
+                                date: dateIso,
+                                description: cols[2] || 'Sem descrição',
+                                amount: Math.abs(val), // Salvar sempre positivo no DB, o tipo define se é entrada/saída
+                                category: 'Importado',
+                                selected: true
+                            });
+                        }
+                    });
+                    setCsvItems(parsed);
+                };
+                reader.readAsText(file);
+            };
+
+            // Renderização Condicional
+            if (view === 'add') {
+                return (
+                    <div className="p-4 pb-24 fade-in">
+                        <div className="flex items-center gap-2 mb-6">
+                            <button onClick={() => setView('list')} className="p-2 bg-gray-100 rounded-full"><X size={20}/></button>
+                            <h2 className="text-2xl font-bold text-gray-800">Nova {isRevenue ? 'Receita' : 'Despesa'}</h2>
+                        </div>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Descrição</label>
+                                <input required className="w-full p-3 border rounded-xl" placeholder="Ex: Ração" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="w-1/2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Valor</label>
+                                    <input type="number" step="0.01" required className="w-full p-3 border rounded-xl" placeholder="0,00" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} />
+                                </div>
+                                <div className="w-1/2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Data</label>
+                                    <input type="date" required className="w-full p-3 border rounded-xl" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Categoria</label>
+                                <select className="w-full p-3 border rounded-xl bg-white" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                                    <option value="">Selecione...</option>
+                                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <button type="submit" className={`w-full py-4 rounded-xl text-white font-bold shadow-lg mt-4 bg-${themeColor}-600`}>
+                                Salvar
+                            </button>
+                        </form>
+                    </div>
+                );
+            }
+
+            if (view === 'import') {
+                return (
+                    <div className="p-4 pb-24 fade-in h-full flex flex-col">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Importar CSV</h2>
+                            <button onClick={() => { setView('list'); setCsvItems([]); }} className="text-gray-500">Cancelar</button>
+                        </div>
+                        
+                        {csvItems.length === 0 ? (
+                            <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50">
+                                <Upload size={48} className="text-gray-400 mb-2"/>
+                                <p className="text-gray-500 text-sm mb-4">Selecione o extrato bancário</p>
+                                <input type="file" accept=".csv" onChange={e => handleFile(e.target.files[0])} />
+                                <p className="text-xs text-gray-400 mt-4 text-center max-w-xs">
+                                    O sistema irá filtrar automaticamente apenas as {isRevenue ? 'entradas' : 'saídas'} do arquivo.
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+                                    {csvItems.map((item, idx) => (
+                                        <div key={idx} className={`p-3 border rounded-lg flex gap-3 ${item.selected ? `border-${themeColor}-500 bg-${themeColor}-50` : 'border-gray-200 opacity-50'}`}>
+                                            <input type="checkbox" checked={item.selected} onChange={() => {
+                                                const newItems = [...csvItems];
+                                                newItems[idx].selected = !newItems[idx].selected;
+                                                setCsvItems(newItems);
+                                            }} />
+                                            <div className="flex-1">
+                                                <div className="flex justify-between font-bold text-sm">
+                                                    <span>{item.description}</span>
+                                                    <span>{formatCurrency(item.amount)}</span>
+                                                </div>
+                                                <div className="text-xs text-gray-500">{formatDate(item.date)}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button 
+                                    onClick={async () => {
+                                        const toImport = csvItems.filter(i => i.selected).map(({id, selected, ...rest}) => ({...rest, type, source: 'import'}));
+                                        await onImport(toImport);
+                                        setView('list');
+                                        setCsvItems([]);
+                                    }}
+                                    disabled={csvItems.filter(i => i.selected).length === 0}
+                                    className={`w-full py-3 rounded-xl text-white font-bold shadow bg-${themeColor}-600 disabled:opacity-50`}
+                                >
+                                    Confirmar Importação ({csvItems.filter(i => i.selected).length})
+                                </button>
+                            </>
+                        )}
+                    </div>
+                );
+            }
+
+            // View Default: List
+            return (
+                <div className="flex flex-col h-full bg-gray-50 fade-in">
+                    <header className={`bg-${themeColor}-600 text-white p-6 pb-8 rounded-b-3xl shadow-lg sticky top-0 z-10`}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h1 className="text-2xl font-bold">{isRevenue ? 'Receitas' : 'Despesas'}</h1>
+                            <div className="flex gap-2">
+                                <button onClick={() => setView('import')} className="bg-white/20 p-2 rounded-lg hover:bg-white/30" title="Importar CSV"><Upload size={20}/></button>
+                                <button onClick={() => setView('add')} className="bg-white text-gray-900 px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-sm active:scale-95 transition">
+                                    <PlusCircle size={18}/> Novo
+                                </button>
+                            </div>
+                        </div>
+                        <div className="relative">
+                            <Search className={`absolute left-3 top-3 text-${themeColor}-200`} size={18} />
+                            <input 
+                                type="text" placeholder="Buscar..." 
+                                className={`w-full pl-10 pr-4 py-2.5 bg-${themeColor}-700 rounded-xl text-white placeholder-${themeColor}-300 focus:outline-none focus:ring-2 focus:ring-white/50`}
+                                value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </header>
+
+                    <div className="flex-1 overflow-y-auto p-4 pb-24 space-y-3">
+                        {filteredData.length === 0 ? (
+                            <div className="text-center py-10 text-gray-400">Nenhum registro encontrado.</div>
+                        ) : (
+                            filteredData.map(item => (
+                                <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                                    {editItem === item.id ? (
+                                        <div className="flex-1 flex gap-2">
+                                            <input className="border rounded px-2 py-1 w-full" value={item.description} onChange={(e) => onUpdate(item.id, { description: e.target.value })} />
+                                            <input type="number" className="border rounded px-2 py-1 w-24" value={item.amount} onChange={(e) => onUpdate(item.id, { amount: parseFloat(e.target.value) })} />
+                                            <button onClick={() => setEditItem(null)} className="p-2 bg-green-100 text-green-700 rounded"><Check size={16}/></button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex-1">
+                                                <h3 className="font-bold text-gray-800">{item.description}</h3>
+                                                <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                                    <span className="bg-gray-100 px-2 py-0.5 rounded">{formatDate(item.date)}</span>
+                                                    <span>{item.category}</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className={`font-bold text-lg text-${themeColor}-600`}>{formatCurrency(item.amount)}</div>
+                                                <div className="flex justify-end gap-3 mt-1">
+                                                    <button onClick={() => setEditItem(item.id)} className="text-gray-400 hover:text-blue-500"><Edit2 size={14}/></button>
+                                                    <button onClick={() => onDelete(item.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={14}/></button>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Componente: App Principal ---
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [activeTab, setActiveTab] = useState('balance'); // 'balance', 'revenues', 'expenses'
+            const [revenues, setRevenues] = useState([]);
+            const [expenses, setExpenses] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const unsub = onAuthStateChanged(auth, (u) => {
+                    setUser(u);
+                    if (u) {
+                        // Ouvir Receitas
+                        const qRev = query(collection(db, 'artifacts', appNamespace, 'users', u.uid, 'farm_revenues'), orderBy('date', 'desc'));
+                        onSnapshot(qRev, (snap) => setRevenues(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+                        
+                        // Ouvir Despesas
+                        const qExp = query(collection(db, 'artifacts', appNamespace, 'users', u.uid, 'farm_expenses'), orderBy('date', 'desc'));
+                        onSnapshot(qExp, (snap) => setExpenses(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+                        
+                        setLoading(false);
+                    } else {
+                        setRevenues([]);
+                        setExpenses([]);
+                        setLoading(false);
+                    }
+                });
+                return () => unsub();
+            }, []);
+
+            // CRUD Genérico
+            const addTransaction = async (data) => {
+                const collName = data.type === 'revenue' ? 'farm_revenues' : 'farm_expenses';
+                await addDoc(collection(db, 'artifacts', appNamespace, 'users', user.uid, collName), { ...data, createdAt: serverTimestamp() });
+            };
+
+            const addBulk = async (items) => {
+                const batchPromises = items.map(item => {
+                    const collName = item.type === 'revenue' ? 'farm_revenues' : 'farm_expenses';
+                    return addDoc(collection(db, 'artifacts', appNamespace, 'users', user.uid, collName), { ...item, createdAt: serverTimestamp() });
+                });
+                await Promise.all(batchPromises);
+            };
+
+            const deleteTransaction = async (id, type) => {
+                if(!confirm('Tem certeza?')) return;
+                const collName = type === 'revenue' ? 'farm_revenues' : 'farm_expenses';
+                await deleteDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, collName, id));
+            };
+
+            const updateTransaction = async (id, data, type) => {
+                const collName = type === 'revenue' ? 'farm_revenues' : 'farm_expenses';
+                await updateDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, collName, id), data);
+            };
+
+            if (loading) return <div className="h-screen w-full flex items-center justify-center text-emerald-800 font-bold bg-emerald-50">Carregando Sistema...</div>;
+            if (!user) return <AuthScreen />;
+
+            return (
+                <div className="h-screen w-full flex flex-col font-sans overflow-hidden bg-gray-50">
+                    <main className="flex-1 overflow-y-auto">
+                        {activeTab === 'balance' && <BalancePanel revenues={revenues} expenses={expenses} />}
+                        
+                        {activeTab === 'revenues' && (
+                            <TransactionManager 
+                                type="revenue" 
+                                data={revenues} 
+                                onAdd={addTransaction} 
+                                onImport={addBulk} 
+                                onDelete={(id) => deleteTransaction(id, 'revenue')} 
+                                onUpdate={(id, data) => updateTransaction(id, data, 'revenue')}
+                            />
+                        )}
+                        
+                        {activeTab === 'expenses' && (
+                            <TransactionManager 
+                                type="expense" 
+                                data={expenses} 
+                                onAdd={addTransaction} 
+                                onImport={addBulk} 
+                                onDelete={(id) => deleteTransaction(id, 'expense')} 
+                                onUpdate={(id, data) => updateTransaction(id, data, 'expense')}
+                            />
+                        )}
+                    </main>
+
+                    {/* Navegação Inferior */}
+                    <nav className="bg-white border-t border-gray-200 fixed bottom-0 w-full pb-safe z-50">
+                        <div className="flex justify-around items-center h-16">
+                            <button onClick={() => setActiveTab('balance')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'balance' ? 'text-gray-900' : 'text-gray-400'}`}>
+                                <PieChart size={22} strokeWidth={activeTab === 'balance' ? 2.5 : 2} />
+                                <span className="text-[10px] font-medium">Balanço</span>
+                            </button>
+                            
+                            <button onClick={() => setActiveTab('revenues')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'revenues' ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                <ArrowUpCircle size={22} strokeWidth={activeTab === 'revenues' ? 2.5 : 2} />
+                                <span className="text-[10px] font-medium">Receitas</span>
+                            </button>
+
+                            <button onClick={() => setActiveTab('expenses')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'expenses' ? 'text-red-600' : 'text-gray-400'}`}>
+                                <ArrowDownCircle size={22} strokeWidth={activeTab === 'expenses' ? 2.5 : 2} />
+                                <span className="text-[10px] font-medium">Despesas</span>
+                            </button>
+                        </div>
+                    </nav>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
