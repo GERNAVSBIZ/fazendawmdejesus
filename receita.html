@@ -37,7 +37,7 @@
             DollarSign, FileText, Calendar, Search, ArrowUpCircle, ArrowDownCircle,
             LogOut, User, Lock, Sprout, TrendingUp, TrendingDown, PieChart, Info,
             Filter, Settings, Tag, Zap, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, Ban,
-            Scale, CheckCircle2, XCircle
+            Scale, CheckCircle2, XCircle, Database
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -213,10 +213,39 @@
             );
         };
 
-        // --- Componente: Conciliação (Atualizado para comparar com Sistema Antigo) ---
-        const ReconciliationTool = ({ oldSystemExpenses, onAddMissing }) => {
-            const [csvData, setCsvData] = useState([]);
+        // --- Componente: Conciliação (Automática via DB) ---
+        const ReconciliationTool = ({ oldSystemExpenses, newSystemExpenses, onAddMissing }) => {
+            const [viewDate, setViewDate] = useState(new Date());
             const [analysis, setAnalysis] = useState(null);
+            
+            // Navegação de mês
+            const changeMonth = (offset) => {
+                const d = new Date(viewDate);
+                d.setMonth(d.getMonth() + offset);
+                setViewDate(d);
+                setAnalysis(null); // Reseta a análise ao mudar de mês
+            };
+
+            const currentMonthLabel = viewDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+            const monthLabelFormatted = currentMonthLabel.charAt(0).toUpperCase() + currentMonthLabel.slice(1);
+
+            // Hook para tentar analisar automaticamente se houver dados no banco NOVO para o mês selecionado
+            useEffect(() => {
+                const currentMonth = viewDate.getMonth();
+                const currentYear = viewDate.getFullYear();
+
+                // 1. Busca dados do Banco NOVO (Extrato) para o mês
+                const bankItemsFromDB = newSystemExpenses.filter(item => {
+                    const d = new Date(item.date);
+                    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+                });
+
+                if (bankItemsFromDB.length > 0) {
+                    analyze(bankItemsFromDB, oldSystemExpenses);
+                } else {
+                    setAnalysis(null); // Sem dados no banco novo, precisa de upload
+                }
+            }, [viewDate, newSystemExpenses, oldSystemExpenses]);
 
             const handleFile = (file) => {
                 const reader = new FileReader();
@@ -228,11 +257,7 @@
                         if (!line.trim()) return;
                         const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
                         if (cols.length < 5) return;
-                        
-                        let valStr = cols[cols.length - 1] || cols[5];
-                        let val = parseFloat(valStr);
-                        
-                        // Focando em DESPESAS (Negativos) do Banco
+                        let val = parseFloat(cols[cols.length - 1] || cols[5]);
                         if (!isNaN(val) && val < 0) {
                             const descOriginal = cols[2] || 'Sem descrição';
                             const dParts = cols[0].split('/');
@@ -240,23 +265,20 @@
                             parsed.push({ date: dateIso, description: descOriginal, amount: Math.abs(val) });
                         }
                     });
-                    setCsvData(parsed);
+                    // Mesmo com upload, analisamos contra o sistema antigo
                     analyze(parsed, oldSystemExpenses);
                 };
                 reader.readAsText(file, 'ISO-8859-1');
             };
 
             const analyze = (bankItems, sysItems) => {
-                // Filtra sysItems para pegar apenas o período coberto pelo CSV
-                // Isso evita dizer que está "sobrando" no sistema registros de anos atrás
-                const bankDates = bankItems.map(b => new Date(b.date).getTime());
-                const minDate = Math.min(...bankDates);
-                const maxDate = Math.max(...bankDates);
+                const currentMonth = viewDate.getMonth();
+                const currentYear = viewDate.getFullYear();
 
-                // Filtra despesas do sistema antigo dentro do range do extrato
+                // Filtra o sistema ANTIGO também pelo mês visualizado, para comparação justa
                 const relevantSysItems = sysItems.filter(sys => {
-                    const d = new Date(sys.date).getTime();
-                    return d >= minDate && d <= maxDate;
+                    const d = new Date(sys.date);
+                    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
                 });
 
                 const totalBank = bankItems.reduce((acc, cur) => acc + cur.amount, 0);
@@ -268,7 +290,6 @@
                 const missingInSystem = [];
 
                 bankItems.forEach(bankItem => {
-                    // Match tolerante (Data exata e Valor próximo)
                     const matchIndex = sysCopy.findIndex(sys => 
                         sys.date === bankItem.date && 
                         Math.abs(Number(sys.amount) - bankItem.amount) < 0.05
@@ -282,14 +303,13 @@
                     }
                 });
 
-                // O que sobrou em sysCopy são itens que estão no sistema mas não no extrato (Dinheiro, outro banco, ou erro)
+                // O que sobra no sistema antigo (não achado no banco)
                 const missingInBank = sysCopy;
 
                 setAnalysis({ 
-                    matched, 
-                    missingInSystem, 
-                    missingInBank,
-                    totals: { bank: totalBank, sys: totalSys, diff: difference }
+                    matched, missingInSystem, missingInBank,
+                    totals: { bank: totalBank, sys: totalSys, diff: difference },
+                    source: 'db' // Apenas informativo
                 });
             };
 
@@ -302,7 +322,7 @@
                     type: 'expense',
                     source: 'reconciliation'
                 });
-                // Remove visualmente após adicionar
+                // Remove visualmente
                 setAnalysis(prev => ({
                     ...prev,
                     missingInSystem: prev.missingInSystem.filter(i => i !== item),
@@ -310,102 +330,107 @@
                 }));
             };
 
-            if (!analysis) {
-                return (
-                    <div className="p-6 pb-24 fade-in flex flex-col items-center justify-center h-full text-center">
-                        <div className="bg-purple-100 p-6 rounded-full mb-6"><Scale size={48} className="text-purple-600" /></div>
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2">Conciliação: Banco vs. Sistema Antigo</h2>
-                        <p className="text-gray-500 mb-8 max-w-xs text-sm">
-                            Compare o <b>Extrato Bancário</b> com seus registros manuais do <b>Sistema de Despesas</b> para encontrar furos.
-                        </p>
-                        <label className="w-full max-w-sm bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl shadow-lg cursor-pointer flex items-center justify-center gap-2 transition-all active:scale-95">
-                            <Upload size={20} /> Carregar Extrato (CSV)
-                            <input type="file" accept=".csv" className="hidden" onChange={e => handleFile(e.target.files[0])} />
-                        </label>
-                    </div>
-                );
-            }
-
             return (
                 <div className="flex flex-col h-full bg-gray-50 fade-in">
-                    <header className="bg-purple-700 text-white p-6 pb-8 rounded-b-3xl shadow-lg sticky top-0 z-10">
-                        <div className="flex justify-between items-center mb-4">
-                            <h1 className="text-xl font-bold">Relatório da Conciliação</h1>
-                            <button onClick={() => { setAnalysis(null); setCsvData([]); }} className="text-purple-200 text-sm underline">Nova Análise</button>
-                        </div>
-                        
-                        <div className="flex gap-4 mb-4">
-                            <div className="flex-1">
-                                <span className="text-[10px] uppercase text-purple-200">Total Banco</span>
-                                <div className="text-xl font-bold">{formatCurrency(analysis.totals.bank)}</div>
+                    {/* Header de Data */}
+                    <div className="bg-purple-800 p-4 pt-6 pb-2 text-white sticky top-0 z-20">
+                        <div className="flex items-center justify-between mb-4">
+                            <h1 className="text-xl font-bold flex items-center gap-2"><Scale size={24}/> Conciliação</h1>
+                            <div className="flex items-center gap-2 bg-purple-900/50 p-1 rounded-lg">
+                                <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-white/10 rounded"><ChevronLeft size={20}/></button>
+                                <span className="text-sm font-bold w-28 text-center">{monthLabelFormatted}</span>
+                                <button onClick={() => changeMonth(1)} className="p-1 hover:bg-white/10 rounded"><ChevronRight size={20}/></button>
                             </div>
-                            <div className="w-px bg-white/20"></div>
-                            <div className="flex-1">
-                                <span className="text-[10px] uppercase text-purple-200">Total Sistema</span>
-                                <div className="text-xl font-bold">{formatCurrency(analysis.totals.sys)}</div>
-                            </div>
-                        </div>
-
-                        <div className={`p-3 rounded-xl flex items-center justify-between ${analysis.totals.diff > 0 ? 'bg-red-500/20 text-red-100 border border-red-400/30' : 'bg-green-500/20 text-green-100 border border-green-400/30'}`}>
-                            <span className="text-xs font-bold uppercase">Diferença</span>
-                            <span className="font-bold text-lg">{formatCurrency(analysis.totals.diff)}</span>
-                        </div>
-                    </header>
-
-                    <div className="flex-1 overflow-y-auto p-4 pb-24 space-y-6">
-                        {/* Seção Crítica: Está no Banco, falta no Sistema */}
-                        <div className="bg-white p-4 rounded-xl shadow-sm border border-red-100">
-                            <h3 className="font-bold text-red-600 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
-                                <AlertCircle size={16}/> Falta Registrar ({analysis.missingInSystem.length})
-                            </h3>
-                            {analysis.missingInSystem.length === 0 ? (
-                                <p className="text-gray-400 text-xs italic">Tudo certo! Nada faltando.</p>
-                            ) : (
-                                <div className="space-y-2">
-                                    {analysis.missingInSystem.map((item, idx) => (
-                                        <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-                                            <div className="overflow-hidden mr-2">
-                                                <p className="font-bold text-gray-800 text-xs truncate">{item.description}</p>
-                                                <p className="text-[10px] text-gray-500">{formatDate(item.date)}</p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold text-red-600">{formatCurrency(item.amount)}</span>
-                                                <button onClick={() => addMissingItem(item)} className="bg-red-50 text-red-600 p-1.5 rounded-md hover:bg-red-100" title="Adicionar ao Sistema"><PlusCircle size={16}/></button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Seção Informativa: Está no Sistema, não no Banco */}
-                        {analysis.missingInBank.length > 0 && (
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-yellow-100 opacity-80">
-                                <h3 className="font-bold text-yellow-600 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
-                                    <AlertTriangle size={16}/> Apenas no Sistema ({analysis.missingInBank.length})
-                                </h3>
-                                <div className="space-y-2">
-                                    {analysis.missingInBank.map((item, idx) => (
-                                        <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-                                            <div>
-                                                <p className="font-bold text-gray-700 text-xs truncate">{item.description}</p>
-                                                <p className="text-[10px] text-gray-400">{formatDate(item.date)}</p>
-                                            </div>
-                                            <span className="text-xs font-bold text-gray-500">{formatCurrency(item.amount)}</span>
-                                        </div>
-                                    ))}
-                                    <p className="text-[9px] text-gray-400 mt-2 italic text-center">Itens pagos em dinheiro ou outra conta?</p>
-                                </div>
-                            </div>
-                        )}
-                        
-                        {/* Conciliados */}
-                        <div className="text-center mt-4">
-                            <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
-                                {analysis.matched.length} itens conciliados com sucesso
-                            </span>
                         </div>
                     </div>
+
+                    {!analysis ? (
+                        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center opacity-70">
+                            <div className="bg-purple-100 p-4 rounded-full mb-4"><Database size={32} className="text-purple-600" /></div>
+                            <p className="text-gray-500 text-sm mb-6 max-w-xs">
+                                Nenhum dado encontrado no banco "Novo" para este mês.
+                            </p>
+                            <label className="bg-purple-600 text-white px-6 py-3 rounded-xl shadow-lg cursor-pointer flex items-center gap-2 text-sm font-bold active:scale-95 transition-transform">
+                                <Upload size={18} /> Carregar CSV
+                                <input type="file" accept=".csv" className="hidden" onChange={e => handleFile(e.target.files[0])} />
+                            </label>
+                        </div>
+                    ) : (
+                        <div className="flex-1 overflow-y-auto pb-24">
+                            {/* Resumo Financeiro da Conciliação */}
+                            <div className="bg-purple-700 text-white p-4 pt-0 pb-6 rounded-b-3xl shadow-lg mb-4">
+                                <div className="flex gap-4 mb-4">
+                                    <div className="flex-1">
+                                        <span className="text-[10px] uppercase text-purple-200">Total Banco (Novo)</span>
+                                        <div className="text-xl font-bold">{formatCurrency(analysis.totals.bank)}</div>
+                                    </div>
+                                    <div className="w-px bg-white/20"></div>
+                                    <div className="flex-1">
+                                        <span className="text-[10px] uppercase text-purple-200">Total Sistema (Antigo)</span>
+                                        <div className="text-xl font-bold">{formatCurrency(analysis.totals.sys)}</div>
+                                    </div>
+                                </div>
+                                <div className={`p-3 rounded-xl flex items-center justify-between ${analysis.totals.diff > 0 ? 'bg-red-500/20 text-red-100 border border-red-400/30' : 'bg-green-500/20 text-green-100 border border-green-400/30'}`}>
+                                    <span className="text-xs font-bold uppercase">Diferença</span>
+                                    <span className="font-bold text-lg">{formatCurrency(analysis.totals.diff)}</span>
+                                </div>
+                            </div>
+
+                            <div className="px-4 space-y-6">
+                                {/* Falta Registrar */}
+                                <div className="bg-white p-4 rounded-xl shadow-sm border border-red-100">
+                                    <h3 className="font-bold text-red-600 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
+                                        <AlertCircle size={16}/> Falta Registrar ({analysis.missingInSystem.length})
+                                    </h3>
+                                    {analysis.missingInSystem.length === 0 ? (
+                                        <p className="text-gray-400 text-xs italic">Tudo certo! Nada faltando.</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {analysis.missingInSystem.map((item, idx) => (
+                                                <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
+                                                    <div className="overflow-hidden mr-2">
+                                                        <p className="font-bold text-gray-800 text-xs truncate">{item.description}</p>
+                                                        <p className="text-[10px] text-gray-500">{formatDate(item.date)}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-red-600">{formatCurrency(item.amount)}</span>
+                                                        <button onClick={() => addMissingItem(item)} className="bg-red-50 text-red-600 p-1.5 rounded-md hover:bg-red-100" title="Adicionar ao Sistema"><PlusCircle size={16}/></button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Sobrando no Sistema */}
+                                {analysis.missingInBank.length > 0 && (
+                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-yellow-100 opacity-80">
+                                        <h3 className="font-bold text-yellow-600 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
+                                            <AlertTriangle size={16}/> Apenas no Sistema ({analysis.missingInBank.length})
+                                        </h3>
+                                        <div className="space-y-2">
+                                            {analysis.missingInBank.map((item, idx) => (
+                                                <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
+                                                    <div>
+                                                        <p className="font-bold text-gray-700 text-xs truncate">{item.description}</p>
+                                                        <p className="text-[10px] text-gray-400">{formatDate(item.date)}</p>
+                                                    </div>
+                                                    <span className="text-xs font-bold text-gray-500">{formatCurrency(item.amount)}</span>
+                                                </div>
+                                            ))}
+                                            <p className="text-[9px] text-gray-400 mt-2 italic text-center">Itens pagos em dinheiro ou outra conta?</p>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <div className="text-center mt-2 pb-6">
+                                    <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
+                                        {analysis.matched.length} itens batem perfeitamente
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -629,7 +654,7 @@
                 <div className="h-screen w-full flex flex-col font-sans overflow-hidden bg-gray-50">
                     <main className="flex-1 overflow-y-auto">
                         {activeTab === 'balance' && <BalancePanel revenues={revenues} expenses={expenses} />}
-                        {activeTab === 'reconcile' && <ReconciliationTool oldSystemExpenses={oldExpenses} onAddMissing={addTransaction} />}
+                        {activeTab === 'reconcile' && <ReconciliationTool oldSystemExpenses={oldExpenses} newSystemExpenses={expenses} onAddMissing={addTransaction} />}
                         {activeTab === 'revenues' && <TransactionManager type="revenue" data={revenues} onAdd={addTransaction} onImport={addBulk} onDelete={(id) => deleteTransaction(id, 'revenue')} onUpdate={(id, data) => updateTransaction(id, data, 'revenue')} config={config} />}
                         {activeTab === 'expenses' && <TransactionManager type="expense" data={expenses} onAdd={addTransaction} onImport={addBulk} onDelete={(id) => deleteTransaction(id, 'expense')} onUpdate={(id, data) => updateTransaction(id, data, 'expense')} config={config} />}
                         {activeTab === 'settings' && <SettingsPanel config={config} onUpdateConfig={updateConfig} />}
