@@ -70,7 +70,16 @@
              if (typeof __firebase_config !== 'undefined') {
                 return JSON.parse(__firebase_config);
             }
-            return { apiKey: "API_KEY_AQUI", authDomain: "demo.firebaseapp.com", projectId: "demo" };
+            // CONFIGURAÇÃO REAL DO FAZENDAWM
+            return {
+                apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
+                authDomain: "fazendawm-83f34.firebaseapp.com",
+                projectId: "fazendawm-83f34",
+                storageBucket: "fazendawm-83f34.firebasestorage.app",
+                messagingSenderId: "40894938435",
+                appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
+                measurementId: "G-QQVTP0CQ4H"
+            };
         };
 
         const firebaseConfig = getFirebaseConfig();
@@ -200,20 +209,47 @@
                     await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
                 } catch (error) {
                     console.error("Erro Login:", error);
-                    alert("Erro ao logar com Google. Se estiver no Canvas, a autenticação deve ser automática. Detalhe: " + error.message);
+                    alert("Erro ao logar com Google. Verifique se o domínio do seu GitHub está autorizado no Firebase Console. Detalhe: " + error.message);
                 }
             };
 
             const loadData = (currentUser) => {
-                const basePath = `artifacts/${appId}/users/${currentUser.uid}`;
+                // USA AS COLEÇÕES DIRETAS (LEGADO) OU COM APPID? 
+                // Como é o arquivo original, vamos assumir que ele usa coleções na raiz se não estiver no Canvas
+                // Mas para manter compatibilidade com o padrão do Canvas, vamos checar:
+                let basePath = '';
+                if (typeof __app_id !== 'undefined') {
+                     // Modo Canvas: usa caminho isolado
+                     basePath = `artifacts/${appId}/users/${currentUser.uid}/`;
+                } else {
+                     // Modo GitHub/Produção (Arquivo Original): usa coleções na raiz "despesas" e "extrato_bancario"
+                     // CUIDADO: O arquivo original usava coleção global. Vamos manter o padrão seguro do Canvas,
+                     // mas se você quiser compartilhar dados entre usuários, precisaria mudar isso.
+                     // Por segurança, vou usar coleção por usuário na raiz: users/{uid}/despesas
+                     // OU, se quiser exatamente como o antigo (todos veem tudo), deixe vazio.
+                     // Vou assumir padrão "users/{uid}" para segurança no GitHub.
+                     basePath = `users/${currentUser.uid}/`;
+                }
                 
-                db.collection(basePath + '/despesas').onSnapshot(snap => {
+                // AJUSTE: O arquivo original usava 'despesas' na raiz. Se quiser manter os dados antigos,
+                // remova o prefixo abaixo. Vou usar coleções raiz 'despesas' filtradas ou diretas se for modo legado.
+                // Para simplificar e não quebrar o Canvas, vou usar a lógica dinâmica:
+                
+                const collectionDespesas = typeof __app_id !== 'undefined' 
+                    ? `artifacts/${appId}/users/${currentUser.uid}/despesas` 
+                    : `despesas`; // Volta para raiz se estiver fora do Canvas (comportamento original do arquivo html enviado)
+
+                const collectionExtrato = typeof __app_id !== 'undefined' 
+                    ? `artifacts/${appId}/users/${currentUser.uid}/extrato_bancario` 
+                    : `extrato_bancario`;
+
+                db.collection(collectionDespesas).onSnapshot(snap => {
                     const d = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                     d.sort((a,b) => new Date(b.Data) - new Date(a.Data));
                     setExpenses(d);
                 });
 
-                db.collection(basePath + '/extrato_bancario')
+                db.collection(collectionExtrato)
                   .where('conciliado', '==', false)
                   .onSnapshot(snap => {
                     const d = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
@@ -283,29 +319,42 @@
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 if (!user) return;
-                const basePath = `artifacts/${appId}/users/${user.uid}`;
+                
+                // LÓGICA DE COLEÇÃO (MESMA DO LOAD)
+                const collectionDespesas = typeof __app_id !== 'undefined' 
+                    ? `artifacts/${appId}/users/${user.uid}/despesas` 
+                    : `despesas`;
+                
+                const collectionExtrato = typeof __app_id !== 'undefined' 
+                    ? `artifacts/${appId}/users/${user.uid}/extrato_bancario` 
+                    : `extrato_bancario`;
+
                 const payload = { ...formData, Quantidade: parseFloat(formData.Quantidade), PrecoUnitario: parseFloat(formData.PrecoUnitario), Total: parseFloat(formData.Total), updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
                 
                 try {
                     if (editingId) {
-                        await db.collection(basePath + '/despesas').doc(editingId).update(payload);
+                        await db.collection(collectionDespesas).doc(editingId).update(payload);
                     } else if (conciliatingId) {
                         const batch = db.batch();
-                        batch.set(db.collection(basePath + '/despesas').doc(), { ...payload, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-                        batch.update(db.collection(basePath + '/extrato_bancario').doc(conciliatingId), { conciliado: true });
+                        batch.set(db.collection(collectionDespesas).doc(), { ...payload, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+                        batch.update(db.collection(collectionExtrato).doc(conciliatingId), { conciliado: true });
                         await batch.commit();
                     } else {
-                        await db.collection(basePath + '/despesas').add({ ...payload, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+                        await db.collection(collectionDespesas).add({ ...payload, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
                     }
                     setIsFormOpen(false); resetForm();
                 } catch(err) { alert("Erro: " + err.message); }
             };
 
             const handleDelete = async (id) => {
-                if(confirm("Excluir?")) await db.collection(`artifacts/${appId}/users/${user.uid}/despesas`).doc(id).delete();
+                 if(!confirm("Excluir?")) return;
+                 const collectionDespesas = typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/despesas` : `despesas`;
+                 await db.collection(collectionDespesas).doc(id).delete();
             };
              const handleDeleteExtrato = async (id) => {
-                if(confirm("Ignorar?")) await db.collection(`artifacts/${appId}/users/${user.uid}/extrato_bancario`).doc(id).delete();
+                if(!confirm("Ignorar?")) return;
+                const collectionExtrato = typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/extrato_bancario` : `extrato_bancario`;
+                await db.collection(collectionExtrato).doc(id).delete();
             };
 
             const resetForm = () => {
@@ -345,13 +394,15 @@
                     if(hIdx === -1) { alert("CSV inválido"); return; }
                     const headers = lines[hIdx].split(';').map(h=>h.trim());
                     const batch = db.batch(); let c=0;
+                    const collectionDespesas = typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/despesas` : `despesas`;
+
                     lines.slice(hIdx+1).forEach(row => {
                          const cols = row.split(';'); if(cols.length<2) return;
                          const o={}; headers.forEach((h,i)=>o[h]=cols[i]?.replace(/"/g,'')||'');
                          const val = parseFloat((o['Total']||'0').replace(/\./g,'').replace(',','.'));
                          const dp = (o['Data']||'').split('/');
                          const iso = dp.length===3 ? `${dp[2]}-${dp[1]}-${dp[0]}` : new Date().toISOString().split('T')[0];
-                         const ref = db.collection(`artifacts/${appId}/users/${user.uid}/despesas`).doc();
+                         const ref = db.collection(collectionDespesas).doc();
                          batch.set(ref, {
                             Data: iso, Categoria: o['Categoria']||'Outros', SubCategoria: o['Sub Categoria']||'',
                             Tipo: o['Tipo']||'', Descricao: o['Descrição']||'', Quantidade: 1,
@@ -383,12 +434,14 @@
                     const iDesc = headers.findIndex(h=>h.includes('histórico')||h.includes('descrição')||h.includes('lançamento'));
                     
                     const batch = db.batch(); let c=0;
+                    const collectionExtrato = typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/extrato_bancario` : `extrato_bancario`;
+                    
                     lines.slice(hIdx+1).forEach(l => {
                         const cols = l.split(sep).map(v=>v.replace(/"/g,'').trim());
                         if(cols.length <= Math.max(iData, iVal)) return;
                         let val = cols[iVal].includes(',') ? parseFloat(cols[iVal].replace('.','').replace(',','.')) : parseFloat(cols[iVal]);
                         if(val<0) {
-                             const ref = db.collection(`artifacts/${appId}/users/${user.uid}/extrato_bancario`).doc();
+                             const ref = db.collection(collectionExtrato).doc();
                              batch.set(ref, {
                                 Data: cols[iData], Valor: val, Lancamento: iDesc!==-1?cols[iDesc]:'', conciliado: false
                              });
