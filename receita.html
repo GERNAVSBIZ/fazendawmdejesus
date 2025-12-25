@@ -36,7 +36,7 @@
             PlusCircle, Upload, Home, List, Trash2, Edit2, Save, X, Check, 
             DollarSign, FileText, Calendar, Search, ArrowUpCircle, ArrowDownCircle,
             LogOut, User, Lock, Sprout, TrendingUp, TrendingDown, PieChart, Info,
-            Filter, Settings, Tag, Zap, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle
+            Filter, Settings, Tag, Zap, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, Ban
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -72,12 +72,17 @@
             return `${day}/${month}/${year}`;
         };
 
-        // --- Default Config ---
+        // --- Default Config (Agora com regras de ignorar pré-definidas) ---
         const defaultConfig = {
             revenueCats: ['Venda de Leite', 'Venda de Animais', 'Venda de Queijo', 'Serviços', 'Outros'],
             expenseCats: ['Ração/Sal', 'Medicamentos', 'Manutenção', 'Energia', 'Mão de Obra', 'Combustível', 'Outros'],
             rules: [
-                { keyword: 'MARCELIO', category: 'Venda de Leite', type: 'revenue' }
+                { keyword: 'MARCELIO', category: 'Venda de Leite', type: 'revenue' },
+                { keyword: 'CDB', category: 'IGNORAR', type: 'revenue' },
+                { keyword: 'RESGATE', category: 'IGNORAR', type: 'revenue' },
+                { keyword: 'INVESTIMENTO', category: 'IGNORAR', type: 'revenue' },
+                { keyword: 'APLICAÇÃO', category: 'IGNORAR', type: 'revenue' },
+                { keyword: 'SALDO', category: 'IGNORAR', type: 'revenue' }
             ]
         };
 
@@ -400,6 +405,7 @@
                                     <div className="flex gap-2">
                                         <select className="flex-1 bg-white border p-2 rounded-lg text-sm" value={newRule.category} onChange={e => setNewRule({...newRule, category: e.target.value})}>
                                             <option value="">Escolha a Categoria...</option>
+                                            <option value="IGNORAR" className="text-red-600 font-bold">⛔ IGNORAR ITEM</option>
                                             {(newRule.type === 'revenue' ? config.revenueCats : config.expenseCats).map(c => <option key={c} value={c}>{c}</option>)}
                                         </select>
                                         <button onClick={addRule} className="bg-gray-800 text-white px-4 rounded-lg font-bold text-sm">Adicionar</button>
@@ -416,7 +422,13 @@
                                                     <span className={`w-2 h-2 rounded-full ${rule.type === 'revenue' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
                                                     <span className="font-bold text-gray-800">"{rule.keyword}"</span>
                                                 </div>
-                                                <div className="text-gray-500 text-xs mt-0.5">vira <span className="font-medium text-gray-700">{rule.category}</span></div>
+                                                <div className="text-gray-500 text-xs mt-0.5">
+                                                    {rule.category === 'IGNORAR' ? (
+                                                        <span className="text-red-600 font-bold flex items-center gap-1"><Ban size={10}/> SERÁ IGNORADO</span>
+                                                    ) : (
+                                                        <>vira <span className="font-medium text-gray-700">{rule.category}</span></>
+                                                    )}
+                                                </div>
                                             </div>
                                             <button onClick={() => removeRule(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
                                         </div>
@@ -474,27 +486,21 @@
                             const descOriginal = cols[2] || 'Sem descrição';
                             const descUpper = descOriginal.toUpperCase();
 
-                            // --- REGRA 1: EXCLUSÃO DE INVESTIMENTOS (Só Receitas) ---
-                            if (isRevenue) {
-                                if (descUpper.includes('CDB') || 
-                                    descUpper.includes('RESGATE') || 
-                                    descUpper.includes('INVESTIMENTO') || 
-                                    descUpper.includes('APLICAÇÃO')) {
-                                    return; // Pula este item
-                                }
-                            }
-
-                            // --- REGRA 2: CATEGORIZAÇÃO AUTOMÁTICA (DINÂMICA) ---
+                            // --- REGRA: CATEGORIZAÇÃO AUTOMÁTICA & IGNORAR ---
                             let autoCategory = 'Importado';
                             const matchedRule = config.rules.find(r => r.type === type && descUpper.includes(r.keyword));
+                            
                             if (matchedRule) {
+                                if (matchedRule.category === 'IGNORAR') {
+                                    return; // Pula este item completamente (não adiciona ao array)
+                                }
                                 autoCategory = matchedRule.category;
                             }
 
                             const dParts = cols[0].split('/');
                             const dateIso = dParts.length === 3 ? `${dParts[2]}-${dParts[1]}-${dParts[0]}` : new Date().toISOString().split('T')[0];
                             
-                            // VERIFICAÇÃO DE DUPLICIDADE (NOVA)
+                            // VERIFICAÇÃO DE DUPLICIDADE
                             const isDuplicate = data.some(existing => 
                                 existing.date === dateIso && 
                                 existing.description === descOriginal && 
