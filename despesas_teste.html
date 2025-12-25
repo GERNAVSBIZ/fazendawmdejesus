@@ -174,13 +174,35 @@
                 Tipo: '', Descricao: '', Quantidade: 1, PrecoUnitario: 0, Total: 0, Observacoes: ''
             });
 
+            // --- AUTENTICAÇÃO CORRIGIDA PARA CANVAS E LOCAL ---
             useEffect(() => {
+                const initAuth = async () => {
+                    // Se houver um token injetado pelo Canvas, use-o para logar automaticamente
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        try {
+                            await auth.signInWithCustomToken(__initial_auth_token);
+                        } catch (e) {
+                            console.error("Falha no login automático Canvas:", e);
+                        }
+                    }
+                };
+                initAuth();
+
                 const unsubscribe = auth.onAuthStateChanged((u) => {
                     setUser(u);
                     if(u) loadData(u);
                 });
                 return () => unsubscribe();
             }, []);
+
+            const handleGoogleLogin = async () => {
+                try {
+                    await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+                } catch (error) {
+                    console.error("Erro Login:", error);
+                    alert("Erro ao logar com Google. Se estiver no Canvas, a autenticação deve ser automática. Detalhe: " + error.message);
+                }
+            };
 
             const loadData = (currentUser) => {
                 const basePath = `artifacts/${appId}/users/${currentUser.uid}`;
@@ -386,7 +408,7 @@
                                 <Icons.DollarSign className="w-10 h-10 text-blue-600 dark:text-blue-400" />
                             </div>
                             <h1 className="text-3xl font-bold mb-2 text-gray-800 dark:text-white">Despesas WM</h1>
-                            <button onClick={() => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg flex items-center justify-center gap-2 mt-4">
+                            <button onClick={handleGoogleLogin} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg flex items-center justify-center gap-2 mt-4">
                                 Entrar com Google
                             </button>
                         </div>
