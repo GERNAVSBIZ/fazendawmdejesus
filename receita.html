@@ -36,7 +36,7 @@
             PlusCircle, Upload, Home, List, Trash2, Edit2, Save, X, Check, 
             DollarSign, FileText, Calendar, Search, ArrowUpCircle, ArrowDownCircle,
             LogOut, User, Lock, Sprout, TrendingUp, TrendingDown, PieChart, Info,
-            Filter, Settings, Tag, Zap, ChevronLeft, ChevronRight, AlertCircle
+            Filter, Settings, Tag, Zap, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -110,6 +110,8 @@
                         msg = "Muitas tentativas falhas. Aguarde alguns minutos.";
                     } else if (err.code === 'auth/network-request-failed') {
                         msg = "Erro de conexão. Verifique sua internet.";
+                    } else if (err.code === 'auth/operation-not-allowed') {
+                        msg = "Erro de Configuração: Ative 'Email/Senha' no Firebase Console.";
                     }
                     
                     setError(msg);
@@ -492,13 +494,21 @@
                             const dParts = cols[0].split('/');
                             const dateIso = dParts.length === 3 ? `${dParts[2]}-${dParts[1]}-${dParts[0]}` : new Date().toISOString().split('T')[0];
                             
+                            // VERIFICAÇÃO DE DUPLICIDADE (NOVA)
+                            const isDuplicate = data.some(existing => 
+                                existing.date === dateIso && 
+                                existing.description === descOriginal && 
+                                Math.abs(existing.amount) === Math.abs(val)
+                            );
+
                             parsed.push({
                                 id: Date.now() + idx,
                                 date: dateIso,
                                 description: descOriginal,
                                 amount: Math.abs(val),
                                 category: autoCategory,
-                                selected: true
+                                selected: !isDuplicate, // Desmarca automaticamente se duplicado
+                                isDuplicate: isDuplicate
                             });
                         }
                     });
@@ -584,6 +594,14 @@
                                                 </div>
                                                 <div className="flex justify-between items-center mt-1">
                                                     <span className="text-xs text-gray-500">{formatDate(item.date)}</span>
+                                                    
+                                                    {/* Badge de Duplicado */}
+                                                    {item.isDuplicate && (
+                                                        <span className="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                                                            <AlertCircle size={10} /> Duplicado
+                                                        </span>
+                                                    )}
+
                                                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${item.category !== 'Importado' ? 'bg-blue-100 text-blue-700 font-bold' : 'bg-gray-100 text-gray-500'}`}>
                                                         {item.category}
                                                     </span>
@@ -594,7 +612,7 @@
                                 </div>
                                 <button 
                                     onClick={async () => {
-                                        const toImport = csvItems.filter(i => i.selected).map(({id, selected, ...rest}) => ({...rest, type, source: 'import'}));
+                                        const toImport = csvItems.filter(i => i.selected).map(({id, selected, isDuplicate, ...rest}) => ({...rest, type, source: 'import'}));
                                         await onImport(toImport);
                                         setView('list');
                                         setCsvItems([]);
