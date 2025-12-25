@@ -37,7 +37,7 @@
             DollarSign, FileText, Calendar, Search, ArrowUpCircle, ArrowDownCircle,
             LogOut, User, Lock, Sprout, TrendingUp, TrendingDown, PieChart, Info,
             Filter, Settings, Tag, Zap, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, Ban,
-            Scale, CheckCircle2, XCircle, Database
+            Scale, CheckCircle2, XCircle, Database, ChevronDown, ChevronUp
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -213,28 +213,28 @@
             );
         };
 
-        // --- Componente: Conciliação (Automática via DB) ---
+        // --- Componente: Conciliação (Atualizado para Totais Diários) ---
         const ReconciliationTool = ({ oldSystemExpenses, newSystemExpenses, onAddMissing }) => {
             const [viewDate, setViewDate] = useState(new Date());
             const [analysis, setAnalysis] = useState(null);
+            const [expandedDay, setExpandedDay] = useState(null);
             
             // Navegação de mês
             const changeMonth = (offset) => {
                 const d = new Date(viewDate);
                 d.setMonth(d.getMonth() + offset);
                 setViewDate(d);
-                setAnalysis(null); // Reseta a análise ao mudar de mês
+                setAnalysis(null);
+                setExpandedDay(null);
             };
 
             const currentMonthLabel = viewDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
             const monthLabelFormatted = currentMonthLabel.charAt(0).toUpperCase() + currentMonthLabel.slice(1);
 
-            // Hook para tentar analisar automaticamente se houver dados no banco NOVO para o mês selecionado
             useEffect(() => {
                 const currentMonth = viewDate.getMonth();
                 const currentYear = viewDate.getFullYear();
 
-                // 1. Busca dados do Banco NOVO (Extrato) para o mês
                 const bankItemsFromDB = newSystemExpenses.filter(item => {
                     const d = new Date(item.date);
                     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
@@ -243,7 +243,7 @@
                 if (bankItemsFromDB.length > 0) {
                     analyze(bankItemsFromDB, oldSystemExpenses);
                 } else {
-                    setAnalysis(null); // Sem dados no banco novo, precisa de upload
+                    setAnalysis(null);
                 }
             }, [viewDate, newSystemExpenses, oldSystemExpenses]);
 
@@ -265,7 +265,6 @@
                             parsed.push({ date: dateIso, description: descOriginal, amount: Math.abs(val) });
                         }
                     });
-                    // Mesmo com upload, analisamos contra o sistema antigo
                     analyze(parsed, oldSystemExpenses);
                 };
                 reader.readAsText(file, 'ISO-8859-1');
@@ -275,41 +274,50 @@
                 const currentMonth = viewDate.getMonth();
                 const currentYear = viewDate.getFullYear();
 
-                // Filtra o sistema ANTIGO também pelo mês visualizado, para comparação justa
+                // Filtra sistema antigo pelo mês
                 const relevantSysItems = sysItems.filter(sys => {
                     const d = new Date(sys.date);
                     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
                 });
 
-                const totalBank = bankItems.reduce((acc, cur) => acc + cur.amount, 0);
-                const totalSys = relevantSysItems.reduce((acc, cur) => acc + Number(cur.amount), 0);
-                const difference = totalBank - totalSys;
+                // Agrupamento por Data (YYYY-MM-DD)
+                const groupedDates = {}; 
+                const allDates = new Set();
 
-                const sysCopy = [...relevantSysItems];
-                const matched = [];
-                const missingInSystem = [];
+                const addToGroup = (date, item, type) => {
+                    allDates.add(date);
+                    if (!groupedDates[date]) groupedDates[date] = { bank: [], sys: [] };
+                    groupedDates[date][type].push(item);
+                };
 
-                bankItems.forEach(bankItem => {
-                    const matchIndex = sysCopy.findIndex(sys => 
-                        sys.date === bankItem.date && 
-                        Math.abs(Number(sys.amount) - bankItem.amount) < 0.05
-                    );
+                bankItems.forEach(i => addToGroup(i.date, i, 'bank'));
+                relevantSysItems.forEach(i => addToGroup(i.date, i, 'sys'));
 
-                    if (matchIndex > -1) {
-                        matched.push({ bank: bankItem, sys: sysCopy[matchIndex] });
-                        sysCopy.splice(matchIndex, 1);
-                    } else {
-                        missingInSystem.push(bankItem);
-                    }
+                const dailyReports = Array.from(allDates).sort().map(date => {
+                    const data = groupedDates[date];
+                    const bankTotal = data.bank.reduce((sum, i) => sum + Number(i.amount), 0);
+                    const sysTotal = data.sys.reduce((sum, i) => sum + Number(i.amount), 0);
+                    const diff = bankTotal - sysTotal;
+                    
+                    return {
+                        date,
+                        bankTotal,
+                        sysTotal,
+                        diff,
+                        bankItems: data.bank,
+                        sysItems: data.sys,
+                        isMatch: Math.abs(diff) < 0.05 // Tolerância de 5 centavos
+                    };
                 });
 
-                // O que sobra no sistema antigo (não achado no banco)
-                const missingInBank = sysCopy;
+                // Totais Mensais
+                const totalBank = dailyReports.reduce((acc, d) => acc + d.bankTotal, 0);
+                const totalSys = dailyReports.reduce((acc, d) => acc + d.sysTotal, 0);
+                const totalDiff = totalBank - totalSys;
 
                 setAnalysis({ 
-                    matched, missingInSystem, missingInBank,
-                    totals: { bank: totalBank, sys: totalSys, diff: difference },
-                    source: 'db' // Apenas informativo
+                    monthly: { bank: totalBank, sys: totalSys, diff: totalDiff },
+                    daily: dailyReports
                 });
             };
 
@@ -322,17 +330,11 @@
                     type: 'expense',
                     source: 'reconciliation'
                 });
-                // Remove visualmente
-                setAnalysis(prev => ({
-                    ...prev,
-                    missingInSystem: prev.missingInSystem.filter(i => i !== item),
-                    matched: [...prev.matched, { bank: item, sys: item }]
-                }));
+                alert("Item adicionado! A página atualizará em breve.");
             };
 
             return (
                 <div className="flex flex-col h-full bg-gray-50 fade-in">
-                    {/* Header de Data */}
                     <div className="bg-purple-800 p-4 pt-6 pb-2 text-white sticky top-0 z-20">
                         <div className="flex items-center justify-between mb-4">
                             <h1 className="text-xl font-bold flex items-center gap-2"><Scale size={24}/> Conciliação</h1>
@@ -347,9 +349,7 @@
                     {!analysis ? (
                         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center opacity-70">
                             <div className="bg-purple-100 p-4 rounded-full mb-4"><Database size={32} className="text-purple-600" /></div>
-                            <p className="text-gray-500 text-sm mb-6 max-w-xs">
-                                Nenhum dado encontrado no banco "Novo" para este mês.
-                            </p>
+                            <p className="text-gray-500 text-sm mb-6 max-w-xs">Nenhum dado encontrado no banco "Novo" para este mês.</p>
                             <label className="bg-purple-600 text-white px-6 py-3 rounded-xl shadow-lg cursor-pointer flex items-center gap-2 text-sm font-bold active:scale-95 transition-transform">
                                 <Upload size={18} /> Carregar CSV
                                 <input type="file" accept=".csv" className="hidden" onChange={e => handleFile(e.target.files[0])} />
@@ -357,77 +357,104 @@
                         </div>
                     ) : (
                         <div className="flex-1 overflow-y-auto pb-24">
-                            {/* Resumo Financeiro da Conciliação */}
+                            {/* Resumo Mensal */}
                             <div className="bg-purple-700 text-white p-4 pt-0 pb-6 rounded-b-3xl shadow-lg mb-4">
                                 <div className="flex gap-4 mb-4">
                                     <div className="flex-1">
-                                        <span className="text-[10px] uppercase text-purple-200">Total Banco (Novo)</span>
-                                        <div className="text-xl font-bold">{formatCurrency(analysis.totals.bank)}</div>
+                                        <span className="text-[10px] uppercase text-purple-200">Extrato (Mês)</span>
+                                        <div className="text-xl font-bold">{formatCurrency(analysis.monthly.bank)}</div>
                                     </div>
                                     <div className="w-px bg-white/20"></div>
                                     <div className="flex-1">
-                                        <span className="text-[10px] uppercase text-purple-200">Total Sistema (Antigo)</span>
-                                        <div className="text-xl font-bold">{formatCurrency(analysis.totals.sys)}</div>
+                                        <span className="text-[10px] uppercase text-purple-200">Planilha (Mês)</span>
+                                        <div className="text-xl font-bold">{formatCurrency(analysis.monthly.sys)}</div>
                                     </div>
                                 </div>
-                                <div className={`p-3 rounded-xl flex items-center justify-between ${analysis.totals.diff > 0 ? 'bg-red-500/20 text-red-100 border border-red-400/30' : 'bg-green-500/20 text-green-100 border border-green-400/30'}`}>
-                                    <span className="text-xs font-bold uppercase">Diferença</span>
-                                    <span className="font-bold text-lg">{formatCurrency(analysis.totals.diff)}</span>
+                                <div className={`p-3 rounded-xl flex items-center justify-between ${Math.abs(analysis.monthly.diff) > 0.05 ? 'bg-red-500/20 text-red-100 border border-red-400/30' : 'bg-green-500/20 text-green-100 border border-green-400/30'}`}>
+                                    <span className="text-xs font-bold uppercase flex items-center gap-1">
+                                        {Math.abs(analysis.monthly.diff) > 0.05 ? <AlertCircle size={14}/> : <CheckCircle2 size={14}/>} 
+                                        Diferença Total
+                                    </span>
+                                    <span className="font-bold text-lg">{formatCurrency(analysis.monthly.diff)}</span>
                                 </div>
                             </div>
 
-                            <div className="px-4 space-y-6">
-                                {/* Falta Registrar */}
-                                <div className="bg-white p-4 rounded-xl shadow-sm border border-red-100">
-                                    <h3 className="font-bold text-red-600 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
-                                        <AlertCircle size={16}/> Falta Registrar ({analysis.missingInSystem.length})
-                                    </h3>
-                                    {analysis.missingInSystem.length === 0 ? (
-                                        <p className="text-gray-400 text-xs italic">Tudo certo! Nada faltando.</p>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {analysis.missingInSystem.map((item, idx) => (
-                                                <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-                                                    <div className="overflow-hidden mr-2">
-                                                        <p className="font-bold text-gray-800 text-xs truncate">{item.description}</p>
-                                                        <p className="text-[10px] text-gray-500">{formatDate(item.date)}</p>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-bold text-red-600">{formatCurrency(item.amount)}</span>
-                                                        <button onClick={() => addMissingItem(item)} className="bg-red-50 text-red-600 p-1.5 rounded-md hover:bg-red-100" title="Adicionar ao Sistema"><PlusCircle size={16}/></button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Sobrando no Sistema */}
-                                {analysis.missingInBank.length > 0 && (
-                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-yellow-100 opacity-80">
-                                        <h3 className="font-bold text-yellow-600 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
-                                            <AlertTriangle size={16}/> Apenas no Sistema ({analysis.missingInBank.length})
-                                        </h3>
-                                        <div className="space-y-2">
-                                            {analysis.missingInBank.map((item, idx) => (
-                                                <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-                                                    <div>
-                                                        <p className="font-bold text-gray-700 text-xs truncate">{item.description}</p>
-                                                        <p className="text-[10px] text-gray-400">{formatDate(item.date)}</p>
-                                                    </div>
-                                                    <span className="text-xs font-bold text-gray-500">{formatCurrency(item.amount)}</span>
-                                                </div>
-                                            ))}
-                                            <p className="text-[9px] text-gray-400 mt-2 italic text-center">Itens pagos em dinheiro ou outra conta?</p>
-                                        </div>
+                            {/* Detalhamento Diário */}
+                            <div className="px-4 space-y-3">
+                                {analysis.daily.filter(day => !day.isMatch).length === 0 && (
+                                    <div className="text-center py-8 text-gray-400">
+                                        <CheckCircle2 size={48} className="mx-auto text-emerald-200 mb-2"/>
+                                        <p>Tudo conciliado perfeitamente!</p>
                                     </div>
                                 )}
-                                
-                                <div className="text-center mt-2 pb-6">
-                                    <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
-                                        {analysis.matched.length} itens batem perfeitamente
-                                    </span>
-                                </div>
+
+                                {analysis.daily.map((day) => {
+                                    if (day.isMatch) return null; // Oculta dias que batem (Pente Fino: foca no erro)
+                                    
+                                    const isExpanded = expandedDay === day.date;
+                                    
+                                    return (
+                                        <div key={day.date} className="bg-white rounded-xl shadow-sm border border-red-100 overflow-hidden">
+                                            {/* Cabeçalho do Dia */}
+                                            <div 
+                                                onClick={() => setExpandedDay(isExpanded ? null : day.date)}
+                                                className="p-3 flex items-center justify-between bg-red-50/50 cursor-pointer hover:bg-red-50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="bg-red-100 text-red-600 font-bold px-2 py-1 rounded text-xs text-center w-12">
+                                                        {day.date.split('-')[2]}/{day.date.split('-')[1]}
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-xs text-gray-500 font-medium">Diferença</div>
+                                                        <div className="text-red-600 font-bold">{formatCurrency(day.diff)}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-[10px] text-gray-400">Banco vs Planilha</div>
+                                                    <div className="text-xs font-medium text-gray-600">
+                                                        {formatCurrency(day.bankTotal)} vs {formatCurrency(day.sysTotal)}
+                                                    </div>
+                                                </div>
+                                                {isExpanded ? <ChevronUp size={16} className="text-gray-400"/> : <ChevronDown size={16} className="text-gray-400"/>}
+                                            </div>
+
+                                            {/* Detalhes Expansíveis */}
+                                            {isExpanded && (
+                                                <div className="p-3 bg-white border-t border-gray-100 text-xs">
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <h4 className="font-bold text-gray-500 mb-2 uppercase text-[10px]">No Banco ({day.bankItems.length})</h4>
+                                                            <div className="space-y-2">
+                                                                {day.bankItems.map((item, i) => (
+                                                                    <div key={i} className="flex justify-between border-b border-gray-50 pb-1">
+                                                                        <span className="truncate w-16 text-gray-600" title={item.description}>{item.description}</span>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <span className="font-bold">{formatCurrency(item.amount)}</span>
+                                                                            <button onClick={() => addMissingItem(item)} className="text-purple-600 hover:bg-purple-50 p-0.5 rounded" title="Copiar para Sistema"><PlusCircle size={12}/></button>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                                {day.bankItems.length === 0 && <span className="text-gray-300 italic">Nada</span>}
+                                                            </div>
+                                                        </div>
+                                                        <div className="border-l border-gray-100 pl-4">
+                                                            <h4 className="font-bold text-gray-500 mb-2 uppercase text-[10px]">No Sistema ({day.sysItems.length})</h4>
+                                                            <div className="space-y-2">
+                                                                {day.sysItems.map((item, i) => (
+                                                                    <div key={i} className="flex justify-between border-b border-gray-50 pb-1">
+                                                                        <span className="truncate w-16 text-gray-600" title={item.description}>{item.description}</span>
+                                                                        <span className="font-bold text-emerald-600">{formatCurrency(item.amount)}</span>
+                                                                    </div>
+                                                                ))}
+                                                                {day.sysItems.length === 0 && <span className="text-gray-300 italic">Nada</span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
