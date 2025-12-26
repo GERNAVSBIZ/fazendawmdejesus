@@ -443,7 +443,8 @@
             };
             const addRule = () => {
                 if (!newRule.keyword || !newRule.category) return;
-                onUpdateConfig({ ...config, rules: [...config.rules, { ...newRule, keyword: newRule.keyword.toUpperCase() }] });
+                // CORREÇÃO AQUI: TRIM NO KEYWORD
+                onUpdateConfig({ ...config, rules: [...config.rules, { ...newRule, keyword: newRule.keyword.trim().toUpperCase() }] });
                 setNewRule({ ...newRule, keyword: '' });
             };
             const removeRule = (idx) => onUpdateConfig({ ...config, rules: config.rules.filter((_, i) => i !== idx) });
@@ -592,7 +593,14 @@
                         if (!isNaN(val) && isValid) {
                             const descOriginal = cols[2] || 'Sem descrição';
                             const descUpper = descOriginal.toUpperCase();
-                            if (isRevenue && (descUpper.includes('CDB') || descUpper.includes('RESGATE') || descUpper.includes('INVESTIMENTO'))) return;
+                            // CORREÇÃO AQUI: ADICIONADO SALDO À LISTA HARDCODED
+                            if (isRevenue && (
+                                descUpper.includes('CDB') || 
+                                descUpper.includes('RESGATE') || 
+                                descUpper.includes('INVESTIMENTO') ||
+                                descUpper.includes('APLICAÇÃO') ||
+                                descUpper.includes('SALDO')
+                            )) return;
                             
                             let autoCategory = 'Importado';
                             const matchedRule = config.rules.find(r => r.type === type && descUpper.includes(r.keyword));
