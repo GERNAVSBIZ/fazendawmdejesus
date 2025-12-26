@@ -37,7 +37,7 @@
             DollarSign, FileText, Calendar, Search, ArrowUpCircle, ArrowDownCircle,
             LogOut, User, Lock, Sprout, TrendingUp, TrendingDown, PieChart, Info,
             Filter, Settings, Tag, Zap, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, Ban,
-            Scale, CheckCircle2, XCircle, Database, ChevronDown, ChevronUp
+            Scale, CheckCircle2, XCircle, Database, ChevronDown, ChevronUp, Eye
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -46,7 +46,7 @@
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { 
             getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, 
-            query, orderBy, serverTimestamp, setDoc 
+            query, orderBy, serverTimestamp, setDoc, where 
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // --- CONFIGURAÇÃO (PROJETO UNIFICADO) ---
@@ -63,9 +63,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        // Trocando para um namespace que provavelmente é o usado anteriormente
-        // Se ainda não aparecer, tente trocar 'fazenda-wm-integrada' por 'fazenda-controle-despesas'
-        const appNamespace = 'fazenda-wm-integrada'; 
+        const appNamespace = 'fazenda-wm-integrada'; // Dados novos (receitas/despesas csv)
 
         // --- Utilitários ---
         const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -214,115 +212,105 @@
             );
         };
 
-        // --- Componente: Conciliação (Atualizado para Comparação via Prop Direta) ---
-        const ReconciliationTool = ({ currentSystemExpenses, onAddMissing }) => {
+        // --- Componente: Conciliação Inteligente (Comparação Direta de DBs) ---
+        const ReconciliationTool = ({ oldSystemExpenses, newSystemExpenses }) => {
             const [viewDate, setViewDate] = useState(new Date());
             const [analysis, setAnalysis] = useState(null);
             const [expandedDay, setExpandedDay] = useState(null);
             
-            // Navegação de mês
             const changeMonth = (offset) => {
                 const d = new Date(viewDate);
                 d.setMonth(d.getMonth() + offset);
                 setViewDate(d);
-                setAnalysis(null);
                 setExpandedDay(null);
             };
 
             const currentMonthLabel = viewDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
             const monthLabelFormatted = currentMonthLabel.charAt(0).toUpperCase() + currentMonthLabel.slice(1);
 
-            const handleFile = (file) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const text = e.target.result;
-                    const lines = text.split('\n');
-                    const parsed = [];
-                    lines.forEach((line) => {
-                        if (!line.trim()) return;
-                        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
-                        if (cols.length < 5) return;
-                        let val = parseFloat(cols[cols.length - 1] || cols[5]);
-                        if (!isNaN(val) && val < 0) {
-                            const descOriginal = cols[2] || 'Sem descrição';
-                            const dParts = cols[0].split('/');
-                            const dateIso = dParts.length === 3 ? `${dParts[2]}-${dParts[1]}-${dParts[0]}` : new Date().toISOString().split('T')[0];
-                            parsed.push({ date: dateIso, description: descOriginal, amount: Math.abs(val) });
-                        }
-                    });
-                    // Analisar CSV vs Dados do Sistema (Prop)
-                    analyze(parsed, currentSystemExpenses);
-                };
-                reader.readAsText(file, 'ISO-8859-1');
-            };
+            useEffect(() => {
+                // Executa a análise sempre que os dados ou a data mudam
+                analyze(newSystemExpenses, oldSystemExpenses);
+            }, [viewDate, newSystemExpenses, oldSystemExpenses]);
 
-            const analyze = (bankItems, sysItems) => {
+            const analyze = (newSys, oldSys) => {
                 const currentMonth = viewDate.getMonth();
                 const currentYear = viewDate.getFullYear();
 
-                // Filtra o sistema pelo mês visualizado
-                const relevantSysItems = sysItems.filter(sys => {
-                    const d = new Date(sys.date);
-                    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-                });
-                
-                // Filtra o banco (CSV) pelo mês visualizado (caso o CSV tenha vários meses)
-                const relevantBankItems = bankItems.filter(bank => {
-                    const d = new Date(bank.date);
+                // 1. Filtrar ambos os sistemas pelo mês selecionado
+                const bankItems = newSys.filter(item => {
+                    const d = new Date(item.date);
                     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
                 });
 
-                // Agrupamento por Data (YYYY-MM-DD)
-                const groupedDates = {}; 
+                const manualItems = oldSys.filter(item => {
+                    // O sistema antigo pode ter datas como Timestamp ou String. Tratamento simples:
+                    let d;
+                    if (item.date && item.date.seconds) d = new Date(item.date.seconds * 1000); // Firestore Timestamp
+                    else d = new Date(item.date); // String YYYY-MM-DD
+                    
+                    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+                });
+
+                // Se não tiver dados no sistema novo (banco), não tem como conciliar
+                if (bankItems.length === 0) {
+                    setAnalysis(null);
+                    return;
+                }
+
+                // 2. Agrupamento por Dia
+                const dailyData = {};
                 const allDates = new Set();
 
-                const addToGroup = (date, item, type) => {
-                    allDates.add(date);
-                    if (!groupedDates[date]) groupedDates[date] = { bank: [], sys: [] };
-                    groupedDates[date][type].push(item);
-                };
+                // Helper para normalizar data string
+                const getDateStr = (item) => {
+                    if (item.date && item.date.seconds) {
+                        return new Date(item.date.seconds * 1000).toISOString().split('T')[0];
+                    }
+                    return item.date;
+                }
 
-                relevantBankItems.forEach(i => addToGroup(i.date, i, 'bank'));
-                relevantSysItems.forEach(i => addToGroup(i.date, i, 'sys'));
+                bankItems.forEach(item => {
+                    const dStr = getDateStr(item);
+                    allDates.add(dStr);
+                    if (!dailyData[dStr]) dailyData[dStr] = { bank: [], manual: [] };
+                    dailyData[dStr].bank.push(item);
+                });
 
+                manualItems.forEach(item => {
+                    const dStr = getDateStr(item);
+                    allDates.add(dStr);
+                    if (!dailyData[dStr]) dailyData[dStr] = { bank: [], manual: [] };
+                    dailyData[dStr].manual.push(item);
+                });
+
+                // 3. Comparação Diária
                 const dailyReports = Array.from(allDates).sort().map(date => {
-                    const data = groupedDates[date];
-                    const bankTotal = data.bank.reduce((sum, i) => sum + Number(i.amount), 0);
-                    const sysTotal = data.sys.reduce((sum, i) => sum + Number(i.amount), 0);
-                    const diff = bankTotal - sysTotal;
-                    
+                    const dayData = dailyData[date];
+                    const bankTotal = dayData.bank.reduce((sum, i) => sum + Number(i.amount), 0);
+                    const manualTotal = dayData.manual.reduce((sum, i) => sum + Number(i.valor || i.amount), 0); // Sistema antigo pode usar 'valor'
+                    const diff = bankTotal - manualTotal;
+
                     return {
                         date,
                         bankTotal,
-                        sysTotal,
+                        manualTotal,
                         diff,
-                        bankItems: data.bank,
-                        sysItems: data.sys,
-                        isMatch: Math.abs(diff) < 0.05 // Tolerância de 5 centavos
+                        bankItems: dayData.bank,
+                        manualItems: dayData.manual,
+                        isMatch: Math.abs(diff) < 0.05 // Tolerância de centavos
                     };
                 });
 
-                // Totais Mensais
+                // 4. Totais Mensais
                 const totalBank = dailyReports.reduce((acc, d) => acc + d.bankTotal, 0);
-                const totalSys = dailyReports.reduce((acc, d) => acc + d.sysTotal, 0);
-                const totalDiff = totalBank - totalSys;
+                const totalManual = dailyReports.reduce((acc, d) => acc + d.manualTotal, 0);
+                const totalDiff = totalBank - totalManual;
 
-                setAnalysis({ 
-                    monthly: { bank: totalBank, sys: totalSys, diff: totalDiff },
+                setAnalysis({
+                    monthly: { bank: totalBank, manual: totalManual, diff: totalDiff },
                     daily: dailyReports
                 });
-            };
-
-            const addMissingItem = async (item) => {
-                await onAddMissing({
-                    date: item.date,
-                    description: item.description,
-                    amount: item.amount,
-                    category: 'Outros', 
-                    type: 'expense',
-                    source: 'reconciliation'
-                });
-                alert("Item adicionado! A página atualizará em breve.");
             };
 
             return (
@@ -339,106 +327,100 @@
                     </div>
 
                     {!analysis ? (
-                        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center opacity-70">
+                        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center opacity-60">
                             <div className="bg-purple-100 p-4 rounded-full mb-4"><Database size={32} className="text-purple-600" /></div>
-                            <p className="text-gray-500 text-sm mb-6 max-w-xs">Carregue o extrato para comparar com seus registros atuais.</p>
-                            <label className="bg-purple-600 text-white px-6 py-3 rounded-xl shadow-lg cursor-pointer flex items-center gap-2 text-sm font-bold active:scale-95 transition-transform">
-                                <Upload size={18} /> Carregar CSV
-                                <input type="file" accept=".csv" className="hidden" onChange={e => handleFile(e.target.files[0])} />
-                            </label>
+                            <p className="text-gray-500 text-sm mb-2 font-bold">Sem dados bancários para este mês.</p>
+                            <p className="text-gray-400 text-xs">Vá em "Despesas" > "Importar CSV" para carregar o extrato do banco deste período.</p>
                         </div>
                     ) : (
                         <div className="flex-1 overflow-y-auto pb-24">
-                            {/* Resumo Mensal */}
+                            {/* Resumo do Mês */}
                             <div className="bg-purple-700 text-white p-4 pt-0 pb-6 rounded-b-3xl shadow-lg mb-4">
                                 <div className="flex gap-4 mb-4">
                                     <div className="flex-1">
-                                        <span className="text-[10px] uppercase text-purple-200">Extrato (Mês)</span>
+                                        <span className="text-[10px] uppercase text-purple-200">Total Banco</span>
                                         <div className="text-xl font-bold">{formatCurrency(analysis.monthly.bank)}</div>
                                     </div>
                                     <div className="w-px bg-white/20"></div>
                                     <div className="flex-1">
-                                        <span className="text-[10px] uppercase text-purple-200">Planilha (Mês)</span>
-                                        <div className="text-xl font-bold">{formatCurrency(analysis.monthly.sys)}</div>
+                                        <span className="text-[10px] uppercase text-purple-200">Total Manual</span>
+                                        <div className="text-xl font-bold">{formatCurrency(analysis.monthly.manual)}</div>
                                     </div>
                                 </div>
                                 <div className={`p-3 rounded-xl flex items-center justify-between ${Math.abs(analysis.monthly.diff) > 0.05 ? 'bg-red-500/20 text-red-100 border border-red-400/30' : 'bg-green-500/20 text-green-100 border border-green-400/30'}`}>
                                     <span className="text-xs font-bold uppercase flex items-center gap-1">
                                         {Math.abs(analysis.monthly.diff) > 0.05 ? <AlertCircle size={14}/> : <CheckCircle2 size={14}/>} 
-                                        Diferença Total
+                                        Diferença Mensal
                                     </span>
                                     <span className="font-bold text-lg">{formatCurrency(analysis.monthly.diff)}</span>
                                 </div>
                             </div>
 
-                            {/* Detalhamento Diário */}
+                            {/* Lista de Dias */}
                             <div className="px-4 space-y-3">
                                 {analysis.daily.filter(day => !day.isMatch).length === 0 && (
-                                    <div className="text-center py-8 text-gray-400">
-                                        <CheckCircle2 size={48} className="mx-auto text-emerald-200 mb-2"/>
-                                        <p>Tudo conciliado perfeitamente!</p>
+                                    <div className="text-center py-8 text-gray-400 bg-white rounded-xl shadow-sm border border-gray-100">
+                                        <CheckCircle2 size={48} className="mx-auto text-emerald-400 mb-2"/>
+                                        <p className="font-bold text-emerald-600">Parabéns!</p>
+                                        <p className="text-xs">Todos os dias bateram perfeitamente.</p>
                                     </div>
                                 )}
 
                                 {analysis.daily.map((day) => {
-                                    if (day.isMatch) return null; // Oculta dias que batem (Pente Fino: foca no erro)
+                                    if (day.isMatch) return null; // Foca apenas nas diferenças
                                     
                                     const isExpanded = expandedDay === day.date;
+                                    const diffColor = day.diff > 0 ? 'text-red-600' : 'text-yellow-600'; // Vermelho: Banco > Manual (Falta lançar), Amarelo: Manual > Banco (Sobrou)
                                     
                                     return (
-                                        <div key={day.date} className="bg-white rounded-xl shadow-sm border border-red-100 overflow-hidden">
-                                            {/* Cabeçalho do Dia */}
+                                        <div key={day.date} className={`bg-white rounded-xl shadow-sm border ${day.diff > 0 ? 'border-red-200' : 'border-yellow-200'} overflow-hidden`}>
                                             <div 
                                                 onClick={() => setExpandedDay(isExpanded ? null : day.date)}
-                                                className="p-3 flex items-center justify-between bg-red-50/50 cursor-pointer hover:bg-red-50 transition-colors"
+                                                className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${day.diff > 0 ? 'bg-red-50 hover:bg-red-100' : 'bg-yellow-50 hover:bg-yellow-100'}`}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <div className="bg-red-100 text-red-600 font-bold px-2 py-1 rounded text-xs text-center w-12">
+                                                    <div className="bg-white/80 font-bold px-2 py-1 rounded text-xs text-center w-12 border border-gray-200 shadow-sm text-gray-700">
                                                         {day.date.split('-')[2]}/{day.date.split('-')[1]}
                                                     </div>
                                                     <div>
-                                                        <div className="text-xs text-gray-500 font-medium">Diferença</div>
-                                                        <div className="text-red-600 font-bold">{formatCurrency(day.diff)}</div>
+                                                        <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Diferença</div>
+                                                        <div className={`font-bold ${diffColor}`}>{formatCurrency(day.diff)}</div>
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <div className="text-[10px] text-gray-400">Banco vs Planilha</div>
+                                                    <div className="text-[10px] text-gray-400">Banco vs Manual</div>
                                                     <div className="text-xs font-medium text-gray-600">
-                                                        {formatCurrency(day.bankTotal)} vs {formatCurrency(day.sysTotal)}
+                                                        {formatCurrency(day.bankTotal)} vs {formatCurrency(day.manualTotal)}
                                                     </div>
                                                 </div>
                                                 {isExpanded ? <ChevronUp size={16} className="text-gray-400"/> : <ChevronDown size={16} className="text-gray-400"/>}
                                             </div>
 
-                                            {/* Detalhes Expansíveis */}
                                             {isExpanded && (
-                                                <div className="p-3 bg-white border-t border-gray-100 text-xs">
+                                                <div className="p-3 bg-white text-xs border-t border-gray-100">
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <div>
-                                                            <h4 className="font-bold text-gray-500 mb-2 uppercase text-[10px]">No Banco ({day.bankItems.length})</h4>
-                                                            <div className="space-y-2">
+                                                            <h4 className="font-bold text-gray-500 mb-2 uppercase text-[10px] flex items-center gap-1"><Database size={10}/> Banco (Novo)</h4>
+                                                            <div className="space-y-1">
                                                                 {day.bankItems.map((item, i) => (
-                                                                    <div key={i} className="flex justify-between border-b border-gray-50 pb-1">
-                                                                        <span className="truncate w-16 text-gray-600" title={item.description}>{item.description}</span>
-                                                                        <div className="flex items-center gap-1">
-                                                                            <span className="font-bold">{formatCurrency(item.amount)}</span>
-                                                                            <button onClick={() => addMissingItem(item)} className="text-purple-600 hover:bg-purple-50 p-0.5 rounded" title="Copiar para Sistema"><PlusCircle size={12}/></button>
-                                                                        </div>
+                                                                    <div key={i} className="flex justify-between border-b border-gray-50 pb-1 last:border-0">
+                                                                        <span className="truncate w-14 text-gray-600" title={item.description}>{item.description}</span>
+                                                                        <span className="font-bold">{formatCurrency(item.amount)}</span>
                                                                     </div>
                                                                 ))}
-                                                                {day.bankItems.length === 0 && <span className="text-gray-300 italic">Nada</span>}
+                                                                {day.bankItems.length === 0 && <span className="text-gray-300 italic">-</span>}
                                                             </div>
                                                         </div>
                                                         <div className="border-l border-gray-100 pl-4">
-                                                            <h4 className="font-bold text-gray-500 mb-2 uppercase text-[10px]">No Sistema ({day.sysItems.length})</h4>
-                                                            <div className="space-y-2">
-                                                                {day.sysItems.map((item, i) => (
-                                                                    <div key={i} className="flex justify-between border-b border-gray-50 pb-1">
-                                                                        <span className="truncate w-16 text-gray-600" title={item.description}>{item.description}</span>
-                                                                        <span className="font-bold text-emerald-600">{formatCurrency(item.amount)}</span>
+                                                            <h4 className="font-bold text-gray-500 mb-2 uppercase text-[10px] flex items-center gap-1"><FileText size={10}/> Manual (Antigo)</h4>
+                                                            <div className="space-y-1">
+                                                                {day.manualItems.map((item, i) => (
+                                                                    <div key={i} className="flex justify-between border-b border-gray-50 pb-1 last:border-0">
+                                                                        <span className="truncate w-14 text-gray-600" title={item.description || item.descricao}>{item.description || item.descricao}</span>
+                                                                        <span className="font-medium text-gray-500">{formatCurrency(item.amount || item.valor)}</span>
                                                                     </div>
                                                                 ))}
-                                                                {day.sysItems.length === 0 && <span className="text-gray-300 italic">Nada</span>}
+                                                                {day.manualItems.length === 0 && <span className="text-gray-300 italic">-</span>}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -490,7 +472,6 @@
                     </header>
                     {view === 'categories' && (
                         <div className="px-4 space-y-6">
-                            {/* Simplificado para brevidade, lógica mantida */}
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
                                 <h3 className="font-bold text-emerald-700 mb-3 flex items-center gap-2">Receitas</h3>
                                 <div className="flex gap-2 mb-3"><input className="flex-1 border rounded px-2 text-sm" value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="Nova..." /><button onClick={() => addCategory('revenue')} className="bg-emerald-600 text-white px-3 rounded font-bold">+</button></div>
@@ -615,6 +596,7 @@
             const [activeTab, setActiveTab] = useState('balance');
             const [revenues, setRevenues] = useState([]);
             const [expenses, setExpenses] = useState([]);
+            const [oldExpenses, setOldExpenses] = useState([]); 
             const [loading, setLoading] = useState(true);
             const [config, setConfig] = useState(defaultConfig);
 
@@ -624,9 +606,17 @@
                     if (u) {
                         const qRev = query(collection(db, 'artifacts', appNamespace, 'users', u.uid, 'farm_revenues'), orderBy('date', 'desc'));
                         onSnapshot(qRev, (snap) => setRevenues(snap.docs.map(d => ({id: d.id, ...d.data()}))));
-                        const qExp = query(collection(db, 'artifacts', appNamespace, 'users', u.uid, 'despesas'), orderBy('date', 'desc'));
+                        const qExp = query(collection(db, 'artifacts', appNamespace, 'users', u.uid, 'farm_expenses'), orderBy('date', 'desc'));
                         onSnapshot(qExp, (snap) => setExpenses(snap.docs.map(d => ({id: d.id, ...d.data()}))));
                         
+                        // Busca dados antigos na coleção 'despesas' padrão
+                        const qOld = query(collection(db, 'despesas')); // Tenta buscar de 'despesas' no root
+                        onSnapshot(qOld, (snap) => setOldExpenses(snap.docs.map(d => ({id: d.id, ...d.data()}))), (error) => {
+                            console.log("Tentando fallback para user path...");
+                            // Fallback para usuarios específicos se root falhar
+                            onSnapshot(query(collection(db, 'users', u.uid, 'despesas')), (snap) => setOldExpenses(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+                        });
+
                         onSnapshot(doc(db, 'artifacts', appNamespace, 'users', u.uid, 'config', 'main'), (snap) => {
                             if (snap.exists()) setConfig(snap.data());
                             else setDoc(doc(db, 'artifacts', appNamespace, 'users', u.uid, 'config', 'main'), defaultConfig);
@@ -634,42 +624,20 @@
 
                         setLoading(false);
                     } else {
-                        setRevenues([]);
-                        setExpenses([]);
-                        setLoading(false);
+                        setRevenues([]); setExpenses([]); setOldExpenses([]); setLoading(false);
                     }
                 });
                 return () => unsub();
             }, []);
 
             const addTransaction = async (data) => {
-                const collName = data.type === 'revenue' ? 'farm_revenues' : 'despesas';
+                const collName = data.type === 'revenue' ? 'farm_revenues' : 'farm_expenses';
                 await addDoc(collection(db, 'artifacts', appNamespace, 'users', user.uid, collName), { ...data, createdAt: serverTimestamp() });
             };
-
-            const addBulk = async (items) => {
-                const batchPromises = items.map(item => {
-                    const collName = item.type === 'revenue' ? 'farm_revenues' : 'despesas';
-                    return addDoc(collection(db, 'artifacts', appNamespace, 'users', user.uid, collName), { ...item, createdAt: serverTimestamp() });
-                });
-                await Promise.all(batchPromises);
-            };
-
-            const deleteTransaction = async (id, type) => {
-                if(!confirm('Tem certeza?')) return;
-                const collName = type === 'revenue' ? 'farm_revenues' : 'despesas';
-                await deleteDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, collName, id));
-            };
-
-            const updateTransaction = async (id, data, type) => {
-                const collName = type === 'revenue' ? 'farm_revenues' : 'despesas';
-                await updateDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, collName, id), data);
-            };
-
-            const updateConfig = async (newConfig) => {
-                setConfig(newConfig);
-                await setDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, 'config', 'main'), newConfig);
-            };
+            const addBulk = async (items) => { const batch = items.map(item => addDoc(collection(db, 'artifacts', appNamespace, 'users', user.uid, item.type === 'revenue' ? 'farm_revenues' : 'farm_expenses'), { ...item, createdAt: serverTimestamp() })); await Promise.all(batch); };
+            const deleteTransaction = async (id, type) => { if(!confirm('Tem certeza?')) return; await deleteDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, type === 'revenue' ? 'farm_revenues' : 'farm_expenses', id)); };
+            const updateTransaction = async (id, data, type) => { await updateDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, type === 'revenue' ? 'farm_revenues' : 'farm_expenses', id), data); };
+            const updateConfig = async (newConfig) => { setConfig(newConfig); await setDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, 'config', 'main'), newConfig); };
 
             if (loading) return <div className="h-screen w-full flex items-center justify-center text-emerald-800 font-bold bg-emerald-50">Carregando Sistema...</div>;
             if (!user) return <AuthScreen />;
@@ -678,33 +646,18 @@
                 <div className="h-screen w-full flex flex-col font-sans overflow-hidden bg-gray-50">
                     <main className="flex-1 overflow-y-auto">
                         {activeTab === 'balance' && <BalancePanel revenues={revenues} expenses={expenses} />}
-                        {activeTab === 'reconcile' && <ReconciliationTool currentSystemExpenses={expenses} onAddMissing={addTransaction} />}
+                        {activeTab === 'reconcile' && <ReconciliationTool oldSystemExpenses={oldExpenses} newSystemExpenses={expenses} />}
                         {activeTab === 'revenues' && <TransactionManager type="revenue" data={revenues} onAdd={addTransaction} onImport={addBulk} onDelete={(id) => deleteTransaction(id, 'revenue')} onUpdate={(id, data) => updateTransaction(id, data, 'revenue')} config={config} />}
                         {activeTab === 'expenses' && <TransactionManager type="expense" data={expenses} onAdd={addTransaction} onImport={addBulk} onDelete={(id) => deleteTransaction(id, 'expense')} onUpdate={(id, data) => updateTransaction(id, data, 'expense')} config={config} />}
                         {activeTab === 'settings' && <SettingsPanel config={config} onUpdateConfig={updateConfig} />}
                     </main>
                     <nav className="bg-white border-t border-gray-200 fixed bottom-0 w-full pb-safe z-50">
                         <div className="flex justify-around items-center h-16">
-                            <button onClick={() => setActiveTab('balance')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'balance' ? 'text-gray-900' : 'text-gray-400'}`}>
-                                <PieChart size={22} strokeWidth={activeTab === 'balance' ? 2.5 : 2} />
-                                <span className="text-[10px] font-medium">Balanço</span>
-                            </button>
-                            <button onClick={() => setActiveTab('revenues')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'revenues' ? 'text-emerald-600' : 'text-gray-400'}`}>
-                                <ArrowUpCircle size={22} strokeWidth={activeTab === 'revenues' ? 2.5 : 2} />
-                                <span className="text-[10px] font-medium">Receitas</span>
-                            </button>
-                            <button onClick={() => setActiveTab('reconcile')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'reconcile' ? 'text-purple-600' : 'text-gray-400'}`}>
-                                <Scale size={24} strokeWidth={activeTab === 'reconcile' ? 2.5 : 2} />
-                                <span className="text-[9px] font-bold">Conciliar</span>
-                            </button>
-                            <button onClick={() => setActiveTab('expenses')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'expenses' ? 'text-red-600' : 'text-gray-400'}`}>
-                                <ArrowDownCircle size={22} strokeWidth={activeTab === 'expenses' ? 2.5 : 2} />
-                                <span className="text-[10px] font-medium">Despesas</span>
-                            </button>
-                            <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400'}`}>
-                                <Settings size={22} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
-                                <span className="text-[10px] font-medium">Ajustes</span>
-                            </button>
+                            <button onClick={() => setActiveTab('balance')} className={`flex flex-col items-center justify-center w-full ${activeTab === 'balance' ? 'text-gray-900' : 'text-gray-400'}`}><PieChart size={20} /><span className="text-[9px]">Balanço</span></button>
+                            <button onClick={() => setActiveTab('revenues')} className={`flex flex-col items-center justify-center w-full ${activeTab === 'revenues' ? 'text-emerald-600' : 'text-gray-400'}`}><ArrowUpCircle size={20} /><span className="text-[9px]">Receitas</span></button>
+                            <button onClick={() => setActiveTab('reconcile')} className={`flex flex-col items-center justify-center w-full ${activeTab === 'reconcile' ? 'text-purple-600' : 'text-gray-400'}`}><Scale size={24} strokeWidth={activeTab === 'reconcile' ? 2.5 : 2} /><span className="text-[9px] font-bold">Conciliar</span></button>
+                            <button onClick={() => setActiveTab('expenses')} className={`flex flex-col items-center justify-center w-full ${activeTab === 'expenses' ? 'text-red-600' : 'text-gray-400'}`}><ArrowDownCircle size={20} /><span className="text-[9px]">Despesas</span></button>
+                            <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center justify-center w-full ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400'}`}><Settings size={20} /><span className="text-[9px]">Ajustes</span></button>
                         </div>
                     </nav>
                 </div>
