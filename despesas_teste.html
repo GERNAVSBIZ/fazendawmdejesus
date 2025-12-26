@@ -12,8 +12,6 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -27,6 +25,12 @@
             -webkit-tap-highlight-color: transparent;
         }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        /* Remove setas do input number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
     </style>
 </head>
 <body>
@@ -34,7 +38,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
+        const { useState, useEffect, useMemo } = React;
 
         // --- CONFIGURAÇÃO FIREBASE ---
         const firebaseConfig = {
@@ -52,30 +56,18 @@
         const db = firebase.firestore();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        // --- UTILITÁRIOS DE TRATAMENTO DE DADOS (CRUCIAIS) ---
-        
-        // Função robusta para interpretar datas de formatos variados (dd/mm/yyyy ou yyyy-mm-dd)
+        // --- UTILITÁRIOS ---
         const parseDate = (dateVal) => {
             if (!dateVal) return new Date();
-            // Se já for objeto Timestamp do Firestore
             if (dateVal && typeof dateVal.toDate === 'function') return dateVal.toDate();
-            // Se for string
             if (typeof dateVal === 'string') {
-                // Tenta formato BR: dd/mm/yyyy
                 if (dateVal.includes('/')) {
                     const parts = dateVal.split('/');
-                    if (parts.length === 3) {
-                        // Mês em JS começa em 0
-                        return new Date(parts[2], parts[1] - 1, parts[0], 12, 0, 0);
-                    }
+                    if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0], 12, 0, 0);
                 }
-                // Tenta formato ISO: yyyy-mm-dd
-                if (dateVal.includes('-')) {
-                    // Adicionamos T12:00:00 para evitar problemas de fuso horário voltando 1 dia
-                    return new Date(dateVal + 'T12:00:00');
-                }
+                if (dateVal.includes('-')) return new Date(dateVal + 'T12:00:00');
             }
-            return new Date(); // Fallback
+            return new Date();
         };
 
         const formatMoney = (val) => {
@@ -95,136 +87,67 @@
         };
 
         // --- COMPONENTES UI ---
-
         const Icon = ({ name, size = 20, className = "" }) => {
             useEffect(() => { lucide.createIcons(); }, [name]);
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
         };
 
-        const Card = ({ children, className = "" }) => (
-            <div className={`bg-white rounded-xl shadow-sm border-l-4 p-4 ${className}`}>
-                {children}
-            </div>
-        );
-
-        // --- TELA DE LOGIN ---
-        const LoginScreen = ({ onLogin }) => (
-            <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gray-100">
-                <div className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center mb-6 shadow-xl">
-                    <Icon name="sprout" className="text-white" size={40} />
-                </div>
-                <h1 className="text-2xl font-bold text-gray-800">Fazenda WM</h1>
-                <p className="text-gray-500 mb-8">Gestão Financeira</p>
-                <button onClick={onLogin} className="bg-white text-gray-700 font-medium py-3 px-6 rounded-lg shadow flex items-center gap-3 active:scale-95 transition-transform">
-                    <Icon name="log-in" size={20} /> Entrar com Google
-                </button>
-            </div>
-        );
-
-        // --- TELA: LISTA DE DESPESAS ---
-        const ExpenseList = ({ expenses, onDelete }) => {
-            const [filter, setFilter] = useState('');
-
-            // Filtro local
-            const filtered = useMemo(() => {
-                let data = expenses;
-                if (filter) {
-                    const lower = filter.toLowerCase();
-                    data = data.filter(e => 
-                        (e.Descrição && e.Descrição.toLowerCase().includes(lower)) || 
-                        (e.Categoria && e.Categoria.toLowerCase().includes(lower))
-                    );
-                }
-                return data.slice(0, 100); // Mostra os 100 mais recentes após filtro
-            }, [expenses, filter]);
-
-            // Mapeamento de cores por categoria para facilitar leitura
+        const Card = ({ item, onDelete }) => {
             const getCategoryColor = (cat) => {
-                const map = {
-                    'Pecuária': 'border-green-500',
-                    'Agricultura': 'border-yellow-500',
-                    'Infraestrutura': 'border-gray-500',
-                    'Administrativo': 'border-blue-500',
-                    'Outros': 'border-purple-500'
-                };
+                const map = { 'Pecuária': 'border-green-500', 'Agricultura': 'border-yellow-500', 'Infraestrutura': 'border-gray-500', 'Administrativo': 'border-blue-500', 'Outros': 'border-purple-500' };
                 return map[cat] || 'border-gray-200';
             };
 
             return (
-                <div className="pb-24 pt-2 px-3 space-y-3">
-                    {/* Barra de Busca Fixa */}
-                    <div className="sticky top-0 pt-2 pb-2 bg-gray-100/95 backdrop-blur z-10">
-                        <div className="relative shadow-sm">
-                            <Icon name="search" className="absolute left-3 top-3.5 text-gray-400" size={18} />
-                            <input 
-                                type="text" 
-                                placeholder="Buscar (ex: Vaqueiro, Ração)..." 
-                                className="w-full pl-10 pr-4 py-3 rounded-lg border-none bg-white text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
-                                value={filter}
-                                onChange={(e) => setFilter(e.target.value)}
-                            />
+                <div className={`bg-white rounded-xl shadow-sm border-l-4 p-4 mb-3 ${getCategoryColor(item.Categoria)} flex justify-between items-start`}>
+                    <div className="flex-1 pr-2">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                                <Icon name="calendar" size={12} />
+                                {item.dateObj.toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})}
+                            </span>
+                            <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-600 border border-gray-200">
+                                {item.Categoria}
+                            </span>
                         </div>
+                        <h3 className="font-bold text-gray-800 text-base leading-tight">{item.Descrição || "Sem descrição"}</h3>
+                        <p className="text-xs text-gray-500 mt-1">{item['Sub Categoria']} {item.Observações ? `• ${item.Observações}` : ''}</p>
                     </div>
+                    <div className="flex flex-col items-end justify-between h-full gap-2">
+                        <span className="font-bold text-gray-900 text-lg whitespace-nowrap">
+                            {item.rawTotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                        </span>
+                        {onDelete && (
+                            <button onClick={() => { if(confirm('Apagar registro?')) onDelete(item.docId); }} className="text-red-400 p-2 -mr-2">
+                                <Icon name="trash-2" size={18} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
 
+        // --- TELA 1: LISTA (Extrato) ---
+        const ExpenseList = ({ expenses, onDelete }) => {
+            const filtered = useMemo(() => expenses.slice(0, 50), [expenses]); // Mostra últimos 50 na home
+
+            return (
+                <div className="pb-24 pt-4 px-3">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4 px-1">Últimos Lançamentos</h2>
                     {filtered.length === 0 ? (
-                        <div className="text-center py-12 opacity-50">
-                            <Icon name="list-x" size={48} className="mx-auto mb-2" />
-                            <p>Nenhum registro encontrado.</p>
-                        </div>
+                        <div className="text-center py-12 opacity-50"><p>Nada por aqui.</p></div>
                     ) : (
-                        filtered.map(item => (
-                            <Card key={item.docId} className={`${getCategoryColor(item.Categoria)} flex justify-between items-start`}>
-                                <div className="flex-1 pr-2">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        {/* Data formatada corretamente */}
-                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
-                                            <Icon name="calendar" size={12} />
-                                            {item.dateObj.toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})}
-                                        </span>
-                                        <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-600 border border-gray-200">
-                                            {item.Categoria}
-                                        </span>
-                                    </div>
-                                    
-                                    {/* Descrição em Destaque */}
-                                    <h3 className="font-bold text-gray-800 text-base leading-tight">
-                                        {item.Descrição || "Sem descrição"}
-                                    </h3>
-                                    
-                                    {/* Subcategoria secundária */}
-                                    <p className="text-sm text-gray-500 mt-0.5">
-                                        {item['Sub Categoria'] || '-'}
-                                    </p>
-                                </div>
-
-                                <div className="flex flex-col items-end justify-between h-full gap-2">
-                                    <span className="font-bold text-gray-900 text-lg whitespace-nowrap">
-                                        {item.rawTotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
-                                    </span>
-                                    <button 
-                                        onClick={() => { if(confirm('Tem certeza que deseja apagar?')) onDelete(item.docId); }}
-                                        className="text-red-400 p-2 hover:bg-red-50 rounded-full -mr-2"
-                                    >
-                                        <Icon name="trash-2" size={18} />
-                                    </button>
-                                </div>
-                            </Card>
-                        ))
+                        filtered.map(item => <Card key={item.docId} item={item} onDelete={onDelete} />)
                     )}
                 </div>
             );
         };
 
-        // --- TELA: NOVA DESPESA ---
-        const AddExpense = ({ onSave, onCancel }) => {
+        // --- TELA 2: NOVO REGISTRO (Ajustada) ---
+        const AddExpense = ({ onSave }) => {
             const [formData, setFormData] = useState({
                 Data: new Date().toISOString().split('T')[0],
-                Categoria: '',
-                SubCategoria: '',
-                Descrição: '',
-                Quantidade: 1,
-                PrecoUnitario: '',
-                Total: 0
+                Categoria: '', SubCategoria: '', Descrição: '', Quantidade: 1, PrecoUnitario: '', Total: 0, Observações: ''
             });
             const [loading, setLoading] = useState(false);
 
@@ -239,117 +162,157 @@
                 setLoading(true);
                 await onSave(formData);
                 setLoading(false);
+                // Reset form (mantendo a data)
+                setFormData(prev => ({...prev, Categoria: '', SubCategoria: '', Descrição: '', Quantidade: 1, PrecoUnitario: '', Total: 0, Observações: ''}));
             };
 
+            const inputClass = "w-full p-3 bg-gray-50 rounded-lg border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all text-sm font-medium text-gray-800";
+            const labelClass = "block text-xs font-bold text-gray-500 uppercase mb-1 ml-1";
+
             return (
-                <div className="bg-white min-h-screen pb-safe">
-                    <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-20">
-                        <button onClick={onCancel} className="text-gray-500"><Icon name="x" size={24}/></button>
-                        <h2 className="font-bold text-lg">Nova Despesa</h2>
-                        <div className="w-6"></div>
-                    </div>
+                <div className="pb-24 pt-4 px-4 bg-white min-h-screen">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">Novo Registro</h2>
                     
-                    <form onSubmit={handleSubmit} className="p-5 space-y-5">
-                         <div className="bg-green-50 p-4 rounded-xl text-center border border-green-100">
-                            <label className="text-xs text-green-700 font-bold uppercase">Total Estimado</label>
-                            <div className="text-3xl font-bold text-green-800 mt-1">
-                                {formData.Total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        
+                        {/* Linha 1: Data e Descrição alinhados */}
+                        <div className="flex gap-3">
+                            <div className="w-1/3">
+                                <label className={labelClass}>Data</label>
+                                <input type="date" required className={inputClass} 
+                                    value={formData.Data} onChange={e => setFormData({...formData, Data: e.target.value})} />
+                            </div>
+                            <div className="w-2/3">
+                                <label className={labelClass}>Descrição</label>
+                                <input type="text" required placeholder="O que?" className={inputClass}
+                                    value={formData.Descrição} onChange={e => setFormData({...formData, Descrição: e.target.value})} />
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
-                            <input type="date" required className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none"
-                                value={formData.Data} onChange={e => setFormData({...formData, Data: e.target.value})} />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                            <input type="text" required placeholder="O que foi pago?" className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none"
-                                value={formData.Descrição} onChange={e => setFormData({...formData, Descrição: e.target.value})} />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
+                        {/* Linha 2: Categoria e Sub */}
+                        <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                                <select required className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none"
+                                <label className={labelClass}>Categoria</label>
+                                <select required className={inputClass}
                                     value={formData.Categoria} onChange={e => setFormData({...formData, Categoria: e.target.value, SubCategoria: ''})}>
                                     <option value="">Selecione</option>
                                     {Object.keys(CATEGORIAS).map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Sub Categoria</label>
-                                <select required disabled={!formData.Categoria} className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none disabled:opacity-50"
+                                <label className={labelClass}>Sub</label>
+                                <select required disabled={!formData.Categoria} className={`${inputClass} disabled:opacity-50`}
                                     value={formData.SubCategoria} onChange={e => setFormData({...formData, SubCategoria: e.target.value})}>
-                                    <option value="">Selecione</option>
+                                    <option value="">...</option>
                                     {formData.Categoria && CATEGORIAS[formData.Categoria].map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        {/* Linha 3: Quantidade e Preço Unitário */}
+                        <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Quantidade</label>
-                                <input type="number" step="any" className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none"
+                                <label className={labelClass}>Qtd</label>
+                                <input type="number" step="any" className={`${inputClass} text-center`}
                                     value={formData.Quantidade} onChange={e => setFormData({...formData, Quantidade: e.target.value})} />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Valor Unit. (R$)</label>
-                                <input type="number" step="any" required className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none"
+                                <label className={labelClass}>Preço Unit. (R$)</label>
+                                <input type="number" step="any" required placeholder="0,00" className={inputClass}
                                     value={formData.PrecoUnitario} onChange={e => setFormData({...formData, PrecoUnitario: e.target.value})} />
                             </div>
                         </div>
 
-                        <button disabled={loading} className="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-green-700 transition-colors">
-                            {loading ? 'Salvando...' : 'Confirmar Lançamento'}
+                        {/* Total visível logo abaixo */}
+                        <div className="bg-green-50 rounded-lg p-3 flex justify-between items-center border border-green-100">
+                            <span className="text-green-700 font-bold text-sm uppercase">Total Calculado</span>
+                            <span className="text-xl font-bold text-green-800">
+                                {formData.Total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                            </span>
+                        </div>
+
+                        {/* Observações (Opcional) no final */}
+                        <div>
+                            <label className={labelClass}>Observações (Opcional)</label>
+                            <textarea rows="2" className={inputClass} placeholder="Detalhes extras..."
+                                value={formData.Observações} onChange={e => setFormData({...formData, Observações: e.target.value})}></textarea>
+                        </div>
+
+                        <button disabled={loading} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 transition-transform active:scale-95 mt-4 flex justify-center items-center gap-2">
+                            {loading ? 'Salvando...' : <><Icon name="check" size={20} /> Salvar Registro</>}
                         </button>
                     </form>
                 </div>
             );
         };
 
-        // --- DASHBOARD SIMPLES ---
-        const Dashboard = ({ expenses }) => {
-            const chartRef = useRef(null);
+        // --- TELA 3: BUSCA AVANÇADA (Substitui Gráficos) ---
+        const AdvancedSearch = ({ expenses, onDelete }) => {
+            const [filters, setFilters] = useState({ start: '', end: '', cat: '', term: '' });
             
-            useEffect(() => {
-                if (!chartRef.current || !expenses.length) return;
-                
-                // Agrupar por categoria (Todos os dados carregados)
-                const cats = {};
-                expenses.forEach(e => {
-                    cats[e.Categoria] = (cats[e.Categoria] || 0) + e.rawTotal;
+            const results = useMemo(() => {
+                return expenses.filter(e => {
+                    const d = new Date(e.Data); // e.Data string yyyy-mm-dd
+                    const start = filters.start ? new Date(filters.start) : null;
+                    const end = filters.end ? new Date(filters.end) : null;
+                    
+                    // Ajuste de fuso para comparação justa de datas
+                    if (start) start.setHours(0,0,0,0);
+                    if (end) end.setHours(23,59,59,999);
+                    const current = e.dateObj; // Objeto Date já processado
+
+                    if (start && current < start) return false;
+                    if (end && current > end) return false;
+                    if (filters.cat && e.Categoria !== filters.cat) return false;
+                    if (filters.term) {
+                        const t = filters.term.toLowerCase();
+                        if (!e.Descrição?.toLowerCase().includes(t) && !e['Sub Categoria']?.toLowerCase().includes(t)) return false;
+                    }
+                    return true;
                 });
+            }, [expenses, filters]);
 
-                if (window.myChart) window.myChart.destroy();
+            const totalSum = results.reduce((acc, curr) => acc + curr.rawTotal, 0);
 
-                window.myChart = new Chart(chartRef.current.getContext('2d'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: Object.keys(cats),
-                        datasets: [{
-                            data: Object.values(cats),
-                            backgroundColor: ['#22c55e', '#eab308', '#64748b', '#3b82f6', '#a855f7'],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-                });
-            }, [expenses]);
-
-            const totalGeral = expenses.reduce((acc, curr) => acc + curr.rawTotal, 0);
+            const inputClass = "w-full p-2 bg-white rounded border border-gray-300 text-sm";
 
             return (
-                <div className="pb-24 pt-6 px-4 space-y-6">
-                    <h2 className="text-xl font-bold text-gray-800">Resumo Financeiro</h2>
-                    <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-5 text-white shadow-lg">
-                        <p className="text-green-100 text-sm mb-1">Total Acumulado (Carregado)</p>
-                        <h3 className="text-3xl font-bold">{totalGeral.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</h3>
+                <div className="pb-24 pt-4 px-4 bg-gray-50 min-h-screen">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4">Busca Avançada</h2>
+                    
+                    <div className="bg-white p-4 rounded-xl shadow-sm mb-4 space-y-3">
+                        <div className="flex gap-2">
+                            <div className="w-1/2">
+                                <label className="text-xs text-gray-500 font-bold block mb-1">Início</label>
+                                <input type="date" className={inputClass} value={filters.start} onChange={e=>setFilters({...filters, start: e.target.value})} />
+                            </div>
+                            <div className="w-1/2">
+                                <label className="text-xs text-gray-500 font-bold block mb-1">Fim</label>
+                                <input type="date" className={inputClass} value={filters.end} onChange={e=>setFilters({...filters, end: e.target.value})} />
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <div className="w-1/2">
+                                <label className="text-xs text-gray-500 font-bold block mb-1">Categoria</label>
+                                <select className={inputClass} value={filters.cat} onChange={e=>setFilters({...filters, cat: e.target.value})}>
+                                    <option value="">Todas</option>
+                                    {Object.keys(CATEGORIAS).map(c=><option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div className="w-1/2">
+                                <label className="text-xs text-gray-500 font-bold block mb-1">Termo</label>
+                                <input type="text" placeholder="Buscar..." className={inputClass} value={filters.term} onChange={e=>setFilters({...filters, term: e.target.value})} />
+                            </div>
+                        </div>
                     </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm h-80">
-                        <h3 className="font-semibold text-gray-700 mb-4 text-center">Distribuição por Categoria</h3>
-                        <div className="h-64 relative"><canvas ref={chartRef}></canvas></div>
+
+                    <div className="flex justify-between items-center mb-4 px-2">
+                        <span className="text-sm text-gray-500">{results.length} resultados</span>
+                        <span className="font-bold text-green-600 text-lg">{totalSum.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
+                    </div>
+
+                    <div>
+                        {results.map(item => <Card key={item.docId} item={item} onDelete={onDelete} />)}
                     </div>
                 </div>
             );
@@ -362,56 +325,40 @@
             const [expenses, setExpenses] = useState([]);
             
             useEffect(() => {
-                const u = auth.onAuthStateChanged(u => {
+                auth.onAuthStateChanged(u => {
                     setUser(u);
                     if (u) loadData();
                 });
-                return () => u();
             }, []);
 
-            // Função para carregar e processar dados
             const loadData = async () => {
                 try {
-                    // Busca documentos (sem orderBy no Firestore para evitar erro de índice com formatos mistos)
-                    // Trazemos tudo e ordenamos no JS para garantir precisão
                     const snapshot = await db.collection("despesas").get();
-                    
                     const processed = snapshot.docs.map(doc => {
                         const d = doc.data();
-                        const dateObj = parseDate(d.Data); // Usa a função corrigida
-                        const rawTotal = formatMoney(d.Total);
-                        return { 
-                            docId: doc.id, 
-                            ...d, 
-                            dateObj: dateObj,
-                            rawTotal: rawTotal
-                        };
+                        return { docId: doc.id, ...d, dateObj: parseDate(d.Data), rawTotal: formatMoney(d.Total) };
                     });
-
-                    // ORDENAÇÃO NO JS: Garante que 24/12 fique no topo
                     processed.sort((a, b) => b.dateObj - a.dateObj);
-
                     setExpenses(processed);
-                } catch (error) {
-                    console.error("Erro ao carregar:", error);
-                    alert("Erro ao buscar dados.");
-                }
+                } catch (error) { console.error(error); }
             };
 
             const handleSave = async (data) => {
                 const payload = {
-                    "Data": data.Data, // Salva como yyyy-mm-dd (padrão input date)
+                    "Data": data.Data,
                     "Categoria": data.Categoria,
                     "Sub Categoria": data.SubCategoria,
                     "Descrição": data.Descrição,
                     "Quantidade": parseFloat(data.Quantidade),
                     "Preço Unitário": parseFloat(data.PrecoUnitario),
                     "Total": parseFloat(data.Total),
+                    "Observações": data.Observações,
                     "Timestamp": firebase.firestore.FieldValue.serverTimestamp()
                 };
                 await db.collection("despesas").add(payload);
                 await loadData();
-                setView('list');
+                alert('Salvo com sucesso!');
+                setView('list'); // Opcional: Voltar para lista ou manter na tela de add
             };
 
             const handleDelete = async (id) => {
@@ -419,35 +366,41 @@
                 setExpenses(prev => prev.filter(e => e.docId !== id));
             };
 
-            if (!user) return <LoginScreen onLogin={() => auth.signInWithPopup(provider)} />;
+            if (!user) return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gray-100">
+                    <h1 className="text-2xl font-bold mb-8">Fazenda WM</h1>
+                    <button onClick={() => auth.signInWithPopup(provider)} className="bg-white px-6 py-3 rounded shadow font-bold text-gray-700 flex items-center gap-2">
+                        <Icon name="log-in" /> Entrar com Google
+                    </button>
+                </div>
+            );
 
             return (
                 <div className="max-w-md mx-auto min-h-screen bg-gray-100 relative shadow-2xl overflow-hidden">
                     
+                    {/* Área de Conteúdo */}
                     {view === 'list' && <ExpenseList expenses={expenses} onDelete={handleDelete} />}
-                    {view === 'add' && <AddExpense onSave={handleSave} onCancel={() => setView('list')} />}
-                    {view === 'dashboard' && <Dashboard expenses={expenses} />}
+                    {view === 'add' && <AddExpense onSave={handleSave} />}
+                    {view === 'search' && <AdvancedSearch expenses={expenses} onDelete={handleDelete} />}
 
-                    {/* Menu Inferior */}
-                    {view !== 'add' && (
-                        <nav className="fixed bottom-0 w-full max-w-md bg-white border-t flex justify-around items-center h-16 pb-safe z-30">
-                            <button onClick={() => setView('list')} className={`flex flex-col items-center w-full ${view === 'list' ? 'text-green-600' : 'text-gray-400'}`}>
-                                <Icon name="list" size={24} />
-                                <span className="text-[10px] mt-1">Lançamentos</span>
+                    {/* Menu Inferior Fixo */}
+                    <nav className="fixed bottom-0 w-full max-w-md bg-white border-t flex justify-around items-center h-16 pb-safe z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                        <button onClick={() => setView('list')} className={`flex flex-col items-center w-full transition-colors ${view === 'list' ? 'text-blue-600' : 'text-gray-400'}`}>
+                            <Icon name="list" size={24} />
+                            <span className="text-[10px] mt-1 font-medium">Extrato</span>
+                        </button>
+                        
+                        <div className="relative -top-6">
+                            <button onClick={() => setView('add')} className={`text-white p-4 rounded-full shadow-lg transition-transform active:scale-90 ${view === 'add' ? 'bg-blue-700 ring-4 ring-blue-100' : 'bg-blue-600'}`}>
+                                <Icon name="plus" size={32} />
                             </button>
-                            
-                            <div className="relative -top-6">
-                                <button onClick={() => setView('add')} className="bg-green-600 text-white p-4 rounded-full shadow-lg hover:bg-green-700 transition-transform active:scale-90">
-                                    <Icon name="plus" size={32} />
-                                </button>
-                            </div>
+                        </div>
 
-                            <button onClick={() => setView('dashboard')} className={`flex flex-col items-center w-full ${view === 'dashboard' ? 'text-green-600' : 'text-gray-400'}`}>
-                                <Icon name="pie-chart" size={24} />
-                                <span className="text-[10px] mt-1">Gráficos</span>
-                            </button>
-                        </nav>
-                    )}
+                        <button onClick={() => setView('search')} className={`flex flex-col items-center w-full transition-colors ${view === 'search' ? 'text-blue-600' : 'text-gray-400'}`}>
+                            <Icon name="search" size={24} />
+                            <span className="text-[10px] mt-1 font-medium">Busca</span>
+                        </button>
+                    </nav>
                 </div>
             );
         };
