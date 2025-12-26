@@ -25,11 +25,9 @@
             -webkit-tap-highlight-color: transparent;
         }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        /* Remove setas do input number */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
-            -webkit-appearance: none; 
-            margin: 0; 
+            -webkit-appearance: none; margin: 0; 
         }
     </style>
 </head>
@@ -129,13 +127,13 @@
 
         // --- TELA 1: LISTA (Extrato) ---
         const ExpenseList = ({ expenses, onDelete }) => {
-            const filtered = useMemo(() => expenses.slice(0, 50), [expenses]); // Mostra últimos 50 na home
+            const filtered = useMemo(() => expenses.slice(0, 50), [expenses]); 
 
             return (
                 <div className="pb-24 pt-4 px-3">
                     <h2 className="text-xl font-bold text-gray-800 mb-4 px-1">Últimos Lançamentos</h2>
                     {filtered.length === 0 ? (
-                        <div className="text-center py-12 opacity-50"><p>Nada por aqui.</p></div>
+                        <div className="text-center py-12 opacity-50"><p>Carregando ou sem dados...</p></div>
                     ) : (
                         filtered.map(item => <Card key={item.docId} item={item} onDelete={onDelete} />)
                     )}
@@ -143,7 +141,7 @@
             );
         };
 
-        // --- TELA 2: NOVO REGISTRO (Ajustada) ---
+        // --- TELA 2: NOVO REGISTRO (Corrigido) ---
         const AddExpense = ({ onSave }) => {
             const [formData, setFormData] = useState({
                 Data: new Date().toISOString().split('T')[0],
@@ -160,13 +158,18 @@
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 setLoading(true);
-                await onSave(formData);
-                setLoading(false);
-                // Reset form (mantendo a data)
-                setFormData(prev => ({...prev, Categoria: '', SubCategoria: '', Descrição: '', Quantidade: 1, PrecoUnitario: '', Total: 0, Observações: ''}));
+                // Chama o onSave do pai e não faz mais nada depois, 
+                // pois o componente pai vai desmontar este componente (trocar de tela)
+                try {
+                    await onSave(formData);
+                } catch (err) {
+                    console.error(err);
+                    setLoading(false); // Só destrava se der erro
+                    alert("Erro ao salvar: " + err.message);
+                }
             };
 
-            const inputClass = "w-full p-3 bg-gray-50 rounded-lg border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all text-sm font-medium text-gray-800";
+            const inputClass = "w-full p-3 bg-gray-50 rounded-lg border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all text-base font-medium text-gray-800";
             const labelClass = "block text-xs font-bold text-gray-500 uppercase mb-1 ml-1";
 
             return (
@@ -175,21 +178,20 @@
                     
                     <form onSubmit={handleSubmit} className="space-y-4">
                         
-                        {/* Linha 1: Data e Descrição alinhados */}
-                        <div className="flex gap-3">
-                            <div className="w-1/3">
-                                <label className={labelClass}>Data</label>
-                                <input type="date" required className={inputClass} 
-                                    value={formData.Data} onChange={e => setFormData({...formData, Data: e.target.value})} />
-                            </div>
-                            <div className="w-2/3">
-                                <label className={labelClass}>Descrição</label>
-                                <input type="text" required placeholder="O que?" className={inputClass}
-                                    value={formData.Descrição} onChange={e => setFormData({...formData, Descrição: e.target.value})} />
-                            </div>
+                        {/* Data e Descrição: Um abaixo do outro (Stack) */}
+                        <div>
+                            <label className={labelClass}>Data</label>
+                            <input type="date" required className={inputClass} 
+                                value={formData.Data} onChange={e => setFormData({...formData, Data: e.target.value})} />
+                        </div>
+                        
+                        <div>
+                            <label className={labelClass}>Descrição</label>
+                            <input type="text" required placeholder="O que foi comprado?" className={inputClass}
+                                value={formData.Descrição} onChange={e => setFormData({...formData, Descrição: e.target.value})} />
                         </div>
 
-                        {/* Linha 2: Categoria e Sub */}
+                        {/* Categoria e Sub */}
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className={labelClass}>Categoria</label>
@@ -209,7 +211,7 @@
                             </div>
                         </div>
 
-                        {/* Linha 3: Quantidade e Preço Unitário */}
+                        {/* Qtd e Preço */}
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className={labelClass}>Qtd</label>
@@ -223,15 +225,15 @@
                             </div>
                         </div>
 
-                        {/* Total visível logo abaixo */}
+                        {/* Total */}
                         <div className="bg-green-50 rounded-lg p-3 flex justify-between items-center border border-green-100">
-                            <span className="text-green-700 font-bold text-sm uppercase">Total Calculado</span>
+                            <span className="text-green-700 font-bold text-sm uppercase">Total</span>
                             <span className="text-xl font-bold text-green-800">
                                 {formData.Total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
                             </span>
                         </div>
 
-                        {/* Observações (Opcional) no final */}
+                        {/* Observações */}
                         <div>
                             <label className={labelClass}>Observações (Opcional)</label>
                             <textarea rows="2" className={inputClass} placeholder="Detalhes extras..."
@@ -246,20 +248,18 @@
             );
         };
 
-        // --- TELA 3: BUSCA AVANÇADA (Substitui Gráficos) ---
+        // --- TELA 3: BUSCA AVANÇADA ---
         const AdvancedSearch = ({ expenses, onDelete }) => {
             const [filters, setFilters] = useState({ start: '', end: '', cat: '', term: '' });
             
             const results = useMemo(() => {
                 return expenses.filter(e => {
-                    const d = new Date(e.Data); // e.Data string yyyy-mm-dd
+                    const d = new Date(e.Data);
                     const start = filters.start ? new Date(filters.start) : null;
                     const end = filters.end ? new Date(filters.end) : null;
-                    
-                    // Ajuste de fuso para comparação justa de datas
                     if (start) start.setHours(0,0,0,0);
                     if (end) end.setHours(23,59,59,999);
-                    const current = e.dateObj; // Objeto Date já processado
+                    const current = e.dateObj; 
 
                     if (start && current < start) return false;
                     if (end && current > end) return false;
@@ -273,7 +273,6 @@
             }, [expenses, filters]);
 
             const totalSum = results.reduce((acc, curr) => acc + curr.rawTotal, 0);
-
             const inputClass = "w-full p-2 bg-white rounded border border-gray-300 text-sm";
 
             return (
@@ -356,9 +355,9 @@
                     "Timestamp": firebase.firestore.FieldValue.serverTimestamp()
                 };
                 await db.collection("despesas").add(payload);
-                await loadData();
+                await loadData(); // Recarrega os dados
                 alert('Salvo com sucesso!');
-                setView('list'); // Opcional: Voltar para lista ou manter na tela de add
+                setView('list'); // Retorna para a tela de extrato (Resolve a tela branca)
             };
 
             const handleDelete = async (id) => {
