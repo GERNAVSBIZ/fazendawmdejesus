@@ -417,12 +417,18 @@
             );
         };
 
-        // --- Componente: Configurações (Restaurado) ---
+        // --- Componente: Configurações (Atualizado com Limpeza de Dados) ---
         const SettingsPanel = ({ config, onUpdateConfig }) => {
             const [view, setView] = useState('categories');
             const [newItem, setNewItem] = useState('');
             const [newRule, setNewRule] = useState({ keyword: '', category: '', type: 'revenue' });
+            
+            // Novos estados para a aba "Dados"
+            const [deleteType, setDeleteType] = useState('revenue');
+            const [deletePeriod, setDeletePeriod] = useState('');
+            const [isDeleting, setIsDeleting] = useState(false);
 
+            // Funções de Categorias e Regras (Mantidas)
             const addCategory = (type) => {
                 if (!newItem.trim()) return;
                 const field = type === 'revenue' ? 'revenueCats' : 'expenseCats';
@@ -430,71 +436,78 @@
                 onUpdateConfig({ ...config, [field]: newCats });
                 setNewItem('');
             };
-
             const removeCategory = (type, cat) => {
                 if(!confirm(`Remover categoria "${cat}"?`)) return;
                 const field = type === 'revenue' ? 'revenueCats' : 'expenseCats';
-                const newCats = config[field].filter(c => c !== cat);
-                onUpdateConfig({ ...config, [field]: newCats });
+                onUpdateConfig({ ...config, [field]: config[field].filter(c => c !== cat) });
             };
-
             const addRule = () => {
                 if (!newRule.keyword || !newRule.category) return;
-                const updatedRules = [...config.rules, { ...newRule, keyword: newRule.keyword.toUpperCase() }];
-                onUpdateConfig({ ...config, rules: updatedRules });
+                onUpdateConfig({ ...config, rules: [...config.rules, { ...newRule, keyword: newRule.keyword.toUpperCase() }] });
                 setNewRule({ ...newRule, keyword: '' });
             };
+            const removeRule = (idx) => onUpdateConfig({ ...config, rules: config.rules.filter((_, i) => i !== idx) });
 
-            const removeRule = (index) => {
-                const updatedRules = config.rules.filter((_, i) => i !== index);
-                onUpdateConfig({ ...config, rules: updatedRules });
+            // Nova Função: Exclusão em Massa
+            const handleBulkDelete = async () => {
+                if (!auth.currentUser) return;
+                const collName = deleteType === 'revenue' ? 'farm_revenues' : 'farm_expenses';
+                const typeLabel = deleteType === 'revenue' ? 'Receitas' : 'Despesas';
+                const periodLabel = deletePeriod ? `do mês ${deletePeriod}` : 'de TODO o histórico';
+
+                if (!confirm(`PERIGO: Você vai apagar permanentemente todas as ${typeLabel} ${periodLabel}.\n\nDeseja realmente continuar?`)) return;
+
+                setIsDeleting(true);
+                try {
+                    const userId = auth.currentUser.uid;
+                    const colRef = collection(db, 'artifacts', appNamespace, 'users', userId, collName);
+                    let q = query(colRef);
+                    
+                    if (deletePeriod) {
+                        // Formato input month é YYYY-MM
+                        // Filtrar >= YYYY-MM-01 e <= YYYY-MM-31
+                        q = query(colRef, where('date', '>=', `${deletePeriod}-01`), where('date', '<=', `${deletePeriod}-31`));
+                    }
+
+                    const snapshot = await getDocs(q);
+                    
+                    if (snapshot.empty) {
+                        alert('Nenhum dado encontrado para excluir com esses critérios.');
+                    } else {
+                        // Deletar documentos um por um (simples e seguro para <500 itens)
+                        const batchPromises = snapshot.docs.map(d => deleteDoc(d.ref));
+                        await Promise.all(batchPromises);
+                        alert(`${snapshot.size} registros apagados com sucesso.`);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao excluir dados. Verifique o console.");
+                }
+                setIsDeleting(false);
             };
 
             return (
                 <div className="pb-24 fade-in bg-gray-50 min-h-full">
                      <header className="bg-gray-800 text-white p-6 rounded-b-3xl shadow-lg mb-6">
                         <h1 className="text-2xl font-bold flex items-center gap-2"><Settings size={24}/> Ajustes</h1>
-                        <p className="text-gray-400 text-sm">Personalize seu sistema</p>
                         <div className="flex mt-6 bg-gray-700/50 p-1 rounded-xl">
                             <button onClick={() => setView('categories')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === 'categories' ? 'bg-emerald-500 text-white shadow' : 'text-gray-300'}`}>Categorias</button>
                             <button onClick={() => setView('rules')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === 'rules' ? 'bg-emerald-500 text-white shadow' : 'text-gray-300'}`}>Automação</button>
+                            <button onClick={() => setView('data')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === 'data' ? 'bg-red-500 text-white shadow' : 'text-gray-300'}`}>Dados</button>
                         </div>
                     </header>
 
                     {view === 'categories' && (
                         <div className="px-4 space-y-6">
-                            {/* Receitas */}
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                                <h3 className="font-bold text-emerald-700 mb-3 flex items-center gap-2"><ArrowUpCircle size={18}/> Categorias de Receita</h3>
-                                <div className="flex gap-2 mb-3">
-                                    <input type="text" placeholder="Nova Categoria" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-sm" value={newItem} onChange={e => setNewItem(e.target.value)} />
-                                    <button onClick={() => addCategory('revenue')} className="bg-emerald-600 text-white px-4 rounded-lg font-bold">+</button>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {config.revenueCats.map(cat => (
-                                        <div key={cat} className="bg-emerald-50 text-emerald-800 text-xs px-3 py-1.5 rounded-full flex items-center gap-2 border border-emerald-100">
-                                            {cat}
-                                            <button onClick={() => removeCategory('revenue', cat)} className="text-emerald-400 hover:text-red-500"><X size={12}/></button>
-                                        </div>
-                                    ))}
-                                </div>
+                                <h3 className="font-bold text-emerald-700 mb-3 flex items-center gap-2">Receitas</h3>
+                                <div className="flex gap-2 mb-3"><input className="flex-1 border rounded px-2 text-sm" value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="Nova..." /><button onClick={() => addCategory('revenue')} className="bg-emerald-600 text-white px-3 rounded font-bold">+</button></div>
+                                <div className="flex flex-wrap gap-2">{config.revenueCats.map(c => <span key={c} className="bg-emerald-50 text-emerald-800 text-xs px-2 py-1 rounded border border-emerald-100 flex gap-1 items-center">{c}<button onClick={() => removeCategory('revenue', c)}><X size={10}/></button></span>)}</div>
                             </div>
-
-                            {/* Despesas */}
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                                <h3 className="font-bold text-red-700 mb-3 flex items-center gap-2"><ArrowDownCircle size={18}/> Categorias de Despesa</h3>
-                                <div className="flex gap-2 mb-3">
-                                    <input type="text" placeholder="Nova Categoria" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-sm" value={newItem} onChange={e => setNewItem(e.target.value)} />
-                                    <button onClick={() => addCategory('expense')} className="bg-red-600 text-white px-4 rounded-lg font-bold">+</button>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {config.expenseCats.map(cat => (
-                                        <div key={cat} className="bg-red-50 text-red-800 text-xs px-3 py-1.5 rounded-full flex items-center gap-2 border border-red-100">
-                                            {cat}
-                                            <button onClick={() => removeCategory('expense', cat)} className="text-red-400 hover:text-red-500"><X size={12}/></button>
-                                        </div>
-                                    ))}
-                                </div>
+                                <h3 className="font-bold text-red-700 mb-3 flex items-center gap-2">Despesas</h3>
+                                <div className="flex gap-2 mb-3"><input className="flex-1 border rounded px-2 text-sm" value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="Nova..." /><button onClick={() => addCategory('expense')} className="bg-red-600 text-white px-3 rounded font-bold">+</button></div>
+                                <div className="flex flex-wrap gap-2">{config.expenseCats.map(c => <span key={c} className="bg-red-50 text-red-800 text-xs px-2 py-1 rounded border border-red-100 flex gap-1 items-center">{c}<button onClick={() => removeCategory('expense', c)}><X size={10}/></button></span>)}</div>
                             </div>
                         </div>
                     )}
@@ -502,51 +515,48 @@
                     {view === 'rules' && (
                         <div className="px-4">
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                                <div className="bg-blue-50 p-3 rounded-lg mb-4 text-xs text-blue-700 border border-blue-100">
-                                    <p className="font-bold mb-1 flex items-center gap-1"><Zap size={14}/> Como funciona:</p>
-                                    Ao importar CSV, se a descrição tiver a <b>Palavra Chave</b>, aplica a <b>Categoria</b>.
-                                </div>
-
                                 <div className="space-y-3 mb-6 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                    <h4 className="font-bold text-gray-700 text-sm">Nova Regra</h4>
-                                    <div className="flex gap-2">
-                                        <select className="bg-white border p-2 rounded-lg text-xs w-24" value={newRule.type} onChange={e => setNewRule({...newRule, type: e.target.value, category: ''})}>
-                                            <option value="revenue">Receita</option>
-                                            <option value="expense">Despesa</option>
-                                        </select>
-                                        <input type="text" placeholder="Palavra Chave (Ex: PIX)" className="flex-1 border p-2 rounded-lg text-xs" value={newRule.keyword} onChange={e => setNewRule({...newRule, keyword: e.target.value})} />
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <select className="flex-1 bg-white border p-2 rounded-lg text-xs" value={newRule.category} onChange={e => setNewRule({...newRule, category: e.target.value})}>
-                                            <option value="">Escolha a Categoria...</option>
-                                            <option value="IGNORAR" className="text-red-600 font-bold">⛔ IGNORAR ITEM</option>
-                                            {(newRule.type === 'revenue' ? config.revenueCats : config.expenseCats).map(c => <option key={c} value={c}>{c}</option>)}
-                                        </select>
-                                        <button onClick={addRule} className="bg-gray-800 text-white px-4 rounded-lg font-bold text-xs">Adicionar</button>
-                                    </div>
+                                    <div className="flex gap-2"><select className="bg-white border rounded text-xs w-20" value={newRule.type} onChange={e => setNewRule({...newRule, type: e.target.value, category: ''})}><option value="revenue">Receita</option><option value="expense">Despesa</option></select><input className="flex-1 border rounded px-2 text-xs" placeholder="Palavra Chave" value={newRule.keyword} onChange={e => setNewRule({...newRule, keyword: e.target.value})} /></div>
+                                    <div className="flex gap-2"><select className="flex-1 bg-white border rounded text-xs" value={newRule.category} onChange={e => setNewRule({...newRule, category: e.target.value})}><option value="">Categoria...</option><option value="IGNORAR" className="text-red-600 font-bold">⛔ IGNORAR</option>{(newRule.type === 'revenue' ? config.revenueCats : config.expenseCats).map(c => <option key={c} value={c}>{c}</option>)}</select><button onClick={addRule} className="bg-gray-800 text-white px-3 rounded text-xs font-bold">Add</button></div>
                                 </div>
+                                <div className="space-y-2">{config.rules.map((r, i) => <div key={i} className="flex justify-between items-center p-2 border rounded bg-gray-50 text-xs"><span><b>"{r.keyword}"</b> &rarr; {r.category}</span><button onClick={() => removeRule(i)} className="text-red-500"><Trash2 size={14}/></button></div>)}</div>
+                            </div>
+                        </div>
+                    )}
 
-                                <h4 className="font-bold text-gray-700 text-sm mb-3">Regras Ativas</h4>
-                                <div className="space-y-2">
-                                    {config.rules.length === 0 && <p className="text-gray-400 text-center text-sm py-4">Nenhuma regra criada.</p>}
-                                    {config.rules.map((rule, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 text-sm">
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`w-2 h-2 rounded-full ${rule.type === 'revenue' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
-                                                    <span className="font-bold text-gray-800">"{rule.keyword}"</span>
-                                                </div>
-                                                <div className="text-gray-500 text-xs mt-0.5">
-                                                    {rule.category === 'IGNORAR' ? (
-                                                        <span className="text-red-600 font-bold flex items-center gap-1"><Ban size={10}/> SERÁ IGNORADO</span>
-                                                    ) : (
-                                                        <>vira <span className="font-medium text-gray-700">{rule.category}</span></>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <button onClick={() => removeRule(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
+                    {view === 'data' && (
+                        <div className="px-4">
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-red-100">
+                                <h3 className="font-bold text-red-700 mb-3 flex items-center gap-2"><AlertTriangle size={18}/> Limpeza de Dados</h3>
+                                <p className="text-xs text-gray-500 mb-6">Use esta área para apagar registros em massa. Cuidado: esta ação é irreversível.</p>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase">O que apagar?</label>
+                                        <div className="flex gap-2 mt-1">
+                                            <button onClick={() => setDeleteType('revenue')} className={`flex-1 py-2 rounded-lg text-xs font-bold border ${deleteType === 'revenue' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-gray-200 text-gray-500'}`}>Receitas</button>
+                                            <button onClick={() => setDeleteType('expense')} className={`flex-1 py-2 rounded-lg text-xs font-bold border ${deleteType === 'expense' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-gray-200 text-gray-500'}`}>Despesas</button>
                                         </div>
-                                    ))}
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase">Qual período?</label>
+                                        <div className="flex gap-2 mt-1 items-center">
+                                            <input type="month" className="flex-1 p-2 border border-gray-200 rounded-lg text-sm bg-gray-50" value={deletePeriod} onChange={e => setDeletePeriod(e.target.value)} />
+                                            <button onClick={() => setDeletePeriod('')} className={`px-3 py-2 rounded-lg text-xs font-bold border ${!deletePeriod ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-400 border-gray-200'}`}>Tudo</button>
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 mt-1 italic">
+                                            {deletePeriod ? `Apagará registros apenas de ${deletePeriod}` : "Apagará TODO o histórico desde o início."}
+                                        </p>
+                                    </div>
+
+                                    <button 
+                                        onClick={handleBulkDelete} 
+                                        disabled={isDeleting}
+                                        className="w-full bg-red-600 active:bg-red-700 text-white font-bold py-3 rounded-xl shadow-lg mt-2 flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                                    >
+                                        {isDeleting ? 'Processando...' : <><Trash2 size={18}/> Confirmar Exclusão</>}
+                                    </button>
                                 </div>
                             </div>
                         </div>
