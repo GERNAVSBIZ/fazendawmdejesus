@@ -22,11 +22,8 @@
             -webkit-tap-highlight-color: transparent;
             user-select: none;
         }
-        
-        /* Áreas de segurança para iPhone e Nav Bar */
         .content-safe-area { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
         .nav-safe-area { padding-bottom: env(safe-area-inset-bottom); }
-
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -125,11 +122,11 @@
             );
         });
 
-        // --- TELA 1: EXTRATO ---
+        // --- TELA 1: EXTRATO (Só renderiza 30 itens para performance) ---
         const ExpenseList = ({ expenses, onDelete, isLoading }) => {
             const visible = useMemo(() => expenses.slice(0, 30), [expenses]);
             
-            if (isLoading) return <div className="p-10 text-center text-gray-500">Carregando...</div>;
+            if (isLoading) return <div className="p-10 text-center text-gray-500">Carregando todos os dados...</div>;
             
             return (
                 <div className="pt-4 px-3 content-safe-area">
@@ -218,11 +215,17 @@
             );
         };
 
-        // --- TELA 3: DASHBOARD & BUSCA (NOVO) ---
+        // --- TELA 3: DASHBOARD & BUSCA ---
         const DashboardAndSearch = ({ expenses, onDelete }) => {
-            const [filters, setFilters] = useState({ start: '', end: '', cat: '', term: '' });
+            // Inicializa com as datas solicitadas: 01/MM/AAAA até Hoje
+            const [filters, setFilters] = useState(() => {
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                const today = now.toISOString().split('T')[0];
+                return { start: firstDay, end: today, cat: '', term: '' };
+            });
 
-            // Cálculos do Dashboard (Sempre baseados no total, independente do filtro)
+            // Dashboard: Calcula TUDO que está carregado na memória
             const summary = useMemo(() => {
                 const now = new Date();
                 const currentMonth = now.getMonth();
@@ -232,9 +235,12 @@
                 let totalYear = 0;
 
                 expenses.forEach(e => {
-                    if (e.dateObj.getFullYear() === currentYear) {
+                    const year = e.dateObj.getFullYear();
+                    const month = e.dateObj.getMonth();
+                    
+                    if (year === currentYear) {
                         totalYear += e.rawTotal;
-                        if (e.dateObj.getMonth() === currentMonth) {
+                        if (month === currentMonth) {
                             totalMonth += e.rawTotal;
                         }
                     }
@@ -259,36 +265,21 @@
 
             const filteredTotal = filteredResults.reduce((acc, c) => acc + c.rawTotal, 0);
 
-            // Ações Rápidas de Data
-            const setMonth = () => {
-                const now = new Date();
-                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-                setFilters({ ...filters, start: firstDay, end: lastDay });
-            };
-
-            const setYear = () => {
-                const now = new Date();
-                const firstDay = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
-                const lastDay = new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0];
-                setFilters({ ...filters, start: firstDay, end: lastDay });
-            };
-
             const clearFilters = () => setFilters({ start: '', end: '', cat: '', term: '' });
 
             return (
                 <div className="pt-4 px-4 bg-gray-50 min-h-screen content-safe-area">
                     
-                    {/* DASHBOARD: Resumo Gerencial */}
+                    {/* DASHBOARD GERAL */}
                     <div className="grid grid-cols-2 gap-3 mb-6">
                         <div className="bg-white p-4 rounded-xl shadow border-l-4 border-green-500">
-                            <div className="text-gray-500 text-xs font-bold uppercase mb-1">Mês Atual</div>
+                            <div className="text-gray-500 text-xs font-bold uppercase mb-1">Mês Atual (Geral)</div>
                             <div className="text-lg font-bold text-gray-900 truncate">
                                 {summary.totalMonth.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
                             </div>
                         </div>
                         <div className="bg-white p-4 rounded-xl shadow border-l-4 border-blue-500">
-                            <div className="text-gray-500 text-xs font-bold uppercase mb-1">Ano Atual</div>
+                            <div className="text-gray-500 text-xs font-bold uppercase mb-1">Ano Atual (Geral)</div>
                             <div className="text-lg font-bold text-gray-900 truncate">
                                 {summary.totalYear.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
                             </div>
@@ -297,23 +288,7 @@
 
                     <h2 className="text-lg font-bold text-gray-800 mb-3">Busca Detalhada</h2>
                     
-                    {/* FILTROS INTELIGENTES */}
                     <div className="bg-white p-4 rounded-xl shadow-sm mb-4 space-y-4">
-                        
-                        {/* Botões Rápidos */}
-                        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                            <button onClick={setMonth} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full whitespace-nowrap active:bg-blue-200">
-                                Este Mês
-                            </button>
-                            <button onClick={setYear} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full whitespace-nowrap active:bg-blue-200">
-                                Este Ano
-                            </button>
-                            <button onClick={clearFilters} className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-full whitespace-nowrap active:bg-gray-200">
-                                Limpar
-                            </button>
-                        </div>
-
-                        {/* Campos Manuais */}
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="text-[10px] text-gray-400 font-bold uppercase block mb-1">De:</label>
@@ -340,7 +315,7 @@
                         </div>
                     </div>
 
-                    {/* RESULTADOS DA BUSCA */}
+                    {/* RESULTADOS FILTRADOS */}
                     <div className="flex justify-between items-center mb-4 px-1 border-b pb-2">
                         <span className="text-xs text-gray-500 font-medium">Resultados: {filteredResults.length}</span>
                         <span className="text-sm font-bold text-green-700">
@@ -350,7 +325,7 @@
 
                     <div className="space-y-3">
                         {filteredResults.length === 0 ? (
-                            <div className="text-center py-8 text-gray-400 text-sm">Nenhum registro encontrado.</div>
+                            <div className="text-center py-8 text-gray-400 text-sm">Nenhum registro encontrado no período.</div>
                         ) : (
                             filteredResults.slice(0, 50).map(item => <ExpenseCard key={item.docId} item={item} onDelete={onDelete} />)
                         )}
@@ -377,7 +352,9 @@
             const loadData = async () => {
                 setIsLoading(true);
                 try {
-                    const snap = await db.collection("despesas").limit(300).get();
+                    // AUMENTO DRASTICO DO LIMITE: De 300 para 2500 para garantir que pegue o ano todo
+                    // Como estamos renderizando apenas 30 itens na tela "Lista", isso não vai travar a interface
+                    const snap = await db.collection("despesas").limit(2500).get();
                     const data = snap.docs.map(doc => ({
                         docId: doc.id, ...doc.data(),
                         dateObj: parseDate(doc.data().Data),
