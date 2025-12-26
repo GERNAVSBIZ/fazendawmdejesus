@@ -417,21 +417,145 @@
             );
         };
 
-        // --- Settings Panel (Simplified) ---
+        // --- Componente: Configurações (Restaurado) ---
         const SettingsPanel = ({ config, onUpdateConfig }) => {
-             const [newItem, setNewItem] = useState('');
-             const [view, setView] = useState('categories');
-             const addCat = (t) => { if(newItem){ const f = t==='rev'?'revenueCats':'expenseCats'; onUpdateConfig({...config, [f]:[...config[f], newItem]}); setNewItem(''); }};
-             return (
-                 <div className="pb-24 fade-in bg-gray-50 h-full p-4">
-                     <h1 className="text-xl font-bold mb-4">Ajustes</h1>
-                     <div className="flex gap-2 mb-4"><button onClick={()=>setView('categories')} className={`p-2 rounded flex-1 ${view==='categories'?'bg-emerald-600 text-white':'bg-white'}`}>Categorias</button></div>
-                     {view === 'categories' && <div><h3 className="font-bold text-sm mb-2">Adicionar Categoria</h3><div className="flex gap-2"><input className="border p-2 rounded flex-1" value={newItem} onChange={e=>setNewItem(e.target.value)} /><button onClick={()=>addCat('rev')} className="bg-emerald-600 text-white p-2 rounded">Rec</button><button onClick={()=>addCat('exp')} className="bg-red-600 text-white p-2 rounded">Desp</button></div><div className="mt-4 flex flex-wrap gap-2 text-xs">{config.revenueCats.map(c=><span key={c} className="bg-emerald-100 p-1 rounded">{c}</span>)}{config.expenseCats.map(c=><span key={c} className="bg-red-100 p-1 rounded">{c}</span>)}</div></div>}
-                 </div>
-             )
+            const [view, setView] = useState('categories');
+            const [newItem, setNewItem] = useState('');
+            const [newRule, setNewRule] = useState({ keyword: '', category: '', type: 'revenue' });
+
+            const addCategory = (type) => {
+                if (!newItem.trim()) return;
+                const field = type === 'revenue' ? 'revenueCats' : 'expenseCats';
+                const newCats = [...config[field], newItem.trim()];
+                onUpdateConfig({ ...config, [field]: newCats });
+                setNewItem('');
+            };
+
+            const removeCategory = (type, cat) => {
+                if(!confirm(`Remover categoria "${cat}"?`)) return;
+                const field = type === 'revenue' ? 'revenueCats' : 'expenseCats';
+                const newCats = config[field].filter(c => c !== cat);
+                onUpdateConfig({ ...config, [field]: newCats });
+            };
+
+            const addRule = () => {
+                if (!newRule.keyword || !newRule.category) return;
+                const updatedRules = [...config.rules, { ...newRule, keyword: newRule.keyword.toUpperCase() }];
+                onUpdateConfig({ ...config, rules: updatedRules });
+                setNewRule({ ...newRule, keyword: '' });
+            };
+
+            const removeRule = (index) => {
+                const updatedRules = config.rules.filter((_, i) => i !== index);
+                onUpdateConfig({ ...config, rules: updatedRules });
+            };
+
+            return (
+                <div className="pb-24 fade-in bg-gray-50 min-h-full">
+                     <header className="bg-gray-800 text-white p-6 rounded-b-3xl shadow-lg mb-6">
+                        <h1 className="text-2xl font-bold flex items-center gap-2"><Settings size={24}/> Ajustes</h1>
+                        <p className="text-gray-400 text-sm">Personalize seu sistema</p>
+                        <div className="flex mt-6 bg-gray-700/50 p-1 rounded-xl">
+                            <button onClick={() => setView('categories')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === 'categories' ? 'bg-emerald-500 text-white shadow' : 'text-gray-300'}`}>Categorias</button>
+                            <button onClick={() => setView('rules')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === 'rules' ? 'bg-emerald-500 text-white shadow' : 'text-gray-300'}`}>Automação</button>
+                        </div>
+                    </header>
+
+                    {view === 'categories' && (
+                        <div className="px-4 space-y-6">
+                            {/* Receitas */}
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <h3 className="font-bold text-emerald-700 mb-3 flex items-center gap-2"><ArrowUpCircle size={18}/> Categorias de Receita</h3>
+                                <div className="flex gap-2 mb-3">
+                                    <input type="text" placeholder="Nova Categoria" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-sm" value={newItem} onChange={e => setNewItem(e.target.value)} />
+                                    <button onClick={() => addCategory('revenue')} className="bg-emerald-600 text-white px-4 rounded-lg font-bold">+</button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {config.revenueCats.map(cat => (
+                                        <div key={cat} className="bg-emerald-50 text-emerald-800 text-xs px-3 py-1.5 rounded-full flex items-center gap-2 border border-emerald-100">
+                                            {cat}
+                                            <button onClick={() => removeCategory('revenue', cat)} className="text-emerald-400 hover:text-red-500"><X size={12}/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Despesas */}
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <h3 className="font-bold text-red-700 mb-3 flex items-center gap-2"><ArrowDownCircle size={18}/> Categorias de Despesa</h3>
+                                <div className="flex gap-2 mb-3">
+                                    <input type="text" placeholder="Nova Categoria" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-sm" value={newItem} onChange={e => setNewItem(e.target.value)} />
+                                    <button onClick={() => addCategory('expense')} className="bg-red-600 text-white px-4 rounded-lg font-bold">+</button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {config.expenseCats.map(cat => (
+                                        <div key={cat} className="bg-red-50 text-red-800 text-xs px-3 py-1.5 rounded-full flex items-center gap-2 border border-red-100">
+                                            {cat}
+                                            <button onClick={() => removeCategory('expense', cat)} className="text-red-400 hover:text-red-500"><X size={12}/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {view === 'rules' && (
+                        <div className="px-4">
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <div className="bg-blue-50 p-3 rounded-lg mb-4 text-xs text-blue-700 border border-blue-100">
+                                    <p className="font-bold mb-1 flex items-center gap-1"><Zap size={14}/> Como funciona:</p>
+                                    Ao importar CSV, se a descrição tiver a <b>Palavra Chave</b>, aplica a <b>Categoria</b>.
+                                </div>
+
+                                <div className="space-y-3 mb-6 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                                    <h4 className="font-bold text-gray-700 text-sm">Nova Regra</h4>
+                                    <div className="flex gap-2">
+                                        <select className="bg-white border p-2 rounded-lg text-xs w-24" value={newRule.type} onChange={e => setNewRule({...newRule, type: e.target.value, category: ''})}>
+                                            <option value="revenue">Receita</option>
+                                            <option value="expense">Despesa</option>
+                                        </select>
+                                        <input type="text" placeholder="Palavra Chave (Ex: PIX)" className="flex-1 border p-2 rounded-lg text-xs" value={newRule.keyword} onChange={e => setNewRule({...newRule, keyword: e.target.value})} />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <select className="flex-1 bg-white border p-2 rounded-lg text-xs" value={newRule.category} onChange={e => setNewRule({...newRule, category: e.target.value})}>
+                                            <option value="">Escolha a Categoria...</option>
+                                            <option value="IGNORAR" className="text-red-600 font-bold">⛔ IGNORAR ITEM</option>
+                                            {(newRule.type === 'revenue' ? config.revenueCats : config.expenseCats).map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                        <button onClick={addRule} className="bg-gray-800 text-white px-4 rounded-lg font-bold text-xs">Adicionar</button>
+                                    </div>
+                                </div>
+
+                                <h4 className="font-bold text-gray-700 text-sm mb-3">Regras Ativas</h4>
+                                <div className="space-y-2">
+                                    {config.rules.length === 0 && <p className="text-gray-400 text-center text-sm py-4">Nenhuma regra criada.</p>}
+                                    {config.rules.map((rule, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 text-sm">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`w-2 h-2 rounded-full ${rule.type === 'revenue' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                                                    <span className="font-bold text-gray-800">"{rule.keyword}"</span>
+                                                </div>
+                                                <div className="text-gray-500 text-xs mt-0.5">
+                                                    {rule.category === 'IGNORAR' ? (
+                                                        <span className="text-red-600 font-bold flex items-center gap-1"><Ban size={10}/> SERÁ IGNORADO</span>
+                                                    ) : (
+                                                        <>vira <span className="font-medium text-gray-700">{rule.category}</span></>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button onClick={() => removeRule(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
         };
 
-        // --- Transaction Manager ---
+        // --- Componente: Lista e Ações (Mantido) ---
         const TransactionManager = ({ type, data, onAdd, onImport, onDelete, onUpdate, config }) => {
             const [view, setView] = useState('list');
             const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], description: '', amount: '', category: '' });
