@@ -23,17 +23,10 @@
             user-select: none;
         }
         
-        /* Espaçamento para o conteúdo não ficar atrás do menu */
-        .content-safe-area {
-            padding-bottom: calc(80px + env(safe-area-inset-bottom));
-        }
+        /* Áreas de segurança para iPhone e Nav Bar */
+        .content-safe-area { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+        .nav-safe-area { padding-bottom: env(safe-area-inset-bottom); }
 
-        /* Espaçamento apenas para a barra fixa inferior (iPhone X+) */
-        .nav-safe-area {
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-
-        /* Remove scrollbars feias */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -132,9 +125,7 @@
             );
         });
 
-        // --- TELAS ---
-        
-        // 1. EXTRATO
+        // --- TELA 1: EXTRATO ---
         const ExpenseList = ({ expenses, onDelete, isLoading }) => {
             const visible = useMemo(() => expenses.slice(0, 30), [expenses]);
             
@@ -152,7 +143,7 @@
             );
         };
 
-        // 2. NOVO REGISTRO
+        // --- TELA 2: NOVO REGISTRO ---
         const AddExpense = ({ onSave }) => {
             const [form, setForm] = useState({
                 Data: new Date().toISOString().split('T')[0],
@@ -227,11 +218,33 @@
             );
         };
 
-        // 3. BUSCA AVANÇADA
-        const AdvancedSearch = ({ expenses, onDelete }) => {
+        // --- TELA 3: DASHBOARD & BUSCA (NOVO) ---
+        const DashboardAndSearch = ({ expenses, onDelete }) => {
             const [filters, setFilters] = useState({ start: '', end: '', cat: '', term: '' });
+
+            // Cálculos do Dashboard (Sempre baseados no total, independente do filtro)
+            const summary = useMemo(() => {
+                const now = new Date();
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+
+                let totalMonth = 0;
+                let totalYear = 0;
+
+                expenses.forEach(e => {
+                    if (e.dateObj.getFullYear() === currentYear) {
+                        totalYear += e.rawTotal;
+                        if (e.dateObj.getMonth() === currentMonth) {
+                            totalMonth += e.rawTotal;
+                        }
+                    }
+                });
+
+                return { totalMonth, totalYear };
+            }, [expenses]);
             
-            const results = useMemo(() => {
+            // Filtros de Busca
+            const filteredResults = useMemo(() => {
                 return expenses.filter(e => {
                     if (filters.start && e.dateObj < new Date(filters.start + 'T00:00:00')) return false;
                     if (filters.end && e.dateObj > new Date(filters.end + 'T23:59:59')) return false;
@@ -244,30 +257,105 @@
                 });
             }, [expenses, filters]);
 
-            const total = results.reduce((acc, c) => acc + c.rawTotal, 0);
-            const inputStyle = "w-full p-2 bg-white border border-gray-300 rounded text-sm";
+            const filteredTotal = filteredResults.reduce((acc, c) => acc + c.rawTotal, 0);
+
+            // Ações Rápidas de Data
+            const setMonth = () => {
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+                setFilters({ ...filters, start: firstDay, end: lastDay });
+            };
+
+            const setYear = () => {
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+                const lastDay = new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0];
+                setFilters({ ...filters, start: firstDay, end: lastDay });
+            };
+
+            const clearFilters = () => setFilters({ start: '', end: '', cat: '', term: '' });
 
             return (
                 <div className="pt-4 px-4 bg-gray-50 min-h-screen content-safe-area">
-                    <h2 className="text-lg font-bold text-gray-800 mb-4">Busca Avançada</h2>
-                    <div className="bg-white p-3 rounded-lg shadow-sm mb-4 space-y-3">
-                        <div className="grid grid-cols-2 gap-2">
-                            <input type="date" className={inputStyle} value={filters.start} onChange={e=>setFilters({...filters, start: e.target.value})} />
-                            <input type="date" className={inputStyle} value={filters.end} onChange={e=>setFilters({...filters, end: e.target.value})} />
+                    
+                    {/* DASHBOARD: Resumo Gerencial */}
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                        <div className="bg-white p-4 rounded-xl shadow border-l-4 border-green-500">
+                            <div className="text-gray-500 text-xs font-bold uppercase mb-1">Mês Atual</div>
+                            <div className="text-lg font-bold text-gray-900 truncate">
+                                {summary.totalMonth.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                            </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <select className={inputStyle} value={filters.cat} onChange={e=>setFilters({...filters, cat: e.target.value})}>
-                                <option value="">Todas Categ.</option>
-                                {Object.keys(CATEGORIAS).map(c=><option key={c} value={c}>{c}</option>)}
-                            </select>
-                            <input type="text" placeholder="Buscar texto..." className={inputStyle} value={filters.term} onChange={e=>setFilters({...filters, term: e.target.value})} />
+                        <div className="bg-white p-4 rounded-xl shadow border-l-4 border-blue-500">
+                            <div className="text-gray-500 text-xs font-bold uppercase mb-1">Ano Atual</div>
+                            <div className="text-lg font-bold text-gray-900 truncate">
+                                {summary.totalYear.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                            </div>
                         </div>
                     </div>
-                    <div className="flex justify-between items-center mb-4 px-1">
-                        <span className="text-xs text-gray-500">{results.length} resultados</span>
-                        <span className="font-bold text-green-600">{total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
+
+                    <h2 className="text-lg font-bold text-gray-800 mb-3">Busca Detalhada</h2>
+                    
+                    {/* FILTROS INTELIGENTES */}
+                    <div className="bg-white p-4 rounded-xl shadow-sm mb-4 space-y-4">
+                        
+                        {/* Botões Rápidos */}
+                        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                            <button onClick={setMonth} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full whitespace-nowrap active:bg-blue-200">
+                                Este Mês
+                            </button>
+                            <button onClick={setYear} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full whitespace-nowrap active:bg-blue-200">
+                                Este Ano
+                            </button>
+                            <button onClick={clearFilters} className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-full whitespace-nowrap active:bg-gray-200">
+                                Limpar
+                            </button>
+                        </div>
+
+                        {/* Campos Manuais */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[10px] text-gray-400 font-bold uppercase block mb-1">De:</label>
+                                <input type="date" className="w-full p-2 bg-gray-50 border border-gray-200 rounded text-sm" value={filters.start} onChange={e=>setFilters({...filters, start: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Até:</label>
+                                <input type="date" className="w-full p-2 bg-gray-50 border border-gray-200 rounded text-sm" value={filters.end} onChange={e=>setFilters({...filters, end: e.target.value})} />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Categoria:</label>
+                                <select className="w-full p-2 bg-gray-50 border border-gray-200 rounded text-sm h-10" value={filters.cat} onChange={e=>setFilters({...filters, cat: e.target.value})}>
+                                    <option value="">Todas</option>
+                                    {Object.keys(CATEGORIAS).map(c=><option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Busca:</label>
+                                <input type="text" placeholder="Nome, item..." className="w-full p-2 bg-gray-50 border border-gray-200 rounded text-sm h-10" value={filters.term} onChange={e=>setFilters({...filters, term: e.target.value})} />
+                            </div>
+                        </div>
                     </div>
-                    {results.map(item => <ExpenseCard key={item.docId} item={item} onDelete={onDelete} />)}
+
+                    {/* RESULTADOS DA BUSCA */}
+                    <div className="flex justify-between items-center mb-4 px-1 border-b pb-2">
+                        <span className="text-xs text-gray-500 font-medium">Resultados: {filteredResults.length}</span>
+                        <span className="text-sm font-bold text-green-700">
+                            Total Filtrado: {filteredTotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                        </span>
+                    </div>
+
+                    <div className="space-y-3">
+                        {filteredResults.length === 0 ? (
+                            <div className="text-center py-8 text-gray-400 text-sm">Nenhum registro encontrado.</div>
+                        ) : (
+                            filteredResults.slice(0, 50).map(item => <ExpenseCard key={item.docId} item={item} onDelete={onDelete} />)
+                        )}
+                        {filteredResults.length > 50 && <p className="text-center text-xs text-gray-400 pt-2">Mostrando os primeiros 50 resultados.</p>}
+                    </div>
                 </div>
             );
         };
@@ -289,7 +377,7 @@
             const loadData = async () => {
                 setIsLoading(true);
                 try {
-                    const snap = await db.collection("despesas").limit(200).get();
+                    const snap = await db.collection("despesas").limit(300).get();
                     const data = snap.docs.map(doc => ({
                         docId: doc.id, ...doc.data(),
                         dateObj: parseDate(doc.data().Data),
@@ -331,7 +419,7 @@
                 <div className="max-w-md mx-auto min-h-screen bg-gray-100 shadow-xl relative">
                     {view === 'list' && <ExpenseList expenses={expenses} onDelete={handleDelete} isLoading={isLoading} />}
                     {view === 'add' && <AddExpense onSave={handleSave} />}
-                    {view === 'search' && <AdvancedSearch expenses={expenses} onDelete={handleDelete} />}
+                    {view === 'search' && <DashboardAndSearch expenses={expenses} onDelete={handleDelete} />}
 
                     {/* MENU INFERIOR FIXO */}
                     <div className="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-200 nav-safe-area z-[9999]">
@@ -348,8 +436,8 @@
                             </div>
 
                             <button onClick={() => setView('search')} className={`flex-1 flex flex-col items-center justify-center h-full ${view === 'search' ? 'text-blue-600' : 'text-gray-400'}`}>
-                                <Icon name="search" size={24} />
-                                <span className="text-[10px] mt-1 font-medium">Busca</span>
+                                <Icon name="bar-chart-2" size={24} />
+                                <span className="text-[10px] mt-1 font-medium">Análise</span>
                             </button>
                         </div>
                     </div>
