@@ -3,32 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Despesas WM - Mobile</title>
+    <title>Despesas WM</title>
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
+    <script src="https://unpkg.com/lucide@latest"></script>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
-    <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f3f4f6;
             -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none; /* Evita o "bounce" no iphone */
         }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-            -webkit-appearance: none; margin: 0; 
-        }
+        .pb-safe { padding-bottom: calc(env(safe-area-inset-bottom) + 80px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Otimização para toques */
+        button, input, select { touch-action: manipulation; }
     </style>
 </head>
 <body>
@@ -36,7 +36,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useCallback } = React;
 
         // --- CONFIGURAÇÃO FIREBASE ---
         const firebaseConfig = {
@@ -54,16 +54,18 @@
         const db = firebase.firestore();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        // --- UTILITÁRIOS ---
+        // --- UTILITÁRIOS OTIMIZADOS ---
         const parseDate = (dateVal) => {
             if (!dateVal) return new Date();
             if (dateVal && typeof dateVal.toDate === 'function') return dateVal.toDate();
             if (typeof dateVal === 'string') {
+                // Formato ISO (vinda do input date)
+                if (dateVal.includes('-')) return new Date(dateVal + 'T12:00:00');
+                // Formato BR
                 if (dateVal.includes('/')) {
                     const parts = dateVal.split('/');
                     if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0], 12, 0, 0);
                 }
-                if (dateVal.includes('-')) return new Date(dateVal + 'T12:00:00');
             }
             return new Date();
         };
@@ -84,64 +86,81 @@
             "Outros": ["Diversos"]
         };
 
-        // --- COMPONENTES UI ---
+        // --- ÍCONES ---
         const Icon = ({ name, size = 20, className = "" }) => {
             useEffect(() => { lucide.createIcons(); }, [name]);
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
         };
 
-        const Card = ({ item, onDelete }) => {
-            const getCategoryColor = (cat) => {
-                const map = { 'Pecuária': 'border-green-500', 'Agricultura': 'border-yellow-500', 'Infraestrutura': 'border-gray-500', 'Administrativo': 'border-blue-500', 'Outros': 'border-purple-500' };
-                return map[cat] || 'border-gray-200';
+        // --- COMPONENTE DE CARTÃO (MEMOIZED PARA PERFORMANCE) ---
+        const ExpenseCard = React.memo(({ item, onDelete }) => {
+            const getBorderColor = (cat) => {
+                switch(cat) {
+                    case 'Pecuária': return 'border-green-500';
+                    case 'Agricultura': return 'border-yellow-500';
+                    case 'Infraestrutura': return 'border-gray-500';
+                    case 'Administrativo': return 'border-blue-500';
+                    default: return 'border-purple-500';
+                }
             };
 
             return (
-                <div className={`bg-white rounded-xl shadow-sm border-l-4 p-4 mb-3 ${getCategoryColor(item.Categoria)} flex justify-between items-start`}>
-                    <div className="flex-1 pr-2">
+                <div className={`bg-white rounded-xl shadow-sm border-l-4 p-3 mb-3 ${getBorderColor(item.Categoria)} flex justify-between items-start`}>
+                    <div className="flex-1 pr-2 overflow-hidden">
                         <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
-                                <Icon name="calendar" size={12} />
-                                {item.dateObj.toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})}
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1">
+                                {item.dateObj.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
                             </span>
-                            <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-600 border border-gray-200">
+                            <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-600 truncate max-w-[120px]">
                                 {item.Categoria}
                             </span>
                         </div>
-                        <h3 className="font-bold text-gray-800 text-base leading-tight">{item.Descrição || "Sem descrição"}</h3>
-                        <p className="text-xs text-gray-500 mt-1">{item['Sub Categoria']} {item.Observações ? `• ${item.Observações}` : ''}</p>
+                        <h3 className="font-bold text-gray-800 text-sm leading-tight truncate">{item.Descrição || "Sem descrição"}</h3>
+                        <p className="text-xs text-gray-500 mt-1 truncate">
+                            {item['Sub Categoria']} {item.Observações ? `• ${item.Observações}` : ''}
+                        </p>
                     </div>
-                    <div className="flex flex-col items-end justify-between h-full gap-2">
-                        <span className="font-bold text-gray-900 text-lg whitespace-nowrap">
+                    <div className="flex flex-col items-end justify-between gap-2 pl-2">
+                        <span className="font-bold text-gray-900 text-base whitespace-nowrap">
                             {item.rawTotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
                         </span>
                         {onDelete && (
-                            <button onClick={() => { if(confirm('Apagar registro?')) onDelete(item.docId); }} className="text-red-400 p-2 -mr-2">
-                                <Icon name="trash-2" size={18} />
+                            <button onClick={(e) => { e.stopPropagation(); onDelete(item.docId); }} className="text-red-300 p-2 -mr-2 active:text-red-600">
+                                <Icon name="trash-2" size={16} />
                             </button>
                         )}
                     </div>
                 </div>
             );
-        };
+        });
 
-        // --- TELA 1: LISTA (Extrato) ---
-        const ExpenseList = ({ expenses, onDelete }) => {
-            const filtered = useMemo(() => expenses.slice(0, 50), [expenses]); 
+        // --- TELA 1: LISTA (EXTRATO) ---
+        const ExpenseList = ({ expenses, onDelete, isLoading }) => {
+            // Mostra apenas os 30 primeiros para performance imediata no iPhone
+            const visibleExpenses = useMemo(() => expenses.slice(0, 30), [expenses]);
+
+            if (isLoading && expenses.length === 0) {
+                return <div className="p-8 text-center text-gray-400">Carregando dados...</div>;
+            }
 
             return (
-                <div className="pb-24 pt-4 px-3">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4 px-1">Últimos Lançamentos</h2>
-                    {filtered.length === 0 ? (
-                        <div className="text-center py-12 opacity-50"><p>Carregando ou sem dados...</p></div>
+                <div className="pt-4 px-3 pb-safe">
+                    <h2 className="text-lg font-bold text-gray-800 mb-4 px-1">Últimos Lançamentos</h2>
+                    {visibleExpenses.length === 0 ? (
+                        <div className="text-center py-10 opacity-50 text-sm"><p>Nenhum dado encontrado.</p></div>
                     ) : (
-                        filtered.map(item => <Card key={item.docId} item={item} onDelete={onDelete} />)
+                        visibleExpenses.map(item => <ExpenseCard key={item.docId} item={item} onDelete={onDelete} />)
+                    )}
+                    {expenses.length > 30 && (
+                        <div className="text-center py-4 text-xs text-gray-400">
+                            Exibindo 30 de {expenses.length} registros. Use a busca para ver mais.
+                        </div>
                     )}
                 </div>
             );
         };
 
-        // --- TELA 2: NOVO REGISTRO (Corrigido) ---
+        // --- TELA 2: NOVO REGISTRO ---
         const AddExpense = ({ onSave }) => {
             const [formData, setFormData] = useState({
                 Data: new Date().toISOString().split('T')[0],
@@ -149,6 +168,7 @@
             });
             const [loading, setLoading] = useState(false);
 
+            // Atualiza total
             useEffect(() => {
                 const q = parseFloat(formData.Quantidade) || 0;
                 const p = parseFloat(formData.PrecoUnitario) || 0;
@@ -158,40 +178,35 @@
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 setLoading(true);
-                // Chama o onSave do pai e não faz mais nada depois, 
-                // pois o componente pai vai desmontar este componente (trocar de tela)
-                try {
-                    await onSave(formData);
-                } catch (err) {
-                    console.error(err);
-                    setLoading(false); // Só destrava se der erro
-                    alert("Erro ao salvar: " + err.message);
-                }
+                // Pequeno delay para feedback visual
+                setTimeout(() => {
+                    onSave(formData); 
+                    // Não precisamos resetar form ou setLoading false aqui, pois o componente será desmontado
+                }, 100);
             };
 
-            const inputClass = "w-full p-3 bg-gray-50 rounded-lg border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all text-base font-medium text-gray-800";
+            const inputClass = "w-full p-3 bg-gray-50 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-base text-gray-800";
             const labelClass = "block text-xs font-bold text-gray-500 uppercase mb-1 ml-1";
 
             return (
-                <div className="pb-24 pt-4 px-4 bg-white min-h-screen">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">Novo Registro</h2>
+                <div className="pt-2 px-4 pb-safe bg-white min-h-screen">
+                    <h2 className="text-lg font-bold text-gray-800 mb-4">Novo Registro</h2>
                     
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        
-                        {/* Data e Descrição: Um abaixo do outro (Stack) */}
-                        <div>
-                            <label className={labelClass}>Data</label>
-                            <input type="date" required className={inputClass} 
-                                value={formData.Data} onChange={e => setFormData({...formData, Data: e.target.value})} />
-                        </div>
-                        
-                        <div>
-                            <label className={labelClass}>Descrição</label>
-                            <input type="text" required placeholder="O que foi comprado?" className={inputClass}
-                                value={formData.Descrição} onChange={e => setFormData({...formData, Descrição: e.target.value})} />
+                        <div className="space-y-4">
+                            <div>
+                                <label className={labelClass}>Data</label>
+                                <input type="date" required className={inputClass} 
+                                    value={formData.Data} onChange={e => setFormData({...formData, Data: e.target.value})} />
+                            </div>
+                            
+                            <div>
+                                <label className={labelClass}>Descrição</label>
+                                <input type="text" required placeholder="Ex: Ração, Gasolina..." className={inputClass}
+                                    value={formData.Descrição} onChange={e => setFormData({...formData, Descrição: e.target.value})} />
+                            </div>
                         </div>
 
-                        {/* Categoria e Sub */}
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className={labelClass}>Categoria</label>
@@ -202,7 +217,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label className={labelClass}>Sub</label>
+                                <label className={labelClass}>Sub Categoria</label>
                                 <select required disabled={!formData.Categoria} className={`${inputClass} disabled:opacity-50`}
                                     value={formData.SubCategoria} onChange={e => setFormData({...formData, SubCategoria: e.target.value})}>
                                     <option value="">...</option>
@@ -211,7 +226,6 @@
                             </div>
                         </div>
 
-                        {/* Qtd e Preço */}
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className={labelClass}>Qtd</label>
@@ -219,28 +233,26 @@
                                     value={formData.Quantidade} onChange={e => setFormData({...formData, Quantidade: e.target.value})} />
                             </div>
                             <div>
-                                <label className={labelClass}>Preço Unit. (R$)</label>
-                                <input type="number" step="any" required placeholder="0,00" className={inputClass}
+                                <label className={labelClass}>Preço Unit.</label>
+                                <input type="number" step="any" required placeholder="0.00" className={inputClass}
                                     value={formData.PrecoUnitario} onChange={e => setFormData({...formData, PrecoUnitario: e.target.value})} />
                             </div>
                         </div>
 
-                        {/* Total */}
-                        <div className="bg-green-50 rounded-lg p-3 flex justify-between items-center border border-green-100">
-                            <span className="text-green-700 font-bold text-sm uppercase">Total</span>
+                        <div className="bg-green-50 rounded-lg p-3 flex justify-between items-center border border-green-100 mt-2">
+                            <span className="text-green-700 font-bold text-xs uppercase">Total</span>
                             <span className="text-xl font-bold text-green-800">
                                 {formData.Total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
                             </span>
                         </div>
 
-                        {/* Observações */}
                         <div>
-                            <label className={labelClass}>Observações (Opcional)</label>
-                            <textarea rows="2" className={inputClass} placeholder="Detalhes extras..."
+                            <label className={labelClass}>Observações</label>
+                            <textarea rows="2" className={inputClass} placeholder="Opcional..."
                                 value={formData.Observações} onChange={e => setFormData({...formData, Observações: e.target.value})}></textarea>
                         </div>
 
-                        <button disabled={loading} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 transition-transform active:scale-95 mt-4 flex justify-center items-center gap-2">
+                        <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-transform mt-4 flex justify-center items-center gap-2">
                             {loading ? 'Salvando...' : <><Icon name="check" size={20} /> Salvar Registro</>}
                         </button>
                     </form>
@@ -248,70 +260,84 @@
             );
         };
 
-        // --- TELA 3: BUSCA AVANÇADA ---
+        // --- TELA 3: BUSCA AVANÇADA (CORRIGIDA) ---
         const AdvancedSearch = ({ expenses, onDelete }) => {
             const [filters, setFilters] = useState({ start: '', end: '', cat: '', term: '' });
             
+            // Lógica de filtro corrigida e segura
             const results = useMemo(() => {
-                return expenses.filter(e => {
-                    const d = new Date(e.Data);
-                    const start = filters.start ? new Date(filters.start) : null;
-                    const end = filters.end ? new Date(filters.end) : null;
-                    if (start) start.setHours(0,0,0,0);
-                    if (end) end.setHours(23,59,59,999);
-                    const current = e.dateObj; 
+                if (!expenses || expenses.length === 0) return [];
 
-                    if (start && current < start) return false;
-                    if (end && current > end) return false;
+                return expenses.filter(e => {
+                    if (!e.dateObj) return false;
+                    
+                    // Verifica Datas
+                    if (filters.start) {
+                        const startDate = new Date(filters.start + 'T00:00:00');
+                        if (e.dateObj < startDate) return false;
+                    }
+                    if (filters.end) {
+                        const endDate = new Date(filters.end + 'T23:59:59');
+                        if (e.dateObj > endDate) return false;
+                    }
+
+                    // Verifica Categoria
                     if (filters.cat && e.Categoria !== filters.cat) return false;
+
+                    // Verifica Termo (Texto)
                     if (filters.term) {
                         const t = filters.term.toLowerCase();
-                        if (!e.Descrição?.toLowerCase().includes(t) && !e['Sub Categoria']?.toLowerCase().includes(t)) return false;
+                        const desc = e.Descrição ? e.Descrição.toLowerCase() : '';
+                        const sub = e['Sub Categoria'] ? e['Sub Categoria'].toLowerCase() : '';
+                        if (!desc.includes(t) && !sub.includes(t)) return false;
                     }
+                    
                     return true;
                 });
             }, [expenses, filters]);
 
             const totalSum = results.reduce((acc, curr) => acc + curr.rawTotal, 0);
-            const inputClass = "w-full p-2 bg-white rounded border border-gray-300 text-sm";
+            const inputClass = "w-full p-2 bg-white rounded border border-gray-300 text-sm h-10";
 
             return (
-                <div className="pb-24 pt-4 px-4 bg-gray-50 min-h-screen">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">Busca Avançada</h2>
+                <div className="pt-4 px-4 pb-safe bg-gray-50 min-h-screen">
+                    <h2 className="text-lg font-bold text-gray-800 mb-4">Busca Avançada</h2>
                     
-                    <div className="bg-white p-4 rounded-xl shadow-sm mb-4 space-y-3">
-                        <div className="flex gap-2">
-                            <div className="w-1/2">
-                                <label className="text-xs text-gray-500 font-bold block mb-1">Início</label>
+                    <div className="bg-white p-3 rounded-xl shadow-sm mb-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="text-[10px] text-gray-500 font-bold uppercase mb-1">Início</label>
                                 <input type="date" className={inputClass} value={filters.start} onChange={e=>setFilters({...filters, start: e.target.value})} />
                             </div>
-                            <div className="w-1/2">
-                                <label className="text-xs text-gray-500 font-bold block mb-1">Fim</label>
+                            <div>
+                                <label className="text-[10px] text-gray-500 font-bold uppercase mb-1">Fim</label>
                                 <input type="date" className={inputClass} value={filters.end} onChange={e=>setFilters({...filters, end: e.target.value})} />
                             </div>
                         </div>
-                        <div className="flex gap-2">
-                            <div className="w-1/2">
-                                <label className="text-xs text-gray-500 font-bold block mb-1">Categoria</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="text-[10px] text-gray-500 font-bold uppercase mb-1">Categoria</label>
                                 <select className={inputClass} value={filters.cat} onChange={e=>setFilters({...filters, cat: e.target.value})}>
                                     <option value="">Todas</option>
                                     {Object.keys(CATEGORIAS).map(c=><option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
-                            <div className="w-1/2">
-                                <label className="text-xs text-gray-500 font-bold block mb-1">Termo</label>
+                            <div>
+                                <label className="text-[10px] text-gray-500 font-bold uppercase mb-1">Termo</label>
                                 <input type="text" placeholder="Buscar..." className={inputClass} value={filters.term} onChange={e=>setFilters({...filters, term: e.target.value})} />
                             </div>
                         </div>
                     </div>
 
                     <div className="flex justify-between items-center mb-4 px-2">
-                        <span className="text-sm text-gray-500">{results.length} resultados</span>
-                        <span className="font-bold text-green-600 text-lg">{totalSum.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
+                        <span className="text-xs text-gray-500">{results.length} resultados</span>
+                        <span className="font-bold text-green-600 text-base">{totalSum.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
                     </div>
 
-                    <div>
-                        {results.map(item => <Card key={item.docId} item={item} onDelete={onDelete} />)}
+                    <div className="space-y-3">
+                        {results.length === 0 ? <p className="text-center text-gray-400 text-sm mt-8">Nada encontrado com esses filtros.</p> : 
+                         results.map(item => <ExpenseCard key={item.docId} item={item} onDelete={onDelete} />)
+                        }
                     </div>
                 </div>
             );
@@ -322,6 +348,7 @@
             const [user, setUser] = useState(null);
             const [view, setView] = useState('list'); 
             const [expenses, setExpenses] = useState([]);
+            const [isLoading, setIsLoading] = useState(false);
             
             useEffect(() => {
                 auth.onAuthStateChanged(u => {
@@ -331,38 +358,71 @@
             }, []);
 
             const loadData = async () => {
+                setIsLoading(true);
                 try {
-                    const snapshot = await db.collection("despesas").get();
+                    // Carrega dados uma vez
+                    const snapshot = await db.collection("despesas").limit(500).get(); // Limite de 500 para não travar
                     const processed = snapshot.docs.map(doc => {
                         const d = doc.data();
                         return { docId: doc.id, ...d, dateObj: parseDate(d.Data), rawTotal: formatMoney(d.Total) };
                     });
+                    // Ordenação Client-Side
                     processed.sort((a, b) => b.dateObj - a.dateObj);
                     setExpenses(processed);
-                } catch (error) { console.error(error); }
+                } catch (error) { 
+                    console.error(error); 
+                } finally {
+                    setIsLoading(false);
+                }
             };
 
             const handleSave = async (data) => {
-                const payload = {
-                    "Data": data.Data,
-                    "Categoria": data.Categoria,
-                    "Sub Categoria": data.SubCategoria,
-                    "Descrição": data.Descrição,
-                    "Quantidade": parseFloat(data.Quantidade),
-                    "Preço Unitário": parseFloat(data.PrecoUnitario),
-                    "Total": parseFloat(data.Total),
-                    "Observações": data.Observações,
-                    "Timestamp": firebase.firestore.FieldValue.serverTimestamp()
-                };
-                await db.collection("despesas").add(payload);
-                await loadData(); // Recarrega os dados
-                alert('Salvo com sucesso!');
-                setView('list'); // Retorna para a tela de extrato (Resolve a tela branca)
+                try {
+                    // 1. Cria objeto
+                    const payload = {
+                        "Data": data.Data,
+                        "Categoria": data.Categoria,
+                        "Sub Categoria": data.SubCategoria,
+                        "Descrição": data.Descrição,
+                        "Quantidade": parseFloat(data.Quantidade),
+                        "Preço Unitário": parseFloat(data.PrecoUnitario),
+                        "Total": parseFloat(data.Total),
+                        "Observações": data.Observações,
+                        "Timestamp": firebase.firestore.FieldValue.serverTimestamp()
+                    };
+
+                    // 2. Salva no Firestore (Sem await blocking na UI visual)
+                    const docRef = await db.collection("despesas").add(payload);
+
+                    // 3. Atualização OTIMISTA (Atualiza lista local sem baixar tudo de novo)
+                    const newItem = { 
+                        docId: docRef.id, 
+                        ...payload, 
+                        dateObj: parseDate(data.Data), 
+                        rawTotal: payload.Total 
+                    };
+
+                    setExpenses(prev => {
+                        const newList = [newItem, ...prev];
+                        return newList.sort((a, b) => b.dateObj - a.dateObj);
+                    });
+
+                    // 4. Troca view imediatamente
+                    setView('list'); 
+                    alert('Salvo com sucesso!');
+
+                } catch (error) {
+                    console.error("Erro ao salvar", error);
+                    alert("Erro ao salvar: " + error.message);
+                }
             };
 
             const handleDelete = async (id) => {
-                await db.collection("despesas").doc(id).delete();
-                setExpenses(prev => prev.filter(e => e.docId !== id));
+                if(!confirm('Apagar registro?')) return;
+                try {
+                    await db.collection("despesas").doc(id).delete();
+                    setExpenses(prev => prev.filter(e => e.docId !== id));
+                } catch(e) { alert("Erro ao apagar"); }
             };
 
             if (!user) return (
@@ -375,27 +435,27 @@
             );
 
             return (
-                <div className="max-w-md mx-auto min-h-screen bg-gray-100 relative shadow-2xl overflow-hidden">
+                <div className="max-w-md mx-auto min-h-screen bg-gray-100 relative shadow-xl overflow-hidden">
                     
-                    {/* Área de Conteúdo */}
-                    {view === 'list' && <ExpenseList expenses={expenses} onDelete={handleDelete} />}
+                    {/* Views */}
+                    {view === 'list' && <ExpenseList expenses={expenses} onDelete={handleDelete} isLoading={isLoading} />}
                     {view === 'add' && <AddExpense onSave={handleSave} />}
                     {view === 'search' && <AdvancedSearch expenses={expenses} onDelete={handleDelete} />}
 
-                    {/* Menu Inferior Fixo */}
-                    <nav className="fixed bottom-0 w-full max-w-md bg-white border-t flex justify-around items-center h-16 pb-safe z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                        <button onClick={() => setView('list')} className={`flex flex-col items-center w-full transition-colors ${view === 'list' ? 'text-blue-600' : 'text-gray-400'}`}>
+                    {/* Menu Fixo */}
+                    <nav className="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-200 flex justify-around items-center h-16 pb-safe z-50 shadow-lg">
+                        <button onClick={() => setView('list')} className={`flex flex-col items-center w-full ${view === 'list' ? 'text-blue-600' : 'text-gray-400'}`}>
                             <Icon name="list" size={24} />
                             <span className="text-[10px] mt-1 font-medium">Extrato</span>
                         </button>
                         
                         <div className="relative -top-6">
-                            <button onClick={() => setView('add')} className={`text-white p-4 rounded-full shadow-lg transition-transform active:scale-90 ${view === 'add' ? 'bg-blue-700 ring-4 ring-blue-100' : 'bg-blue-600'}`}>
-                                <Icon name="plus" size={32} />
+                            <button onClick={() => setView('add')} className={`text-white p-4 rounded-full shadow-lg transition-transform active:scale-95 ${view === 'add' ? 'bg-blue-700' : 'bg-blue-600'}`}>
+                                <Icon name="plus" size={28} />
                             </button>
                         </div>
 
-                        <button onClick={() => setView('search')} className={`flex flex-col items-center w-full transition-colors ${view === 'search' ? 'text-blue-600' : 'text-gray-400'}`}>
+                        <button onClick={() => setView('search')} className={`flex flex-col items-center w-full ${view === 'search' ? 'text-blue-600' : 'text-gray-400'}`}>
                             <Icon name="search" size={24} />
                             <span className="text-[10px] mt-1 font-medium">Busca</span>
                         </button>
