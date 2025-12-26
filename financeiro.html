@@ -115,23 +115,17 @@
                     let year = postingDate.getFullYear();
                     const postingMonth = postingDate.getMonth() + 1; // 0-11 to 1-12
 
-                    // Correção de virada de ano:
-                    // Se a data extraída for Dezembro (12) e a postagem for Janeiro (1),
-                    // significa que a compra foi no ano anterior.
                     if (extractedMonth === 12 && postingMonth === 1) {
                         year = year - 1;
                     } 
-                    // Proteção simples: se extraiu Janeiro e estamos em Dezembro, pode ser erro futuro, 
-                    // mas bancos geralmente não mostram futuro na descrição. Mantemos lógica simples.
 
-                    // Formata para YYYY-MM-DD
                     const pad = (n) => n.toString().padStart(2, '0');
                     return `${year}-${pad(extractedMonth)}-${pad(extractedDay)}`;
                 }
             } catch (e) {
                 console.warn("Erro ao extrair data da descrição", e);
             }
-            return postingDateIso; // Retorna a data original se não achar nada
+            return postingDateIso; 
         };
 
         // --- Default Config ---
@@ -193,31 +187,92 @@
             );
         };
 
-        // --- Balance Panel ---
+        // --- Balance Panel (RESTAURADO) ---
         const BalancePanel = ({ revenues, expenses }) => {
             const [viewDate, setViewDate] = useState(new Date());
             const changeMonth = (offset) => { const d = new Date(viewDate); d.setMonth(d.getMonth() + offset); setViewDate(d); };
             const currentMonth = viewDate.getMonth();
             const currentYear = viewDate.getFullYear();
             
+            // Monthly totals
             const monthRev = revenues.filter(r => { const d = new Date(r.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).reduce((acc, curr) => acc + Number(curr.amount), 0);
             const monthExp = expenses.filter(r => { const d = new Date(r.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).reduce((acc, curr) => acc + Number(curr.amount), 0);
+            const monthBalance = monthRev - monthExp;
+
+            // Accumulated totals
             const totalRev = revenues.reduce((acc, curr) => acc + Number(curr.amount), 0);
             const totalExp = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+            const totalBalance = totalRev - totalExp;
             
             const totalVolume = totalRev + totalExp;
             const revPercent = totalVolume > 0 ? (totalRev / totalVolume) * 100 : 50;
             const monthName = viewDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+            const monthLabelFormatted = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
             if (totalVolume === 0) return <div className="h-full flex flex-col items-center justify-center p-8 text-center text-gray-500"><Upload size={48} className="text-emerald-600 mb-4"/><p>Importe um extrato para começar.</p><button onClick={() => signOut(auth)} className="mt-4 text-emerald-600 font-bold underline">Sair</button></div>;
 
             return (
                 <div className="space-y-6 pb-24 fade-in">
                     <header className="bg-gray-900 text-white p-6 rounded-b-3xl shadow-lg relative overflow-hidden">
-                        <div className="flex justify-between items-start mb-4 relative z-10"><div><h1 className="text-2xl font-bold">Balanço</h1><p className="text-sm text-gray-400">Visão Geral</p></div><button onClick={() => signOut(auth)} className="bg-white/10 p-2 rounded-lg"><LogOut size={18}/></button></div>
-                        <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 relative z-10"><span className="text-xs uppercase text-gray-400">Saldo Total</span><div className={`text-3xl font-bold mt-1 ${totalRev - totalExp >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(totalRev - totalExp)}</div></div>
+                        <div className="absolute top-0 right-0 p-32 bg-emerald-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -translate-y-1/2 translate-x-1/2"></div>
+                        
+                        <div className="flex justify-between items-start mb-4 relative z-10">
+                            <div><h1 className="text-2xl font-bold">Balanço Geral</h1><p className="text-sm text-gray-400">Resumo Financeiro</p></div>
+                            <button onClick={() => signOut(auth)} className="bg-white/10 p-2 rounded-lg hover:bg-white/20"><LogOut size={18}/></button>
+                        </div>
+
+                        <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 relative z-10">
+                            <span className="text-gray-400 text-xs uppercase tracking-wider">Saldo Acumulado</span>
+                            <div className={`text-4xl font-bold mt-1 ${totalBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(totalBalance)}</div>
+                            
+                            <div className="mt-4 flex gap-4 pt-4 border-t border-white/10">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-1 text-emerald-400 text-xs mb-1"><ArrowUpCircle size={12} /> Receitas</div>
+                                    <div className="font-semibold text-lg">{formatCurrency(totalRev)}</div>
+                                </div>
+                                <div className="w-px bg-white/20"></div>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-1 text-red-400 text-xs mb-1"><ArrowDownCircle size={12} /> Despesas</div>
+                                    <div className="font-semibold text-lg">{formatCurrency(totalExp)}</div>
+                                </div>
+                            </div>
+                        </div>
                     </header>
-                    <div className="px-6"><div className="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm mb-4"><button onClick={() => changeMonth(-1)} className="p-2"><ChevronLeft size={20}/></button><span className="font-bold capitalize text-sm">{monthName}</span><button onClick={() => changeMonth(1)} className="p-2"><ChevronRight size={20}/></button></div><div className="grid grid-cols-2 gap-3"><div className="bg-white p-4 rounded-xl shadow-sm text-center"><p className="text-xs text-gray-500">Entradas</p><p className="font-bold text-emerald-600">{formatCurrency(monthRev)}</p></div><div className="bg-white p-4 rounded-xl shadow-sm text-center"><p className="text-xs text-gray-500">Saídas</p><p className="font-bold text-red-600">{formatCurrency(monthExp)}</p></div></div></div>
+
+                    <div className="px-6">
+                        <h3 className="text-gray-600 font-bold mb-3 flex items-center gap-2"><PieChart size={18}/> Proporção</h3>
+                        <div className="h-4 bg-gray-200 rounded-full overflow-hidden flex">
+                            <div className="h-full bg-emerald-500 progress-bar" style={{width: `${revPercent}%`}}></div>
+                            <div className="h-full bg-red-500 progress-bar" style={{width: `${100 - revPercent}%`}}></div>
+                        </div>
+                    </div>
+
+                    <div className="px-6">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-gray-600 font-bold flex items-center gap-2"><Calendar size={18}/> Este Mês</h3>
+                        </div>
+                        <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-4">
+                            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-600"><ChevronLeft size={20}/></button>
+                            <span className="font-bold text-gray-800 text-sm uppercase tracking-wide">{monthLabelFormatted}</span>
+                            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-600"><ChevronRight size={20}/></button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <div className="bg-emerald-100 w-8 h-8 rounded-full flex items-center justify-center text-emerald-600 mb-2"><TrendingUp size={16} /></div>
+                                <p className="text-xs text-gray-500">Entradas</p>
+                                <p className="font-bold text-gray-800 text-lg">{formatCurrency(monthRev)}</p>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <div className="bg-red-100 w-8 h-8 rounded-full flex items-center justify-center text-red-600 mb-2"><TrendingDown size={16} /></div>
+                                <p className="text-xs text-gray-500">Saídas</p>
+                                <p className="font-bold text-gray-800 text-lg">{formatCurrency(monthExp)}</p>
+                            </div>
+                        </div>
+                        <div className={`mt-3 p-3 rounded-xl border flex justify-between items-center ${monthBalance >= 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
+                            <span className="text-sm font-semibold">Resultado de {monthLabelFormatted.split(' ')[0]}</span>
+                            <span className="font-bold">{formatCurrency(monthBalance)}</span>
+                        </div>
+                    </div>
                 </div>
             );
         };
@@ -231,6 +286,7 @@
 
             const changeMonth = (offset) => { const d = new Date(viewDate); d.setMonth(d.getMonth() + offset); setViewDate(d); setExpandedDay(null); };
             const monthName = viewDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+            const monthLabelFormatted = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
             useEffect(() => { analyze(newSystemExpenses, oldSystemExpenses); }, [viewDate, newSystemExpenses, oldSystemExpenses]);
 
@@ -302,7 +358,7 @@
                         <h1 className="font-bold flex items-center gap-2"><Scale size={20}/> Conciliação</h1>
                         <div className="flex items-center gap-2 bg-purple-900/50 p-1 rounded-lg">
                             <button onClick={() => changeMonth(-1)}><ChevronLeft size={20}/></button>
-                            <span className="text-xs font-bold w-24 text-center capitalize">{monthName}</span>
+                            <span className="text-xs font-bold w-24 text-center capitalize">{monthLabelFormatted}</span>
                             <button onClick={() => changeMonth(1)}><ChevronRight size={20}/></button>
                         </div>
                     </div>
@@ -411,7 +467,6 @@
                             const dParts = cols[0].split('/');
                             let dateIso = dParts.length === 3 ? `${dParts[2]}-${dParts[1]}-${dParts[0]}` : new Date().toISOString().split('T')[0];
                             
-                            // APLICAÇÃO DA INTELIGÊNCIA DE DATA AQUI
                             dateIso = extractRealDateFromDescription(dateIso, descOriginal);
 
                             const isDuplicate = data.some(existing => existing.date === dateIso && existing.description === descOriginal && Math.abs(existing.amount) === Math.abs(val));
@@ -494,6 +549,11 @@
                         const qOld = query(collection(db, 'despesas'));
                         onSnapshot(qOld, (snap) => setOldExpenses(snap.docs.map(d => ({id: d.id, ...d.data()}))), (err) => console.log("Erro old db", err));
 
+                        onSnapshot(doc(db, 'artifacts', appNamespace, 'users', u.uid, 'config', 'main'), (snap) => {
+                            if (snap.exists()) setConfig(snap.data());
+                            else setDoc(doc(db, 'artifacts', appNamespace, 'users', u.uid, 'config', 'main'), defaultConfig);
+                        });
+
                         setLoading(false);
                     } else { setLoading(false); }
                 });
@@ -505,6 +565,10 @@
                 const coll = data.type === 'revenue' ? 'farm_revenues' : 'farm_expenses';
                 await addDoc(collection(db, 'artifacts', appNamespace, 'users', user.uid, coll), { ...data, createdAt: serverTimestamp() });
             };
+            const addBulk = async (items) => { const batch = items.map(item => addDoc(collection(db, 'artifacts', appNamespace, 'users', user.uid, item.type === 'revenue' ? 'farm_revenues' : 'farm_expenses'), { ...item, createdAt: serverTimestamp() })); await Promise.all(batch); };
+            const deleteTransaction = async (id, type) => { if(!confirm('Tem certeza?')) return; await deleteDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, type === 'revenue' ? 'farm_revenues' : 'farm_expenses', id)); };
+            const updateTransaction = async (id, data, type) => { await updateDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, type === 'revenue' ? 'farm_revenues' : 'farm_expenses', id), data); };
+            const updateConfig = async (newConfig) => { setConfig(newConfig); await setDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, 'config', 'main'), newConfig); };
 
             if (loading) return <div className="h-screen flex items-center justify-center">Carregando...</div>;
             if (!user) return <AuthScreen />;
@@ -515,18 +579,32 @@
                         <main className="flex-1 overflow-y-auto">
                             {activeTab === 'balance' && <BalancePanel revenues={revenues} expenses={expenses} />}
                             {activeTab === 'reconcile' && <ReconciliationTool oldSystemExpenses={oldExpenses} newSystemExpenses={expenses} onAddMissing={addTransaction} />}
-                            {/* Simplifiquei a renderização das outras abas aqui para focar na correção do erro, mas a lógica completa está no código anterior se precisar restaurar */}
-                            {activeTab === 'settings' && <SettingsPanel config={config} onUpdateConfig={()=>{}} />}
-                            {activeTab === 'revenues' && <TransactionManager type="revenue" data={revenues} onAdd={addTransaction} config={config} />}
-                            {activeTab === 'expenses' && <TransactionManager type="expense" data={expenses} onAdd={addTransaction} config={config} />}
+                            {activeTab === 'settings' && <SettingsPanel config={config} onUpdateConfig={updateConfig} />}
+                            {activeTab === 'revenues' && <TransactionManager type="revenue" data={revenues} onAdd={addTransaction} onImport={addBulk} onDelete={(id) => deleteTransaction(id, 'revenue')} onUpdate={(id, data) => updateTransaction(id, data, 'revenue')} config={config} />}
+                            {activeTab === 'expenses' && <TransactionManager type="expense" data={expenses} onAdd={addTransaction} onImport={addBulk} onDelete={(id) => deleteTransaction(id, 'expense')} onUpdate={(id, data) => updateTransaction(id, data, 'expense')} config={config} />}
                         </main>
                         <nav className="bg-white border-t border-gray-200 fixed bottom-0 w-full pb-safe z-50">
                             <div className="flex justify-around items-center h-16">
-                                <button onClick={() => setActiveTab('balance')} className={`p-2 ${activeTab === 'balance' ? 'text-gray-900' : 'text-gray-400'}`}><PieChart size={20}/></button>
-                                <button onClick={() => setActiveTab('revenues')} className={`p-2 ${activeTab === 'revenues' ? 'text-emerald-600' : 'text-gray-400'}`}><ArrowUpCircle size={20}/></button>
-                                <button onClick={() => setActiveTab('reconcile')} className={`p-2 ${activeTab === 'reconcile' ? 'text-purple-600' : 'text-gray-400'}`}><Scale size={24}/></button>
-                                <button onClick={() => setActiveTab('expenses')} className={`p-2 ${activeTab === 'expenses' ? 'text-red-600' : 'text-gray-400'}`}><ArrowDownCircle size={20}/></button>
-                                <button onClick={() => setActiveTab('settings')} className={`p-2 ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400'}`}><Settings size={20}/></button>
+                                <button onClick={() => setActiveTab('balance')} className={`flex flex-col items-center justify-center w-full ${activeTab === 'balance' ? 'text-gray-900' : 'text-gray-400'}`}>
+                                    <PieChart size={22} strokeWidth={activeTab === 'balance' ? 2.5 : 2} />
+                                    <span className="text-[10px] font-medium">Balanço</span>
+                                </button>
+                                <button onClick={() => setActiveTab('revenues')} className={`flex flex-col items-center justify-center w-full ${activeTab === 'revenues' ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                    <ArrowUpCircle size={22} strokeWidth={activeTab === 'revenues' ? 2.5 : 2} />
+                                    <span className="text-[10px] font-medium">Receitas</span>
+                                </button>
+                                <button onClick={() => setActiveTab('reconcile')} className={`flex flex-col items-center justify-center w-full ${activeTab === 'reconcile' ? 'text-purple-600' : 'text-gray-400'}`}>
+                                    <Scale size={24} strokeWidth={activeTab === 'reconcile' ? 2.5 : 2} />
+                                    <span className="text-[9px] font-bold">Conciliar</span>
+                                </button>
+                                <button onClick={() => setActiveTab('expenses')} className={`flex flex-col items-center justify-center w-full ${activeTab === 'expenses' ? 'text-red-600' : 'text-gray-400'}`}>
+                                    <ArrowDownCircle size={22} strokeWidth={activeTab === 'expenses' ? 2.5 : 2} />
+                                    <span className="text-[10px] font-medium">Despesas</span>
+                                </button>
+                                <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center justify-center w-full ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400'}`}>
+                                    <Settings size={22} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
+                                    <span className="text-[10px] font-medium">Ajustes</span>
+                                </button>
                             </div>
                         </nav>
                     </div>
