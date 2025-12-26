@@ -26,11 +26,6 @@
             background-color: #f3f4f6;
             -webkit-tap-highlight-color: transparent;
         }
-        /* Esconde scrollbar mas permite scroll */
-        .hide-scroll::-webkit-scrollbar { display: none; }
-        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Safe Area para iPhones novos */
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     </style>
 </head>
@@ -41,7 +36,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- CONFIGURAÇÃO FIREBASE (Do seu arquivo original) ---
+        // --- CONFIGURAÇÃO FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
             authDomain: "fazendawm-83f34.firebaseapp.com",
@@ -52,14 +47,45 @@
             measurementId: "G-QQVTP0CQ4H"
         };
         
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        // --- CONSTANTES ---
+        // --- UTILITÁRIOS DE TRATAMENTO DE DADOS (CRUCIAIS) ---
+        
+        // Função robusta para interpretar datas de formatos variados (dd/mm/yyyy ou yyyy-mm-dd)
+        const parseDate = (dateVal) => {
+            if (!dateVal) return new Date();
+            // Se já for objeto Timestamp do Firestore
+            if (dateVal && typeof dateVal.toDate === 'function') return dateVal.toDate();
+            // Se for string
+            if (typeof dateVal === 'string') {
+                // Tenta formato BR: dd/mm/yyyy
+                if (dateVal.includes('/')) {
+                    const parts = dateVal.split('/');
+                    if (parts.length === 3) {
+                        // Mês em JS começa em 0
+                        return new Date(parts[2], parts[1] - 1, parts[0], 12, 0, 0);
+                    }
+                }
+                // Tenta formato ISO: yyyy-mm-dd
+                if (dateVal.includes('-')) {
+                    // Adicionamos T12:00:00 para evitar problemas de fuso horário voltando 1 dia
+                    return new Date(dateVal + 'T12:00:00');
+                }
+            }
+            return new Date(); // Fallback
+        };
+
+        const formatMoney = (val) => {
+            if (typeof val === 'number') return val;
+            if (typeof val === 'string') {
+                return parseFloat(val.replace('R$', '').trim().replace(/\./g, '').replace(',', '.')) || 0;
+            }
+            return 0;
+        };
+
         const CATEGORIAS = {
             "Pecuária": ["Alimentação", "Medicamentos", "Sanidade", "Reprodução"],
             "Agricultura": ["Insumos", "Fertilizantes", "Sementes", "Mão de Obra"],
@@ -70,116 +96,126 @@
 
         // --- COMPONENTES UI ---
 
-        const Icon = ({ name, size = 24, className = "" }) => {
-            useEffect(() => {
-                lucide.createIcons();
-            }, [name]);
+        const Icon = ({ name, size = 20, className = "" }) => {
+            useEffect(() => { lucide.createIcons(); }, [name]);
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
         };
 
         const Card = ({ children, className = "" }) => (
-            <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 ${className}`}>
+            <div className={`bg-white rounded-xl shadow-sm border-l-4 p-4 ${className}`}>
                 {children}
             </div>
         );
 
-        const Button = ({ onClick, children, variant = 'primary', className = "", type = "button" }) => {
-            const baseClass = "flex items-center justify-center font-medium rounded-lg px-4 py-3 w-full transition-colors active:scale-95";
-            const variants = {
-                primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-200",
-                danger: "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100",
-                ghost: "bg-transparent text-gray-600 hover:bg-gray-50"
-            };
-            return (
-                <button type={type} onClick={onClick} className={`${baseClass} ${variants[variant]} ${className}`}>
-                    {children}
-                </button>
-            );
-        };
-
-        // --- COMPONENTE: LOGIN ---
+        // --- TELA DE LOGIN ---
         const LoginScreen = ({ onLogin }) => (
-            <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gray-50">
-                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-200">
-                    <Icon name="tractor" className="text-white" size={32} />
+            <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gray-100">
+                <div className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center mb-6 shadow-xl">
+                    <Icon name="sprout" className="text-white" size={40} />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Fazenda WM</h1>
-                <p className="text-gray-500 mb-8 text-center">Gestão financeira simplificada para o dia a dia.</p>
-                <Button onClick={onLogin}>
-                    <Icon name="log-in" className="mr-2" size={20} /> Entrar com Google
-                </Button>
+                <h1 className="text-2xl font-bold text-gray-800">Fazenda WM</h1>
+                <p className="text-gray-500 mb-8">Gestão Financeira</p>
+                <button onClick={onLogin} className="bg-white text-gray-700 font-medium py-3 px-6 rounded-lg shadow flex items-center gap-3 active:scale-95 transition-transform">
+                    <Icon name="log-in" size={20} /> Entrar com Google
+                </button>
             </div>
         );
 
-        // --- COMPONENTE: LISTA DE DESPESAS (HOME) ---
+        // --- TELA: LISTA DE DESPESAS ---
         const ExpenseList = ({ expenses, onDelete }) => {
             const [filter, setFilter] = useState('');
 
+            // Filtro local
             const filtered = useMemo(() => {
-                if (!filter) return expenses.slice(0, 50); // Limita a 50 p/ performance
-                const lower = filter.toLowerCase();
-                return expenses.filter(e => 
-                    e.Descrição?.toLowerCase().includes(lower) || 
-                    e.Categoria?.toLowerCase().includes(lower)
-                );
+                let data = expenses;
+                if (filter) {
+                    const lower = filter.toLowerCase();
+                    data = data.filter(e => 
+                        (e.Descrição && e.Descrição.toLowerCase().includes(lower)) || 
+                        (e.Categoria && e.Categoria.toLowerCase().includes(lower))
+                    );
+                }
+                return data.slice(0, 100); // Mostra os 100 mais recentes após filtro
             }, [expenses, filter]);
 
+            // Mapeamento de cores por categoria para facilitar leitura
+            const getCategoryColor = (cat) => {
+                const map = {
+                    'Pecuária': 'border-green-500',
+                    'Agricultura': 'border-yellow-500',
+                    'Infraestrutura': 'border-gray-500',
+                    'Administrativo': 'border-blue-500',
+                    'Outros': 'border-purple-500'
+                };
+                return map[cat] || 'border-gray-200';
+            };
+
             return (
-                <div className="pb-24 pt-4 px-4 space-y-4">
-                    <div className="sticky top-0 bg-gray-50/95 backdrop-blur z-10 py-2">
-                        <div className="relative">
-                            <Icon name="search" className="absolute left-3 top-3 text-gray-400" size={20} />
+                <div className="pb-24 pt-2 px-3 space-y-3">
+                    {/* Barra de Busca Fixa */}
+                    <div className="sticky top-0 pt-2 pb-2 bg-gray-100/95 backdrop-blur z-10">
+                        <div className="relative shadow-sm">
+                            <Icon name="search" className="absolute left-3 top-3.5 text-gray-400" size={18} />
                             <input 
                                 type="text" 
-                                placeholder="Buscar despesa..." 
-                                className="w-full pl-10 pr-4 py-3 rounded-xl border-none bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="Buscar (ex: Vaqueiro, Ração)..." 
+                                className="w-full pl-10 pr-4 py-3 rounded-lg border-none bg-white text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
                                 value={filter}
                                 onChange={(e) => setFilter(e.target.value)}
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        {filtered.length === 0 ? (
-                            <div className="text-center py-10 text-gray-400">
-                                <Icon name="inbox" className="mx-auto mb-2 opacity-50" />
-                                <p>Nenhuma despesa encontrada.</p>
-                            </div>
-                        ) : (
-                            filtered.map(item => (
-                                <Card key={item.docId} className="flex justify-between items-center active:bg-gray-50">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                                                {item.Categoria}
-                                            </span>
-                                            <span className="text-xs text-gray-400">
-                                                {new Date(item.Data).toLocaleDateString('pt-BR')}
-                                            </span>
-                                        </div>
-                                        <h3 className="font-semibold text-gray-800">{item.Descrição}</h3>
-                                        <p className="text-sm text-gray-500">{item['Sub Categoria']}</p>
+                    {filtered.length === 0 ? (
+                        <div className="text-center py-12 opacity-50">
+                            <Icon name="list-x" size={48} className="mx-auto mb-2" />
+                            <p>Nenhum registro encontrado.</p>
+                        </div>
+                    ) : (
+                        filtered.map(item => (
+                            <Card key={item.docId} className={`${getCategoryColor(item.Categoria)} flex justify-between items-start`}>
+                                <div className="flex-1 pr-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        {/* Data formatada corretamente */}
+                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                                            <Icon name="calendar" size={12} />
+                                            {item.dateObj.toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})}
+                                        </span>
+                                        <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-600 border border-gray-200">
+                                            {item.Categoria}
+                                        </span>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="font-bold text-gray-900 text-lg">
-                                            {item.Total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
-                                        </p>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); if(confirm('Excluir?')) onDelete(item.docId); }}
-                                            className="text-red-400 p-2 -mr-2"
-                                        >
-                                            <Icon name="trash-2" size={16} />
-                                        </button>
-                                    </div>
-                                </Card>
-                            ))
-                        )}
-                    </div>
+                                    
+                                    {/* Descrição em Destaque */}
+                                    <h3 className="font-bold text-gray-800 text-base leading-tight">
+                                        {item.Descrição || "Sem descrição"}
+                                    </h3>
+                                    
+                                    {/* Subcategoria secundária */}
+                                    <p className="text-sm text-gray-500 mt-0.5">
+                                        {item['Sub Categoria'] || '-'}
+                                    </p>
+                                </div>
+
+                                <div className="flex flex-col items-end justify-between h-full gap-2">
+                                    <span className="font-bold text-gray-900 text-lg whitespace-nowrap">
+                                        {item.rawTotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                                    </span>
+                                    <button 
+                                        onClick={() => { if(confirm('Tem certeza que deseja apagar?')) onDelete(item.docId); }}
+                                        className="text-red-400 p-2 hover:bg-red-50 rounded-full -mr-2"
+                                    >
+                                        <Icon name="trash-2" size={18} />
+                                    </button>
+                                </div>
+                            </Card>
+                        ))
+                    )}
                 </div>
             );
         };
 
-        // --- COMPONENTE: NOVA DESPESA ---
+        // --- TELA: NOVA DESPESA ---
         const AddExpense = ({ onSave, onCancel }) => {
             const [formData, setFormData] = useState({
                 Data: new Date().toISOString().split('T')[0],
@@ -192,64 +228,60 @@
             });
             const [loading, setLoading] = useState(false);
 
-            // Atualiza total automático
             useEffect(() => {
-                const total = (parseFloat(formData.Quantidade) || 0) * (parseFloat(formData.PrecoUnitario) || 0);
-                setFormData(prev => ({ ...prev, Total: total }));
+                const q = parseFloat(formData.Quantidade) || 0;
+                const p = parseFloat(formData.PrecoUnitario) || 0;
+                setFormData(prev => ({ ...prev, Total: q * p }));
             }, [formData.Quantidade, formData.PrecoUnitario]);
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 setLoading(true);
-                try {
-                    await onSave(formData);
-                } catch (error) {
-                    alert("Erro: " + error.message);
-                } finally {
-                    setLoading(false);
-                }
+                await onSave(formData);
+                setLoading(false);
             };
 
             return (
-                <div className="min-h-screen bg-white pb-24">
-                    <div className="sticky top-0 bg-white border-b px-4 py-4 flex items-center justify-between z-20">
-                        <button onClick={onCancel} className="text-gray-500"><Icon name="x" /></button>
+                <div className="bg-white min-h-screen pb-safe">
+                    <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-20">
+                        <button onClick={onCancel} className="text-gray-500"><Icon name="x" size={24}/></button>
                         <h2 className="font-bold text-lg">Nova Despesa</h2>
-                        <div className="w-6"></div> {/* Spacer */}
+                        <div className="w-6"></div>
                     </div>
-
-                    <form onSubmit={handleSubmit} className="p-4 space-y-5">
-                        {/* Valor Grande */}
-                        <div className="bg-gray-50 p-4 rounded-xl text-center">
-                            <label className="text-xs text-gray-500 uppercase tracking-wide">Valor Total</label>
-                            <div className="flex items-center justify-center text-3xl font-bold text-gray-900 mt-1">
-                                <span className="text-lg mr-1">R$</span>
-                                {formData.Total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                    
+                    <form onSubmit={handleSubmit} className="p-5 space-y-5">
+                         <div className="bg-green-50 p-4 rounded-xl text-center border border-green-100">
+                            <label className="text-xs text-green-700 font-bold uppercase">Total Estimado</label>
+                            <div className="text-3xl font-bold text-green-800 mt-1">
+                                {formData.Total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
                             </div>
                         </div>
 
                         <div>
-                            <label className="label-text">O que foi comprado? *</label>
-                            <input required type="text" className="input-field" placeholder="Ex: Ração, Gasolina..." 
-                                value={formData.Descrição} 
-                                onChange={e => setFormData({...formData, Descrição: e.target.value})} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                            <input type="date" required className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none"
+                                value={formData.Data} onChange={e => setFormData({...formData, Data: e.target.value})} />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                            <input type="text" required placeholder="O que foi pago?" className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none"
+                                value={formData.Descrição} onChange={e => setFormData({...formData, Descrição: e.target.value})} />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="label-text">Categoria *</label>
-                                <select required className="input-field"
-                                    value={formData.Categoria}
-                                    onChange={e => setFormData({...formData, Categoria: e.target.value, SubCategoria: ''})}>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                                <select required className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none"
+                                    value={formData.Categoria} onChange={e => setFormData({...formData, Categoria: e.target.value, SubCategoria: ''})}>
                                     <option value="">Selecione</option>
                                     {Object.keys(CATEGORIAS).map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="label-text">Sub *</label>
-                                <select required className="input-field" disabled={!formData.Categoria}
-                                    value={formData.SubCategoria}
-                                    onChange={e => setFormData({...formData, SubCategoria: e.target.value})}>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Sub Categoria</label>
+                                <select required disabled={!formData.Categoria} className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none disabled:opacity-50"
+                                    value={formData.SubCategoria} onChange={e => setFormData({...formData, SubCategoria: e.target.value})}>
                                     <option value="">Selecione</option>
                                     {formData.Categoria && CATEGORIAS[formData.Categoria].map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
@@ -257,169 +289,128 @@
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                             <div>
-                                <label className="label-text">Qtd</label>
-                                <input type="number" step="any" className="input-field text-center" 
-                                    value={formData.Quantidade}
-                                    onChange={e => setFormData({...formData, Quantidade: e.target.value})} />
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Quantidade</label>
+                                <input type="number" step="any" className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none"
+                                    value={formData.Quantidade} onChange={e => setFormData({...formData, Quantidade: e.target.value})} />
                             </div>
                             <div>
-                                <label className="label-text">Preço Unit.</label>
-                                <input required type="number" step="any" className="input-field" placeholder="0,00"
-                                    value={formData.PrecoUnitario}
-                                    onChange={e => setFormData({...formData, PrecoUnitario: e.target.value})} />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Valor Unit. (R$)</label>
+                                <input type="number" step="any" required className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-green-500 outline-none"
+                                    value={formData.PrecoUnitario} onChange={e => setFormData({...formData, PrecoUnitario: e.target.value})} />
                             </div>
                         </div>
 
-                        <div>
-                            <label className="label-text">Data</label>
-                            <input type="date" className="input-field" 
-                                value={formData.Data}
-                                onChange={e => setFormData({...formData, Data: e.target.value})} />
-                        </div>
-
-                        <div className="pt-4">
-                            <Button type="submit" variant="primary" disabled={loading}>
-                                {loading ? 'Salvando...' : 'Salvar Despesa'}
-                            </Button>
-                        </div>
+                        <button disabled={loading} className="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-green-700 transition-colors">
+                            {loading ? 'Salvando...' : 'Confirmar Lançamento'}
+                        </button>
                     </form>
                 </div>
             );
         };
 
-        // --- COMPONENTE: DASHBOARD ---
+        // --- DASHBOARD SIMPLES ---
         const Dashboard = ({ expenses }) => {
             const chartRef = useRef(null);
             
-            // Cálculos
-            const currentMonth = new Date().getMonth();
-            const currentYear = new Date().getFullYear();
-            
-            const monthExpenses = expenses.filter(e => {
-                const d = new Date(e.Data);
-                return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-            });
-            
-            const totalMonth = monthExpenses.reduce((sum, e) => sum + e.Total, 0);
-
-            // Preparar dados do gráfico
             useEffect(() => {
-                if (!chartRef.current) return;
+                if (!chartRef.current || !expenses.length) return;
                 
+                // Agrupar por categoria (Todos os dados carregados)
                 const cats = {};
-                monthExpenses.forEach(e => {
-                    cats[e.Categoria] = (cats[e.Categoria] || 0) + e.Total;
+                expenses.forEach(e => {
+                    cats[e.Categoria] = (cats[e.Categoria] || 0) + e.rawTotal;
                 });
 
-                const ctx = chartRef.current.getContext('2d');
-                
-                // Destruir anterior se existir
                 if (window.myChart) window.myChart.destroy();
 
-                window.myChart = new Chart(ctx, {
+                window.myChart = new Chart(chartRef.current.getContext('2d'), {
                     type: 'doughnut',
                     data: {
                         labels: Object.keys(cats),
                         datasets: [{
                             data: Object.values(cats),
-                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                            backgroundColor: ['#22c55e', '#eab308', '#64748b', '#3b82f6', '#a855f7'],
                             borderWidth: 0
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        cutout: '70%',
-                        plugins: { legend: { position: 'bottom' } }
-                    }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
                 });
             }, [expenses]);
 
+            const totalGeral = expenses.reduce((acc, curr) => acc + curr.rawTotal, 0);
+
             return (
                 <div className="pb-24 pt-6 px-4 space-y-6">
-                    <h2 className="text-xl font-bold text-gray-800">Visão Geral</h2>
-                    
-                    <Card className="bg-gradient-to-br from-blue-600 to-blue-800 text-white border-none">
-                        <p className="text-blue-100 text-sm font-medium mb-1">Total este Mês</p>
-                        <h3 className="text-3xl font-bold">
-                            {totalMonth.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
-                        </h3>
-                        <div className="mt-4 flex items-center text-xs text-blue-200">
-                            <Icon name="calendar" size={14} className="mr-1" />
-                            {new Date().toLocaleDateString('pt-BR', {month: 'long', year: 'numeric'})}
-                        </div>
-                    </Card>
-
-                    <Card>
-                        <h4 className="font-semibold mb-4 text-gray-700">Por Categoria (Mês)</h4>
-                        <div className="h-64">
-                            <canvas ref={chartRef}></canvas>
-                        </div>
-                    </Card>
+                    <h2 className="text-xl font-bold text-gray-800">Resumo Financeiro</h2>
+                    <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-5 text-white shadow-lg">
+                        <p className="text-green-100 text-sm mb-1">Total Acumulado (Carregado)</p>
+                        <h3 className="text-3xl font-bold">{totalGeral.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</h3>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl shadow-sm h-80">
+                        <h3 className="font-semibold text-gray-700 mb-4 text-center">Distribuição por Categoria</h3>
+                        <div className="h-64 relative"><canvas ref={chartRef}></canvas></div>
+                    </div>
                 </div>
             );
         };
 
-        // --- COMPONENTE PRINCIPAL (APP) ---
+        // --- APP PRINCIPAL ---
         const App = () => {
             const [user, setUser] = useState(null);
-            const [view, setView] = useState('list'); // 'list', 'add', 'dashboard'
+            const [view, setView] = useState('list'); 
             const [expenses, setExpenses] = useState([]);
-            const [loadingData, setLoadingData] = useState(false);
-
+            
             useEffect(() => {
-                const unsub = auth.onAuthStateChanged(u => {
+                const u = auth.onAuthStateChanged(u => {
                     setUser(u);
                     if (u) loadData();
                 });
-                return () => unsub();
+                return () => u();
             }, []);
 
-            useEffect(() => {
-                lucide.createIcons();
-            }, [view, user]);
-
+            // Função para carregar e processar dados
             const loadData = async () => {
-                setLoadingData(true);
                 try {
-                    const snap = await db.collection("despesas").orderBy("Data", "desc").limit(100).get();
-                    const data = snap.docs.map(doc => {
+                    // Busca documentos (sem orderBy no Firestore para evitar erro de índice com formatos mistos)
+                    // Trazemos tudo e ordenamos no JS para garantir precisão
+                    const snapshot = await db.collection("despesas").get();
+                    
+                    const processed = snapshot.docs.map(doc => {
                         const d = doc.data();
-                        // Conversão de dados legados do seu sistema original
-                        let dateObj = new Date();
-                        if (typeof d.Data === 'string' && d.Data.includes('-')) dateObj = new Date(d.Data + 'T00:00:00');
-                        
-                        // Parse Total
-                        let total = d.Total;
-                        if (typeof total === 'string') {
-                            total = parseFloat(total.replace('R$', '').trim().replace(/\./g, '').replace(',', '.')) || 0;
-                        }
-
-                        return { docId: doc.id, ...d, Data: dateObj.toISOString(), Total: total };
+                        const dateObj = parseDate(d.Data); // Usa a função corrigida
+                        const rawTotal = formatMoney(d.Total);
+                        return { 
+                            docId: doc.id, 
+                            ...d, 
+                            dateObj: dateObj,
+                            rawTotal: rawTotal
+                        };
                     });
-                    setExpenses(data);
-                } catch (err) {
-                    console.error(err);
-                } finally {
-                    setLoadingData(false);
+
+                    // ORDENAÇÃO NO JS: Garante que 24/12 fique no topo
+                    processed.sort((a, b) => b.dateObj - a.dateObj);
+
+                    setExpenses(processed);
+                } catch (error) {
+                    console.error("Erro ao carregar:", error);
+                    alert("Erro ao buscar dados.");
                 }
             };
 
-            const handleLogin = () => auth.signInWithPopup(provider);
-            const handleLogout = () => auth.signOut();
-
-            const handleSaveExpense = async (data) => {
+            const handleSave = async (data) => {
                 const payload = {
-                    ...data,
-                    "Sub Categoria": data.SubCategoria, // Mantendo compatibilidade com nome antigo
-                    Total: parseFloat(data.Total),
-                    Quantidade: parseFloat(data.Quantidade),
-                    Timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    "Data": data.Data, // Salva como yyyy-mm-dd (padrão input date)
+                    "Categoria": data.Categoria,
+                    "Sub Categoria": data.SubCategoria,
+                    "Descrição": data.Descrição,
+                    "Quantidade": parseFloat(data.Quantidade),
+                    "Preço Unitário": parseFloat(data.PrecoUnitario),
+                    "Total": parseFloat(data.Total),
+                    "Timestamp": firebase.firestore.FieldValue.serverTimestamp()
                 };
-                delete payload.SubCategoria;
-
                 await db.collection("despesas").add(payload);
-                await loadData(); // Recarrega
+                await loadData();
                 setView('list');
             };
 
@@ -428,37 +419,34 @@
                 setExpenses(prev => prev.filter(e => e.docId !== id));
             };
 
-            if (!user) return <LoginScreen onLogin={handleLogin} />;
+            if (!user) return <LoginScreen onLogin={() => auth.signInWithPopup(provider)} />;
 
             return (
-                <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative shadow-2xl">
+                <div className="max-w-md mx-auto min-h-screen bg-gray-100 relative shadow-2xl overflow-hidden">
                     
-                    {/* Renderização Condicional das Telas */}
                     {view === 'list' && <ExpenseList expenses={expenses} onDelete={handleDelete} />}
+                    {view === 'add' && <AddExpense onSave={handleSave} onCancel={() => setView('list')} />}
                     {view === 'dashboard' && <Dashboard expenses={expenses} />}
-                    {view === 'add' && <AddExpense onSave={handleSaveExpense} onCancel={() => setView('list')} />}
 
-                    {/* Bottom Navigation (Só aparece se não estiver adicionando) */}
+                    {/* Menu Inferior */}
                     {view !== 'add' && (
-                        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-safe z-30 max-w-md mx-auto">
-                            <div className="flex justify-around items-center h-16">
-                                <button onClick={() => setView('list')} className={`flex flex-col items-center justify-center w-full h-full ${view === 'list' ? 'text-blue-600' : 'text-gray-400'}`}>
-                                    <Icon name="list" size={24} />
-                                    <span className="text-[10px] font-medium mt-1">Extrato</span>
-                                </button>
-
-                                <div className="relative -top-5">
-                                    <button onClick={() => setView('add')} className="bg-blue-600 text-white rounded-full p-4 shadow-lg shadow-blue-300 hover:scale-105 transition-transform">
-                                        <Icon name="plus" size={28} />
-                                    </button>
-                                </div>
-
-                                <button onClick={() => setView('dashboard')} className={`flex flex-col items-center justify-center w-full h-full ${view === 'dashboard' ? 'text-blue-600' : 'text-gray-400'}`}>
-                                    <Icon name="pie-chart" size={24} />
-                                    <span className="text-[10px] font-medium mt-1">Visão</span>
+                        <nav className="fixed bottom-0 w-full max-w-md bg-white border-t flex justify-around items-center h-16 pb-safe z-30">
+                            <button onClick={() => setView('list')} className={`flex flex-col items-center w-full ${view === 'list' ? 'text-green-600' : 'text-gray-400'}`}>
+                                <Icon name="list" size={24} />
+                                <span className="text-[10px] mt-1">Lançamentos</span>
+                            </button>
+                            
+                            <div className="relative -top-6">
+                                <button onClick={() => setView('add')} className="bg-green-600 text-white p-4 rounded-full shadow-lg hover:bg-green-700 transition-transform active:scale-90">
+                                    <Icon name="plus" size={32} />
                                 </button>
                             </div>
-                        </div>
+
+                            <button onClick={() => setView('dashboard')} className={`flex flex-col items-center w-full ${view === 'dashboard' ? 'text-green-600' : 'text-gray-400'}`}>
+                                <Icon name="pie-chart" size={24} />
+                                <span className="text-[10px] mt-1">Gráficos</span>
+                            </button>
+                        </nav>
                     )}
                 </div>
             );
@@ -467,31 +455,5 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-    
-    <style>
-        /* Utilitários Extras Tailwind via CSS puro para componentes dinâmicos */
-        .input-field {
-            width: 100%;
-            padding: 12px;
-            border-radius: 0.75rem;
-            border: 1px solid #e5e7eb;
-            background-color: #f9fafb;
-            font-size: 16px; /* Evita zoom no iPhone */
-            outline: none;
-            transition: all 0.2s;
-        }
-        .input-field:focus {
-            background-color: white;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-        }
-        .label-text {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #374151;
-            margin-bottom: 0.25rem;
-        }
-    </style>
 </body>
 </html>
