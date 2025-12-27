@@ -5,13 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fazenda WM - Gestão Completa</title>
     
-    <!-- Tailwind CSS -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/628/628283.png">
+    
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/628/628283.png">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Fazenda WM">
+
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Babel para traduzir o React no navegador -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Configuração para evitar zoom no input em iOS e estilos globais -->
     <style>
         @layer utilities {
             .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
@@ -28,7 +33,6 @@
 <body class="bg-gray-50 text-gray-900 select-none">
     <div id="root"></div>
 
-    <!-- Script Principal da Aplicação -->
     <script type="text/babel" data-type="module" data-presets="react">
         import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
         import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
