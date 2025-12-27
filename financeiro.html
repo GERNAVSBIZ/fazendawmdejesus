@@ -594,23 +594,71 @@
             const [csvItems, setCsvItems] = useState([]);
             
             const handleFile = (file) => {
-                if (!file) return; // Segurança contra seleção cancelada
-                setIsReading(true); // Feedback visual
+                if (!file) return;
+                setIsReading(true);
                 
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     try {
-                        const lines = e.target.result.split('\n'); const parsed = [];
+                        const lines = e.target.result.split('\n'); 
+                        const parsed = [];
+                        
                         lines.forEach((line, idx) => {
                             if (!line.trim()) return;
+                            
+                            // Regex smart split (ignora vírgulas dentro de aspas)
                             const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
-                            if (cols.length < 5) return;
-                            let val = parseFloat(cols[cols.length - 1] || cols[5]);
+                            
+                            if (cols.length < 2) return;
+
+                            let dateIso = '';
+                            let descOriginal = '';
+                            let val = 0;
+
+                            // DETECÇÃO DE FORMATO
+                            // Formato 1: Banco Mobile (6 cols: Data, Desc, Detalhe, Doc, Valor, Tipo)
+                            // Ex: "01/12/2025","Pix","Det","123","41,88","Entrada"
+                            // Verifica se coluna 5 tem "Entrada" ou "Saída" OU se coluna 4 parece um valor
+                            const isMobileFormat = cols.length >= 5 && (cols[5] === 'Entrada' || cols[5] === 'Saída' || /^-?[\d.]+,\d{2}$/.test(cols[4]));
+
+                            if (isMobileFormat) {
+                                if (cols[0] === 'Data' || cols[4] === 'Valor') return; // Ignora Header
+                                
+                                // Converter valor BR (1.000,00 -> 1000.00)
+                                let vStr = cols[4].replace(/\./g, '').replace(',', '.');
+                                val = parseFloat(vStr);
+                                
+                                descOriginal = cols[1] + (cols[2] ? ' ' + cols[2] : '');
+                                
+                                // Parse Data DD/MM/YYYY
+                                const dParts = cols[0].split('/');
+                                if (dParts.length === 3) dateIso = `${dParts[2]}-${dParts[1]}-${dParts[0]}`;
+
+                            } else {
+                                // Formato Genérico / Desktop (tenta pegar último campo como valor)
+                                let vRaw = cols[cols.length - 1];
+                                if (!vRaw || isNaN(parseFloat(vRaw))) vRaw = cols[cols.length - 2]; // Tenta penultimo
+                                
+                                // Tenta limpar formato BR caso exista
+                                let vStr = vRaw.replace('R$', '').trim();
+                                if (vStr.includes(',') && !vStr.includes('.')) vStr = vStr.replace(',', '.'); // 100,00 -> 100.00
+                                else if (vStr.includes('.') && vStr.includes(',')) vStr = vStr.replace(/\./g, '').replace(',', '.'); // 1.000,00 -> 1000.00
+                                
+                                val = parseFloat(vStr);
+                                descOriginal = cols[2] || cols[1] || 'Sem descrição';
+                                
+                                const dParts = cols[0].split('/');
+                                if (dParts.length === 3) dateIso = `${dParts[2]}-${dParts[1]}-${dParts[0]}`;
+                                else dateIso = new Date().toISOString().split('T')[0];
+                            }
+
+                            // Validação final do valor
                             const isValid = isRevenue ? (val > 0) : (val < 0);
-                            if (!isNaN(val) && isValid) {
-                                const descOriginal = cols[2] || 'Sem descrição';
+                            
+                            if (!isNaN(val) && isValid && dateIso) {
                                 const descUpper = descOriginal.toUpperCase();
-                                // CORREÇÃO AQUI: ADICIONADO SALDO À LISTA HARDCODED
+                                
+                                // Filtros de ignorar (Saldo, Investimentos)
                                 if (isRevenue && (
                                     descUpper.includes('CDB') || 
                                     descUpper.includes('RESGATE') || 
@@ -623,28 +671,25 @@
                                 const matchedRule = config.rules.find(r => r.type === type && descUpper.includes(r.keyword));
                                 if (matchedRule) { if (matchedRule.category === 'IGNORAR') return; autoCategory = matchedRule.category; }
                                 
-                                const dParts = cols[0].split('/');
-                                let dateIso = dParts.length === 3 ? `${dParts[2]}-${dParts[1]}-${dParts[0]}` : new Date().toISOString().split('T')[0];
-                                
+                                // Extração inteligente de data da descrição (ex: Pix 05/10)
                                 dateIso = extractRealDateFromDescription(dateIso, descOriginal);
 
                                 const isDuplicate = data.some(existing => existing.date === dateIso && existing.description === descOriginal && Math.abs(existing.amount) === Math.abs(val));
                                 parsed.push({ id: Date.now() + idx, date: dateIso, description: descOriginal, amount: Math.abs(val), category: autoCategory, selected: !isDuplicate, isDuplicate });
                             }
                         });
-                        if (parsed.length === 0) alert("Nenhum item válido encontrado no arquivo.");
+                        
+                        if (parsed.length === 0) alert("Nenhum item válido encontrado. Verifique se o arquivo é um extrato válido ou se já foi importado.");
                         setCsvItems(parsed);
                     } catch (err) {
                         alert("Erro ao ler arquivo: " + err.message);
+                        console.error(err);
                     } finally {
                         setIsReading(false);
+                        if (fileInputRef.current) fileInputRef.current.value = null;
                     }
                 };
-                reader.onerror = () => { alert("Erro ao ler o arquivo."); setIsReading(false); };
                 reader.readAsText(file, 'ISO-8859-1');
-                
-                // Resetar o value para permitir re-selecionar o mesmo arquivo se errar
-                if (fileInputRef.current) fileInputRef.current.value = null;
             };
 
             if (view === 'add') return (
