@@ -674,7 +674,21 @@
                                 // Extração inteligente de data da descrição (ex: Pix 05/10)
                                 dateIso = extractRealDateFromDescription(dateIso, descOriginal);
 
-                                const isDuplicate = data.some(existing => existing.date === dateIso && existing.description === descOriginal && Math.abs(existing.amount) === Math.abs(val));
+                                // --- LOGICA DE DUPLICIDADE MELHORADA (PC vs Celular) ---
+                                const isDuplicate = data.some(existing => {
+                                    const sameDate = existing.date === dateIso;
+                                    const sameAmount = Math.abs(existing.amount) === Math.abs(val);
+                                    
+                                    if (!sameDate || !sameAmount) return false;
+
+                                    // Normaliza textos para comparar (remove espaços e poe minusculo)
+                                    const d1 = existing.description.toLowerCase().replace(/\s+/g, '');
+                                    const d2 = descOriginal.toLowerCase().replace(/\s+/g, '');
+                                    
+                                    // Verifica se um contem o outro (Ex: "Pix Enviado" vs "Pix Enviado 14:00")
+                                    return d1.includes(d2) || d2.includes(d1);
+                                });
+
                                 parsed.push({ id: Date.now() + idx, date: dateIso, description: descOriginal, amount: Math.abs(val), category: autoCategory, selected: !isDuplicate, isDuplicate });
                             }
                         });
