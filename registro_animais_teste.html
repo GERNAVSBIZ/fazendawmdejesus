@@ -311,7 +311,11 @@
             const fCat = document.getElementById('filtro-cat').value;
             const limpar = (str) => str ? str.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
             
-            const tbody = document.getElementById('tbody-lista'); tbody.innerHTML = ''; let count = 0;
+            const tbody = document.getElementById('tbody-lista'); 
+            tbody.innerHTML = ''; 
+            let count = 0;
+
+            // Filtra a lista
             const lista = window.todosAnimais.filter(a => {
                 if (fBusca && !a.id.includes(fBusca)) return false;
                 if (fSexo !== 'ALL' && a.tipo !== fSexo) return false;
@@ -325,35 +329,44 @@
                 return true;
             });
 
+            // Ordena e limita a 300 para não travar
             lista.sort((a,b) => a.id.localeCompare(b.id, undefined, {numeric: true})).slice(0, 300).forEach(a => {
                 count++;
                 const st = limpar(a.status_produtivo);
+                
+                // Lógica dos Badges (Status)
                 let badge = `<span class="text-[9px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">OUT</span>`;
-                let slotSecar = `<div class="w-8 h-8"></div>`;
+                let slotSecar = `<div class="w-8 h-8"></div>`; // Espaço vazio se não precisar secar
+
                 if(st.includes('LACTACAO')) {
                     badge = `<span class="text-[9px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">LACT</span>`;
-                    slotSecar = `<button onclick="abrirModalSecagem('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 transition border border-gray-100 bg-white shadow-sm"><i class="fas fa-power-off text-xs"></i></button>`;
-                } else if (st.includes('SECA')) badge = `<span class="text-[9px] font-bold text-red-400 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">SECA</span>`;
+                    slotSecar = `<button onclick="abrirModalSecagem('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 transition border border-gray-100 bg-white shadow-sm" title="Secar"><i class="fas fa-power-off text-xs"></i></button>`;
+                } else if (st.includes('SECA')) {
+                    badge = `<span class="text-[9px] font-bold text-red-400 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">SECA</span>`;
+                }
+                
                 let sexIcon = a.tipo === 'MACHO' ? '<i class="fas fa-mars text-blue-500"></i>' : '<i class="fas fa-venus text-pink-500"></i>';
-                tbody.innerHTML += `<tr class="hover:bg-slate-50 transition border-b border-slate-50"><td class="px-4 py-3 font-bold text-slate-700">${a.id}</td><td class="px-4 py-3 text-center">${sexIcon}</td><td class="px-4 py-3">${badge}</td><td class="px-4 py-3 text-xs text-gray-400 font-mono">${formatarDataBr(a.data_evento || a.nascimento)}</td><td class="px-4 py-3 text-center"><div class="grid grid-cols-4 gap-2 w-40 mx-auto items-center">${slotSecar}<button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100"><i class="fas fa-clipboard-list text-xs"></i></button><button onclick="abrirModalEditar('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 bg-white hover:text-slate-800 hover:bg-gray-100 transition shadow-sm border border-gray-100"><i class="fas fa-pen text-xs"></i></button><button onclick="abrirModalExcluir('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-red-300 bg-white hover:text-red-600 hover:bg-red-50 transition shadow-sm border border-gray-100"><i class="fas fa-trash text-xs"></i></button></div></td></tr>`;
+                
+                // LINHA DA TABELA CORRIGIDA
+                // Atenção especial ao botão de lixeira (trash) no final
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition border-b border-slate-50">
+                        <td class="px-4 py-3 font-bold text-slate-700">${a.id}</td>
+                        <td class="px-4 py-3 text-center">${sexIcon}</td>
+                        <td class="px-4 py-3">${badge}</td>
+                        <td class="px-4 py-3 text-xs text-gray-400 font-mono">${formatarDataBr(a.data_evento || a.nascimento)}</td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="flex justify-center gap-2">
+                                ${slotSecar}
+                                <button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100" title="Histórico"><i class="fas fa-clipboard-list text-xs"></i></button>
+                                <button onclick="abrirModalEditar('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 bg-white hover:text-slate-800 hover:bg-gray-100 transition shadow-sm border border-gray-100" title="Editar"><i class="fas fa-pen text-xs"></i></button>
+                                <button onclick="abrirModalExcluir('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-red-400 bg-white hover:text-red-600 hover:bg-red-50 transition shadow-sm border border-gray-100" title="Excluir"><i class="fas fa-trash text-xs"></i></button>
+                            </div>
+                        </td>
+                    </tr>`;
             });
+            
             document.getElementById('sem-resultados').classList.toggle('hidden', count > 0);
-        }
-
-        let chartStatus, chartNasc;
-        function renderCharts(lact, secas, total, bezerros) {
-            const ctx1 = document.getElementById('chartStatus');
-            if(chartStatus) chartStatus.destroy();
-            if(total === 0) { document.getElementById('chart-msg').classList.remove('hidden'); }
-            else {
-                document.getElementById('chart-msg').classList.add('hidden');
-                chartStatus = new Chart(ctx1, { type: 'doughnut', data: { labels: ['Lactação', 'Outros'], datasets: [{ data: [lact, total - lact], backgroundColor: ['#16a34a', '#ef4444'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'right', labels: { boxWidth: 8, font: {size: 10} } } } } });
-            }
-            const ctx2 = document.getElementById('chartNascimentos');
-            if(chartNasc) chartNasc.destroy();
-            const meses = Array(12).fill(0);
-            bezerros.forEach(b => { if(b.nascimento) meses[new Date(b.nascimento).getMonth()]++; });
-            chartNasc = new Chart(ctx2, { type: 'bar', data: { labels: ['J','F','M','A','M','J','J','A','S','O','N','D'], datasets: [{ data: meses, backgroundColor: '#3b82f6', borderRadius: 3 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { display: false } } } });
         }
 
         window.exportarDados = async () => {
