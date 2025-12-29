@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gado Pro Mobile v18</title>
+    <title>Gado Pro Mobile v19 - Sistema Completo</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -37,7 +37,7 @@
     <nav id="menu-desktop" class="bg-slate-900 text-white px-6 py-4 shadow-lg sticky top-0 z-50 justify-between items-center">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><i class="fas fa-cow text-lg"></i></div>
-            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v18.0</p></div>
+            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v19.0</p></div>
         </div>
         <div class="flex gap-2 text-sm font-medium">
             <button onclick="nav('dashboard')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-chart-line"></i> Painel</button>
@@ -122,19 +122,35 @@
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6 text-center">
                 <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600"><i class="fas fa-file-csv text-2xl"></i></div>
                 <h2 class="font-bold text-slate-800">Backup dos Dados</h2>
-                <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-4 shadow-lg shadow-green-200"><i class="fas fa-download mr-2"></i> Baixar CSV</button>
+                <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-4 shadow-lg shadow-green-200"><i class="fas fa-download mr-2"></i> Baixar CSV Completo</button>
             </div>
 
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h3 class="font-bold text-slate-700 mb-4 text-center">Importar Planilhas (Correção)</h3>
-                <p class="text-xs text-center text-gray-400 mb-4">Reenvie as planilhas para corrigir dados zerados.</p>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                <h3 class="font-bold text-slate-700 mb-2 text-center flex items-center justify-center gap-2"><i class="fas fa-cloud-upload-alt text-blue-500"></i> Restaurar Sistema</h3>
+                <p class="text-xs text-center text-gray-400 mb-4">Use o CSV gerado pelo botão acima para restaurar.</p>
+                <div class="p-4 border-2 border-dashed border-blue-200 rounded-xl hover:bg-blue-50 transition relative text-center">
+                    <i class="fas fa-file-import text-blue-400 text-2xl mb-2"></i>
+                    <p class="text-xs font-bold text-blue-600">Toque para selecionar Backup (CSV)</p>
+                    <input type="file" id="fileBackupCompleto" class="absolute inset-0 opacity-0 cursor-pointer" onchange="importarBackupCompleto()">
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6 opacity-80">
+                <h3 class="font-bold text-slate-700 mb-4 text-center text-sm">Importar Dados Parciais</h3>
                 <div class="space-y-3">
                     <div class="p-3 border border-dashed rounded hover:border-pink-400 relative"><span class="text-xs font-bold text-pink-500">RG FÊMEA</span><input type="file" id="fileFemea" class="absolute inset-0 opacity-0" onchange="importarCSV('FEMEA')"></div>
                     <div class="p-3 border border-dashed rounded hover:border-blue-400 relative"><span class="text-xs font-bold text-blue-500">RG MACHO</span><input type="file" id="fileMacho" class="absolute inset-0 opacity-0" onchange="importarCSV('MACHO')"></div>
                     <div class="p-3 border border-dashed rounded hover:border-green-400 relative"><span class="text-xs font-bold text-green-500">NASCIMENTO</span><input type="file" id="fileNasc" class="absolute inset-0 opacity-0" onchange="importarCSV('NASCIMENTO')"></div>
                 </div>
-                <p id="import-status" class="text-xs text-blue-500 font-bold mt-4 text-center h-4"></p>
             </div>
+
+            <div class="bg-red-50 p-6 rounded-2xl border border-red-100 text-center">
+                <h3 class="font-bold text-red-800 mb-2"><i class="fas fa-exclamation-triangle"></i> Zona de Perigo</h3>
+                <p class="text-xs text-red-600 mb-4">Isso apaga TODOS os dados permanentemente.</p>
+                <button onclick="zerarBancoDeDados()" class="w-full bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white font-bold py-3 rounded-xl transition text-sm">ZERAR BANCO DE DADOS</button>
+            </div>
+            
+            <p id="import-status" class="text-xs text-blue-500 font-bold mt-4 text-center h-4"></p>
         </div>
 
         <div id="tela-cadastro" class="hidden max-w-lg mx-auto fade-in mt-4 md:mt-10">
@@ -246,7 +262,6 @@
                     
                     const alertas = []; const cronograma = []; const hoje = new Date();
                     
-                    // CRONOGRAMA: Incluir TODOS mesmo sem data
                     lactacao.forEach(a => {
                         let dias = 0; let strDias = "Data N/D";
                         if(a.data_evento) {
@@ -353,18 +368,71 @@
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
+        // --- FUNÇÃO PARA RESTAURAR BACKUP COMPLETO (CSV DO SISTEMA) ---
+        window.importarBackupCompleto = () => {
+            const f = document.getElementById('fileBackupCompleto').files[0];
+            if(!f) return;
+            
+            if(!confirm("Isso irá adicionar/atualizar os animais listados no arquivo. Continuar?")) {
+                document.getElementById('fileBackupCompleto').value = '';
+                return;
+            }
+
+            document.getElementById('import-status').innerText = "Lendo backup...";
+            
+            Papa.parse(f, {
+                header: true,
+                skipEmptyLines: true,
+                encoding: "UTF-8",
+                complete: async (results) => {
+                    document.getElementById('import-status').innerText = `Processando ${results.data.length} registros...`;
+                    
+                    let batch = writeBatch(db);
+                    let count = 0;
+                    let totalProcessado = 0;
+
+                    for (let row of results.data) {
+                        if (!row.id) continue;
+                        
+                        Object.keys(row).forEach(key => {
+                            if (row[key] === "" || row[key] === null) delete row[key];
+                        });
+
+                        const docRef = doc(db, "animais", row.id);
+                        batch.set(docRef, row, { merge: true });
+                        count++;
+                        totalProcessado++;
+
+                        if (count >= 400) {
+                            await batch.commit();
+                            batch = writeBatch(db);
+                            count = 0;
+                            document.getElementById('import-status').innerText = `Salvando... (${totalProcessado})`;
+                        }
+                    }
+
+                    if (count > 0) await batch.commit();
+                    
+                    document.getElementById('import-status').innerText = "Restauração concluída!";
+                    alert(`Backup restaurado com sucesso! ${totalProcessado} animais processados.`);
+                    document.getElementById('fileBackupCompleto').value = '';
+                    carregarDados();
+                },
+                error: (err) => { alert("Erro ao ler arquivo: " + err.message); }
+            });
+        }
+
+        // --- FUNÇÃO PARA IMPORTAR LEGADO ---
         window.importarCSV = (tipo) => {
             const f = document.getElementById(tipo==='FEMEA'?'fileFemea':tipo==='MACHO'?'fileMacho':'fileNasc').files[0];
             if(!f) return;
             document.getElementById('import-status').innerText = "Carregando...";
-            // CORREÇÃO: UTF-8 para ler acentos corretamente
             Papa.parse(f, {header:false, skipEmptyLines:true, encoding:"UTF-8", complete:async(res)=>{
                 for(let r of res.data){
                     if(!r[0]||r[0].length>20||r[0].toLowerCase().includes('id')) continue;
                     let id=r[0].trim().toUpperCase();
                     let d = {id, status:'Ativo'};
                     if(tipo==='FEMEA'){ d.tipo='FEMEA'; d.status_produtivo=r[2]?.toUpperCase().trim(); d.data_evento=corrigirData(r[1]); }
-                    // CORREÇÃO: Importar Categoria de Machos
                     else if(tipo==='MACHO'){ d.tipo='MACHO'; d.categoria_manual=r[3]?.toUpperCase().trim(); }
                     else if(tipo==='NASCIMENTO'){ let nid=`BEZ-${id}-${corrigirData(r[1])?.slice(2)}`; await setDoc(doc(db,'animais',nid),{id:nid, tipo:r[3]?.toUpperCase(), nascimento:corrigirData(r[1]), id_mae:id}); continue; }
                     if(d.id) await setDoc(doc(db,'animais',d.id),d,{merge:true});
@@ -374,7 +442,33 @@
             }});
         }
 
-        // AÇÕES (Mantidas)
+        // --- FUNÇÃO PARA ZERAR O BANCO DE DADOS ---
+        window.zerarBancoDeDados = async () => {
+            if (!confirm("⚠️ ATENÇÃO EXTREMA ⚠️\n\nVocê tem certeza que deseja APAGAR TODOS OS DADOS?\n\nEssa ação não pode ser desfeita.")) return;
+            const confirmacao = prompt("Para confirmar, digite DELETAR na caixa abaixo:");
+            if (confirmacao !== "DELETAR") return alert("Ação cancelada.");
+
+            document.getElementById('import-status').innerText = "Apagando dados... (Não feche)";
+            try {
+                const snapAnimais = await getDocs(collection(db, "animais"));
+                const totalAnimais = snapAnimais.size;
+                const deletePromises = [];
+                snapAnimais.forEach(documento => { deletePromises.push(deleteDoc(documento.ref)); });
+                
+                const snapHist = await getDocs(collection(db, "historico"));
+                snapHist.forEach(documento => { deletePromises.push(deleteDoc(documento.ref)); });
+
+                await Promise.all(deletePromises);
+                
+                window.todosAnimais = [];
+                window.cronogramaGlobal = [];
+                document.getElementById('import-status').innerText = "";
+                alert(`Sistema zerado com sucesso!\n${totalAnimais} animais removidos.`);
+                carregarDados();
+            } catch (e) { console.error(e); alert("Erro ao apagar: " + e.message); }
+        }
+
+        // AÇÕES
         window.abrirModalSecagem = (id) => { document.getElementById('lbl-id-vaca-sec').innerText=id; document.getElementById('input-id-secagem').value=id; document.getElementById('input-data-secagem').value=new Date().toISOString().split('T')[0]; document.getElementById('modal-secagem').classList.remove('hidden'); }
         window.confirmarSecagem = async () => { const id=document.getElementById('input-id-secagem').value; const data=document.getElementById('input-data-secagem').value; try{ await setDoc(doc(db,"animais",id),{status_produtivo:"SECA",data_evento:data,data_secagem:data},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"SECAGEM",data,obs:"Via App",created_at:new Date()}); document.getElementById('modal-secagem').classList.add('hidden'); carregarDados(); }catch(e){alert(e.message);} }
         window.abrirModalEditar = (id) => { document.getElementById('edit-id-antigo').value=id; document.getElementById('view-id-antigo').value=id; document.getElementById('edit-id-novo').value=''; document.getElementById('modal-editar').classList.remove('hidden'); }
