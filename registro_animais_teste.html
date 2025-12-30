@@ -5,7 +5,7 @@
     <link rel="apple-touch-icon" href="./registro/apple-touch-icon.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gado Pro Mobile v24 - Delete Fix</title>
+    <title>Gado Pro Mobile v25 - Fotos</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -39,7 +39,7 @@
     <nav id="menu-desktop" class="bg-slate-900 text-white px-6 py-4 shadow-lg sticky top-0 z-50 justify-between items-center">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><i class="fas fa-cow text-lg"></i></div>
-            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v24.0</p></div>
+            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v25.0</p></div>
         </div>
         <div class="flex gap-2 text-sm font-medium">
             <button onclick="nav('dashboard')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-chart-line"></i> Painel</button>
@@ -233,7 +233,40 @@
             </div>
         </div>
 
-        <div id="modal-dossie" class="hidden fixed inset-0 bg-white z-[70] flex flex-col fade-in"><div class="bg-slate-50 p-4 border-b border-gray-200 flex justify-between items-center shadow-sm sticky top-0 z-10"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 text-lg text-blue-600"><i class="fas fa-id-card"></i></div><div><h2 class="text-xl font-bold text-slate-800" id="dossie-id">---</h2><div class="text-[10px] text-gray-500" id="dossie-resumo"></div></div></div><button onclick="fecharDossie()" class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex justify-center items-center"><i class="fas fa-times"></i></button></div><div class="flex-grow overflow-y-auto p-4 bg-slate-50 space-y-6"><div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><div class="space-y-3"><input type="date" id="dossie-nova-data" class="w-full border p-3 rounded-lg text-sm bg-gray-50"><textarea id="dossie-nova-obs" class="w-full border p-3 rounded-lg text-sm bg-gray-50 h-20 resize-none" placeholder="Ocorrência..."></textarea><button onclick="salvarOcorrencia()" class="w-full bg-blue-600 text-white py-3 rounded-lg text-sm font-bold shadow-md">Salvar</button></div></div><div><div class="space-y-4 pl-2" id="dossie-timeline"></div></div></div></div>
+        <div id="modal-dossie" class="hidden fixed inset-0 bg-white z-[70] flex flex-col fade-in">
+            <div class="bg-slate-50 p-4 border-b border-gray-200 flex justify-between items-center shadow-sm sticky top-0 z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 text-lg text-blue-600"><i class="fas fa-id-card"></i></div>
+                    <div><h2 class="text-xl font-bold text-slate-800" id="dossie-id">---</h2><div class="text-[10px] text-gray-500" id="dossie-resumo"></div></div>
+                </div>
+                <button onclick="fecharDossie()" class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex justify-center items-center"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="flex-grow overflow-y-auto p-4 bg-slate-50 space-y-6">
+                
+                <div class="bg-slate-100 p-3 rounded-lg mb-4 border border-slate-200">
+                     <label class="text-[10px] font-bold text-slate-500 uppercase">Foto do Animal (Link)</label>
+                     <div class="flex gap-2 mt-1">
+                         <input type="text" id="dossie-foto-url" class="flex-1 border p-2 rounded text-sm bg-white" placeholder="Cole o link do Google Photos/Drive aqui...">
+                         <button onclick="salvarLinkFoto()" class="bg-blue-600 text-white px-3 rounded shadow-sm"><i class="fas fa-save"></i></button>
+                     </div>
+                     <div id="area-visualizar-foto" class="hidden mt-3 text-center">
+                         <a id="btn-ver-foto" href="#" target="_blank" class="inline-block bg-white text-blue-600 border border-blue-200 px-4 py-2 rounded-lg font-bold shadow-sm text-sm hover:bg-blue-50 transition">
+                            <i class="fas fa-camera mr-1"></i> Ver Foto do Animal
+                         </a>
+                     </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div class="space-y-3">
+                        <input type="date" id="dossie-nova-data" class="w-full border p-3 rounded-lg text-sm bg-gray-50">
+                        <textarea id="dossie-nova-obs" class="w-full border p-3 rounded-lg text-sm bg-gray-50 h-20 resize-none" placeholder="Ocorrência..."></textarea>
+                        <button onclick="salvarOcorrencia()" class="w-full bg-blue-600 text-white py-3 rounded-lg text-sm font-bold shadow-md">Salvar</button>
+                    </div>
+                </div>
+                <div><div class="space-y-4 pl-2" id="dossie-timeline"></div></div>
+            </div>
+        </div>
 
     </div>
 
@@ -295,7 +328,6 @@
 
                 const limpar = (str) => str ? str.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
                 
-                // FILTRO CORRIGIDO: Remove todos os status de baixa (incluindo OUTRO)
                 window.todosAnimais = animais.filter(a => { 
                     const st = limpar(a.status_produtivo); 
                     return !st.includes('VENDIDO') && !st.includes('MORTO') && !st.includes('ROUBO') && !st.includes('OUTRO'); 
@@ -606,8 +638,6 @@
             if(!confirm("Confirmar baixa (Saída do rebanho)?")) return; 
             
             try{ 
-                // Atualiza o status para "VENDIDO", "MORTO", "ROUBO" ou "OUTRO"
-                // O filtro carregarDados agora esconde todos esses status.
                 await setDoc(doc(db,"animais",id),{status_produtivo:mot,data_saida:data,obs_saida:obs},{merge:true}); 
                 await addDoc(collection(db,"historico"),{animal_id:id,evento:"BAIXA - "+mot,data,obs,created_at:new Date()}); 
                 
@@ -639,7 +669,68 @@
             }
         }
 
-        window.abrirDossie = async (id) => { document.getElementById('modal-dossie').classList.remove('hidden'); document.getElementById('dossie-id').innerText=id; document.getElementById('dossie-timeline').innerHTML='<p class="text-xs text-gray-400 p-2">Carregando...</p>'; const docSnap=await getDoc(doc(db,"animais",id)); if(docSnap.exists()){ const d=docSnap.data(); document.getElementById('dossie-resumo').innerHTML=`${d.tipo} | Mãe: ${d.id_mae||'?'} | ${calcularIdade(d.nascimento)}`; } const q=query(collection(db,"historico"),where("animal_id","==",id)); const snap=await getDocs(q); let evts=[]; snap.forEach(d=>evts.push(d.data())); if(docSnap.exists()&&docSnap.data().nascimento)evts.push({evento:'NASCIMENTO',data:docSnap.data().nascimento,obs:'Registro'}); evts.sort((a,b)=>new Date(b.data)-new Date(a.data)); const tl=document.getElementById('dossie-timeline'); tl.innerHTML=''; evts.forEach(e=>{ let color='bg-gray-300'; if(e.evento.includes('PARTO')||e.evento.includes('NASCIMENTO'))color='bg-blue-400'; if(e.evento.includes('SECAGEM')||e.evento.includes('BAIXA'))color='bg-red-400'; tl.innerHTML+=`<div class="relative pl-6 pb-6 border-l border-gray-100 last:pb-0"><div class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${color} ring-2 ring-white"></div><p class="text-[10px] font-bold text-gray-400 uppercase">${formatarDataBr(e.data)}</p><p class="text-sm font-bold text-slate-700">${e.evento}</p><p class="text-xs text-gray-500 bg-white p-2 rounded border border-gray-100 mt-1 shadow-sm">${e.obs||''}</p></div>`; }); }
+        // --- FUNÇÃO SALVAR LINK FOTO ---
+        window.salvarLinkFoto = async () => {
+            const id = document.getElementById('dossie-id').innerText;
+            const url = document.getElementById('dossie-foto-url').value;
+            
+            if(!url) return alert("Cole um link válido primeiro.");
+
+            try {
+                await setDoc(doc(db, "animais", id), { foto_url: url }, { merge: true });
+                alert("Link da foto salvo com sucesso!");
+                // Recarrega o dossiê para atualizar o botão
+                abrirDossie(id);
+            } catch (e) {
+                alert("Erro ao salvar link: " + e.message);
+            }
+        }
+
+        // --- FUNÇÃO ABRIR DOSSIÊ (ATUALIZADA COM FOTO) ---
+        window.abrirDossie = async (id) => { 
+            document.getElementById('modal-dossie').classList.remove('hidden'); 
+            document.getElementById('dossie-id').innerText = id; 
+            document.getElementById('dossie-timeline').innerHTML = '<p class="text-xs text-gray-400 p-2">Carregando...</p>'; 
+            
+            // Reseta campos de foto
+            document.getElementById('dossie-foto-url').value = '';
+            document.getElementById('area-visualizar-foto').classList.add('hidden');
+
+            const docSnap = await getDoc(doc(db,"animais",id)); 
+            
+            if(docSnap.exists()){ 
+                const d = docSnap.data(); 
+                document.getElementById('dossie-resumo').innerHTML = `${d.tipo} | Mãe: ${d.id_mae||'?'} | ${calcularIdade(d.nascimento)}`; 
+                
+                // Se tiver foto, preenche
+                if(d.foto_url) {
+                    document.getElementById('dossie-foto-url').value = d.foto_url;
+                    document.getElementById('area-visualizar-foto').classList.remove('hidden');
+                    document.getElementById('btn-ver-foto').href = d.foto_url;
+                }
+            } 
+            
+            const q = query(collection(db,"historico"), where("animal_id","==",id)); 
+            const snap = await getDocs(q); 
+            let evts = []; 
+            snap.forEach(d => evts.push(d.data())); 
+            
+            if(docSnap.exists() && docSnap.data().nascimento) 
+                evts.push({evento:'NASCIMENTO', data:docSnap.data().nascimento, obs:'Registro'}); 
+                
+            evts.sort((a,b) => new Date(b.data) - new Date(a.data)); 
+            
+            const tl = document.getElementById('dossie-timeline'); 
+            tl.innerHTML = ''; 
+            
+            evts.forEach(e => { 
+                let color = 'bg-gray-300'; 
+                if(e.evento.includes('PARTO') || e.evento.includes('NASCIMENTO')) color = 'bg-blue-400'; 
+                if(e.evento.includes('SECAGEM') || e.evento.includes('BAIXA')) color = 'bg-red-400'; 
+                tl.innerHTML += `<div class="relative pl-6 pb-6 border-l border-gray-100 last:pb-0"><div class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${color} ring-2 ring-white"></div><p class="text-[10px] font-bold text-gray-400 uppercase">${formatarDataBr(e.data)}</p><p class="text-sm font-bold text-slate-700">${e.evento}</p><p class="text-xs text-gray-500 bg-white p-2 rounded border border-gray-100 mt-1 shadow-sm">${e.obs||''}</p></div>`; 
+            }); 
+        }
+
         window.fecharDossie = () => document.getElementById('modal-dossie').classList.add('hidden');
         window.salvarOcorrencia = async () => { const id=document.getElementById('dossie-id').innerText; const data=document.getElementById('dossie-nova-data').value||new Date().toISOString().split('T')[0]; const obs=document.getElementById('dossie-nova-obs').value; if(!obs)return; try{ await addDoc(collection(db,"historico"),{animal_id:id,evento:"OCORRÊNCIA",data,obs,created_at:new Date()}); document.getElementById('dossie-nova-obs').value=''; abrirDossie(id); }catch(e){alert(e.message);} }
         document.getElementById('formNascimento').addEventListener('submit', async (e) => { e.preventDefault(); const idBez=document.getElementById('cad-idBezerro').value.toUpperCase(); const idMae=document.getElementById('cad-idMae').value.toUpperCase(); const data=document.getElementById('cad-data').value; const sexo=document.getElementById('cad-sexo').value; try{ await setDoc(doc(db,"animais",idBez),{id:idBez,tipo:sexo,nascimento:data,id_mae:idMae,status:'Ativo'}); await setDoc(doc(db,"animais",idMae),{id:idMae,status_produtivo:'LACTAÇÃO',data_evento:data},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:idMae,evento:"PARTO",data,obs:`Pariu ${idBez}`,created_at:new Date()}); alert('Parto Registrado!'); document.getElementById('formNascimento').reset(); }catch(e){alert(e.message);} });
