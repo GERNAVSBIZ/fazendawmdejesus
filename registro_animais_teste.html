@@ -5,7 +5,7 @@
     <link rel="apple-touch-icon" href="./registro/apple-touch-icon.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gado Pro Mobile v20 - Final</title>
+    <title>Gado Pro Mobile v21 - Status Toggle</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -39,7 +39,7 @@
     <nav id="menu-desktop" class="bg-slate-900 text-white px-6 py-4 shadow-lg sticky top-0 z-50 justify-between items-center">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><i class="fas fa-cow text-lg"></i></div>
-            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v20.0</p></div>
+            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v21.0</p></div>
         </div>
         <div class="flex gap-2 text-sm font-medium">
             <button onclick="nav('dashboard')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-chart-line"></i> Painel</button>
@@ -188,6 +188,9 @@
         </div>
 
         <div id="modal-secagem" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in"><h3 class="text-lg font-bold text-slate-800 mb-2">Encerrar Lactação</h3><p class="text-sm text-gray-500 mb-4">Vaca: <strong id="lbl-id-vaca-sec" class="text-blue-600"></strong></p><input type="hidden" id="input-id-secagem"><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data Secagem</label><input type="date" id="input-data-secagem" class="w-full border p-3 rounded-xl mb-4 text-base bg-slate-50"><div class="flex gap-3"><button onclick="document.getElementById('modal-secagem').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl text-sm font-bold">Cancelar</button><button onclick="confirmarSecagem()" class="w-1/2 py-3 bg-red-600 text-white rounded-xl text-sm font-bold">Confirmar</button></div></div></div>
+        
+        <div id="modal-retorno" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in"><h3 class="text-lg font-bold text-slate-800 mb-2">Voltar a Produzir</h3><p class="text-sm text-gray-500 mb-4">Vaca: <strong id="lbl-id-vaca-ret" class="text-green-600"></strong></p><input type="hidden" id="input-id-retorno"><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data Retorno/Parto</label><input type="date" id="input-data-retorno" class="w-full border p-3 rounded-xl mb-4 text-base bg-slate-50"><div class="flex gap-3"><button onclick="document.getElementById('modal-retorno').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl text-sm font-bold">Cancelar</button><button onclick="confirmarRetorno()" class="w-1/2 py-3 bg-green-600 text-white rounded-xl text-sm font-bold">Iniciar</button></div></div></div>
+
         <div id="modal-editar" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in"><h3 class="text-lg font-bold text-slate-800 mb-4">Trocar Brinco</h3><input type="hidden" id="edit-id-antigo"><div class="mb-3"><label class="text-xs font-bold text-gray-400">Atual</label><input type="text" id="view-id-antigo" disabled class="w-full border p-3 rounded-xl bg-gray-100"></div><div class="mb-6"><label class="text-xs font-bold text-gray-400">Novo</label><input type="text" id="edit-id-novo" class="w-full border-2 border-blue-100 p-3 rounded-xl font-bold text-lg"></div><div class="flex gap-3"><button onclick="document.getElementById('modal-editar').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl font-bold text-sm">Cancelar</button><button onclick="confirmarEdicao()" class="w-1/2 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm">Salvar</button></div></div></div>
         
         <div id="modal-excluir" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
@@ -365,11 +368,20 @@
                 count++;
                 const st = limpar(a.status_produtivo);
                 let badge = `<span class="text-[9px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">OUT</span>`;
-                let slotSecar = `<div class="w-8 h-8"></div>`;
+                
+                // --- BOTÃO DE AÇÃO DINÂMICO (TOGGLE) ---
+                let btnAction = `<div class="w-8 h-8"></div>`; // Padrão vazio
+                
                 if(st.includes('LACTACAO')) {
                     badge = `<span class="text-[9px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">LACT</span>`;
-                    slotSecar = `<button onclick="abrirModalSecagem('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 transition border border-gray-100 bg-white shadow-sm" title="Secar"><i class="fas fa-power-off text-xs"></i></button>`;
-                } else if (st.includes('SECA')) badge = `<span class="text-[9px] font-bold text-red-400 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">SECA</span>`;
+                    // Botão PAUSAR (Secar)
+                    btnAction = `<button onclick="abrirModalSecagem('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-yellow-500 bg-yellow-50 hover:bg-yellow-100 transition border border-yellow-100 shadow-sm" title="Secar (Pausar)"><i class="fas fa-pause text-xs"></i></button>`;
+                } else if (st.includes('SECA')) {
+                    badge = `<span class="text-[9px] font-bold text-red-400 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">SECA</span>`;
+                    // Botão INICIAR (Lactação)
+                    btnAction = `<button onclick="abrirModalRetorno('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-green-600 bg-green-50 hover:bg-green-100 transition border border-green-100 shadow-sm" title="Iniciar Lactação"><i class="fas fa-play text-xs"></i></button>`;
+                }
+
                 let sexIcon = a.tipo === 'MACHO' ? '<i class="fas fa-mars text-blue-500"></i>' : '<i class="fas fa-venus text-pink-500"></i>';
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 transition border-b border-slate-50">
@@ -379,7 +391,7 @@
                         <td class="px-4 py-3 text-xs text-gray-400 font-mono">${formatarDataBr(a.data_evento || a.nascimento)}</td>
                         <td class="px-4 py-3 text-center">
                             <div class="flex justify-center gap-2">
-                                ${slotSecar}
+                                ${btnAction}
                                 <button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100"><i class="fas fa-clipboard-list text-xs"></i></button>
                                 <button onclick="abrirModalEditar('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 bg-white hover:text-slate-800 hover:bg-gray-100 transition shadow-sm border border-gray-100"><i class="fas fa-pen text-xs"></i></button>
                                 <button onclick="abrirModalExcluir('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-red-400 bg-white hover:text-red-600 hover:bg-red-50 transition shadow-sm border border-gray-100"><i class="fas fa-trash text-xs"></i></button>
@@ -472,19 +484,22 @@
             } catch (e) { console.error(e); alert("Erro ao apagar: " + e.message); }
         }
 
+        // --- FUNÇÕES DE STATUS (SECAGEM & RETORNO) ---
         window.abrirModalSecagem = (id) => { document.getElementById('lbl-id-vaca-sec').innerText=id; document.getElementById('input-id-secagem').value=id; document.getElementById('input-data-secagem').value=new Date().toISOString().split('T')[0]; document.getElementById('modal-secagem').classList.remove('hidden'); }
         window.confirmarSecagem = async () => { const id=document.getElementById('input-id-secagem').value; const data=document.getElementById('input-data-secagem').value; try{ await setDoc(doc(db,"animais",id),{status_produtivo:"SECA",data_evento:data,data_secagem:data},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"SECAGEM",data,obs:"Via App",created_at:new Date()}); document.getElementById('modal-secagem').classList.add('hidden'); carregarDados(); }catch(e){alert(e.message);} }
+        
+        // NOVAS FUNÇÕES: RETORNO À LACTAÇÃO
+        window.abrirModalRetorno = (id) => { document.getElementById('lbl-id-vaca-ret').innerText=id; document.getElementById('input-id-retorno').value=id; document.getElementById('input-data-retorno').value=new Date().toISOString().split('T')[0]; document.getElementById('modal-retorno').classList.remove('hidden'); }
+        window.confirmarRetorno = async () => { const id=document.getElementById('input-id-retorno').value; const data=document.getElementById('input-data-retorno').value; try{ await setDoc(doc(db,"animais",id),{status_produtivo:"LACTAÇÃO",data_evento:data},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"RE-ENTRADA LACTAÇÃO",data,obs:"Via Botão Play",created_at:new Date()}); document.getElementById('modal-retorno').classList.add('hidden'); carregarDados(); }catch(e){alert(e.message);} }
+
         window.abrirModalEditar = (id) => { document.getElementById('edit-id-antigo').value=id; document.getElementById('view-id-antigo').value=id; document.getElementById('edit-id-novo').value=''; document.getElementById('modal-editar').classList.remove('hidden'); }
         window.confirmarEdicao = async () => { const oldId=document.getElementById('edit-id-antigo').value; const newId=document.getElementById('edit-id-novo').value.toUpperCase().trim(); if(!newId||newId===oldId)return alert("Inválido"); if(!confirm("Confirmar troca?"))return; try{ const docRef=doc(db,"animais",oldId); const snap=await getDoc(docRef); if(snap.exists()){ const d=snap.data(); d.id=newId; await setDoc(doc(db,"animais",newId),d); await addDoc(collection(db,"historico"),{animal_id:newId,evento:"TROCA BRINCO",data:new Date().toISOString().split('T')[0],obs:`Antigo: ${oldId}`,created_at:new Date()}); await deleteDoc(docRef); alert("Sucesso!"); document.getElementById('modal-editar').classList.add('hidden'); carregarDados(); } }catch(e){alert(e.message);} }
-        
-        // CORRIGIDO: Agora lbl-id-excluir existe no HTML
         window.abrirModalExcluir = (id) => { 
             const lbl = document.getElementById('lbl-id-excluir');
             if(lbl) lbl.innerText = id; 
             document.getElementById('input-id-excluir').value = id; 
             document.getElementById('modal-excluir').classList.remove('hidden'); 
         }
-        
         window.confirmarExclusao = async () => { const id=document.getElementById('input-id-excluir').value; const mot=document.getElementById('input-motivo-excluir').value; const data=document.getElementById('input-data-excluir').value; const obs=document.getElementById('input-obs-excluir').value; if(!confirm("Confirmar baixa?"))return; try{ await setDoc(doc(db,"animais",id),{status_produtivo:mot,data_saida:data,obs_saida:obs},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"BAIXA - "+mot,data,obs,created_at:new Date()}); document.getElementById('modal-excluir').classList.add('hidden'); carregarDados(); }catch(e){alert(e.message);} }
         window.abrirDossie = async (id) => { document.getElementById('modal-dossie').classList.remove('hidden'); document.getElementById('dossie-id').innerText=id; document.getElementById('dossie-timeline').innerHTML='<p class="text-xs text-gray-400 p-2">Carregando...</p>'; const docSnap=await getDoc(doc(db,"animais",id)); if(docSnap.exists()){ const d=docSnap.data(); document.getElementById('dossie-resumo').innerHTML=`${d.tipo} | Mãe: ${d.id_mae||'?'} | ${calcularIdade(d.nascimento)}`; } const q=query(collection(db,"historico"),where("animal_id","==",id)); const snap=await getDocs(q); let evts=[]; snap.forEach(d=>evts.push(d.data())); if(docSnap.exists()&&docSnap.data().nascimento)evts.push({evento:'NASCIMENTO',data:docSnap.data().nascimento,obs:'Registro'}); evts.sort((a,b)=>new Date(b.data)-new Date(a.data)); const tl=document.getElementById('dossie-timeline'); tl.innerHTML=''; evts.forEach(e=>{ let color='bg-gray-300'; if(e.evento.includes('PARTO')||e.evento.includes('NASCIMENTO'))color='bg-blue-400'; if(e.evento.includes('SECAGEM')||e.evento.includes('BAIXA'))color='bg-red-400'; tl.innerHTML+=`<div class="relative pl-6 pb-6 border-l border-gray-100 last:pb-0"><div class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${color} ring-2 ring-white"></div><p class="text-[10px] font-bold text-gray-400 uppercase">${formatarDataBr(e.data)}</p><p class="text-sm font-bold text-slate-700">${e.evento}</p><p class="text-xs text-gray-500 bg-white p-2 rounded border border-gray-100 mt-1 shadow-sm">${e.obs||''}</p></div>`; }); }
         window.fecharDossie = () => document.getElementById('modal-dossie').classList.add('hidden');
