@@ -5,7 +5,7 @@
     <link rel="apple-touch-icon" href="./registro/apple-touch-icon.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gado Pro Mobile v22 - Contadores</title>
+    <title>Gado Pro Mobile v24 - Delete Fix</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -39,7 +39,7 @@
     <nav id="menu-desktop" class="bg-slate-900 text-white px-6 py-4 shadow-lg sticky top-0 z-50 justify-between items-center">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><i class="fas fa-cow text-lg"></i></div>
-            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v22.0</p></div>
+            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v24.0</p></div>
         </div>
         <div class="flex gap-2 text-sm font-medium">
             <button onclick="nav('dashboard')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-chart-line"></i> Painel</button>
@@ -52,6 +52,14 @@
     <div id="conteudo-principal" class="max-w-7xl mx-auto p-4 md:p-6 w-full relative">
         
         <div id="tela-dashboard" class="space-y-6 fade-in">
+            <div id="alerta-provisorios" class="hidden bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 rounded shadow-sm flex justify-between items-center">
+                <div>
+                    <p class="font-bold text-sm"><i class="fas fa-exclamation-triangle"></i> Pendência de Identificação</p>
+                    <p class="text-xs">Existem <strong id="qtd-provisorios">0</strong> animais com brinco provisório.</p>
+                </div>
+                <button onclick="filtrarProvisorios()" class="bg-orange-200 hover:bg-orange-300 text-orange-800 text-xs font-bold py-2 px-3 rounded">Ver Lista</button>
+            </div>
+
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
                 <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-slate-600 flex flex-col justify-between">
                     <div><p class="text-[10px] font-bold text-slate-400 uppercase">Total Ativo</p><p class="text-2xl md:text-4xl font-extrabold text-slate-800 mt-1" id="kpi-total">0</p></div>
@@ -106,12 +114,11 @@
                     <p class="text-xs font-bold text-slate-500 flex items-center gap-1"><i class="fas fa-filter"></i> Filtros Ativos</p>
                     <p id="lbl-resultado-filtro" class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 shadow-sm">Carregando...</p>
                 </div>
-                
                 <div class="grid filter-grid gap-3">
                     <div class="relative col-span-2 md:col-span-1"><i class="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i><input type="text" id="filtro-busca" onkeyup="aplicarFiltros()" placeholder="Buscar ID..." class="w-full pl-8 pr-2 py-2 border border-gray-200 rounded-lg text-sm bg-slate-50 focus:border-blue-500 outline-none"></div>
                     <div><select id="filtro-sexo" onchange="aplicarFiltros()" class="w-full py-2 px-2 border border-gray-200 rounded-lg text-sm bg-slate-50 text-slate-600 focus:border-blue-500 outline-none"><option value="ALL">Sexo: Todos</option><option value="FEMEA">Fêmeas</option><option value="MACHO">Machos</option></select></div>
                     <div><select id="filtro-status" onchange="aplicarFiltros()" class="w-full py-2 px-2 border border-gray-200 rounded-lg text-sm bg-slate-50 text-slate-600 focus:border-blue-500 outline-none"><option value="ALL">Status: Todos</option><option value="LACTACAO">Em Lactação</option><option value="SECA">Secas</option><option value="OUTROS">Outros</option></select></div>
-                    <div><select id="filtro-cat" onchange="aplicarFiltros()" class="w-full py-2 px-2 border border-gray-200 rounded-lg text-sm bg-slate-50 text-slate-600 focus:border-blue-500 outline-none"><option value="ALL">Categoria: Todas</option><option value="BEZERRO">Bezerros</option><option value="ADULTO">Adultos</option></select></div>
+                    <div><select id="filtro-cat" onchange="aplicarFiltros()" class="w-full py-2 px-2 border border-gray-200 rounded-lg text-sm bg-slate-50 text-slate-600 focus:border-blue-500 outline-none"><option value="ALL">Categoria: Todas</option><option value="BEZERRO">Bezerros</option><option value="ADULTO">Adultos</option><option value="PROVISORIO">⚠ Provisórios</option></select></div>
                 </div>
             </div>
             <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
@@ -178,6 +185,14 @@
             </div>
             <div id="box-adulto" class="hidden bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
                 <form id="formAdulto" class="space-y-4">
+                    <div class="bg-yellow-50 p-3 rounded-xl border border-yellow-100">
+                        <label class="block text-xs font-bold text-yellow-700 mb-1">Tipo de Identificação</label>
+                        <select id="adulto-tipo-registro" class="w-full border border-yellow-200 p-2 rounded-lg bg-white text-sm">
+                            <option value="DEFINITIVO">Brinco Oficial (Definitivo)</option>
+                            <option value="PROVISORIO">⚠ Provisório (Perda de Brinco)</option>
+                        </select>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-4">
                         <div><label class="block text-xs font-bold text-gray-400 mb-1">ID Animal</label><input type="text" id="adulto-id" class="w-full border p-3 rounded-xl bg-gray-50" required></div>
                         <div><label class="block text-xs font-bold text-gray-400 mb-1">Data Entrada</label><input type="date" id="adulto-data" class="w-full border p-3 rounded-xl bg-gray-50" required></div>
@@ -196,21 +211,24 @@
         
         <div id="modal-retorno" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in"><h3 class="text-lg font-bold text-slate-800 mb-2">Voltar a Produzir</h3><p class="text-sm text-gray-500 mb-4">Vaca: <strong id="lbl-id-vaca-ret" class="text-green-600"></strong></p><input type="hidden" id="input-id-retorno"><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data Retorno/Parto</label><input type="date" id="input-data-retorno" class="w-full border p-3 rounded-xl mb-4 text-base bg-slate-50"><div class="flex gap-3"><button onclick="document.getElementById('modal-retorno').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl text-sm font-bold">Cancelar</button><button onclick="confirmarRetorno()" class="w-1/2 py-3 bg-green-600 text-white rounded-xl text-sm font-bold">Iniciar</button></div></div></div>
 
-        <div id="modal-editar" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in"><h3 class="text-lg font-bold text-slate-800 mb-4">Trocar Brinco</h3><input type="hidden" id="edit-id-antigo"><div class="mb-3"><label class="text-xs font-bold text-gray-400">Atual</label><input type="text" id="view-id-antigo" disabled class="w-full border p-3 rounded-xl bg-gray-100"></div><div class="mb-6"><label class="text-xs font-bold text-gray-400">Novo</label><input type="text" id="edit-id-novo" class="w-full border-2 border-blue-100 p-3 rounded-xl font-bold text-lg"></div><div class="flex gap-3"><button onclick="document.getElementById('modal-editar').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl font-bold text-sm">Cancelar</button><button onclick="confirmarEdicao()" class="w-1/2 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm">Salvar</button></div></div></div>
+        <div id="modal-editar" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in"><h3 class="text-lg font-bold text-slate-800 mb-4">Trocar Brinco / Fusão</h3><input type="hidden" id="edit-id-antigo"><div class="mb-3"><label class="text-xs font-bold text-gray-400">Atual</label><input type="text" id="view-id-antigo" disabled class="w-full border p-3 rounded-xl bg-gray-100"></div><div class="mb-6"><label class="text-xs font-bold text-gray-400">Novo / Correto</label><input type="text" id="edit-id-novo" class="w-full border-2 border-blue-100 p-3 rounded-xl font-bold text-lg" placeholder="Digite o ID Correto"></div><p class="text-[10px] text-gray-400 mb-4 text-center">Se o novo ID já existir (provisório), o sistema fará a fusão automática.</p><div class="flex gap-3"><button onclick="document.getElementById('modal-editar').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl font-bold text-sm">Cancelar</button><button onclick="confirmarEdicao()" class="w-1/2 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm">Salvar</button></div></div></div>
         
         <div id="modal-excluir" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
             <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in border-t-4 border-red-500">
                 <h3 class="text-lg font-bold text-slate-800 mb-2">Dar Baixa</h3>
                 <p class="text-sm text-gray-500 mb-4">Animal: <strong id="lbl-id-excluir" class="text-red-600">---</strong></p>
                 <input type="hidden" id="input-id-excluir">
-                <div class="space-y-3 mb-6">
+                <div class="space-y-3 mb-4">
                     <select id="input-motivo-excluir" class="w-full border p-3 rounded-xl bg-slate-50"><option value="VENDIDO">Venda</option><option value="MORTO">Morte</option><option value="ROUBO">Roubo</option><option value="OUTRO">Outro</option></select>
                     <input type="date" id="input-data-excluir" class="w-full border p-3 rounded-xl">
                     <input type="text" id="input-obs-excluir" class="w-full border p-3 rounded-xl" placeholder="Obs...">
                 </div>
-                <div class="flex gap-3">
+                <div class="flex gap-3 mb-4">
                     <button onclick="document.getElementById('modal-excluir').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl font-bold text-sm">Cancelar</button>
                     <button onclick="confirmarExclusao()" class="w-1/2 py-3 bg-red-600 text-white rounded-xl font-bold text-sm">Baixar</button>
+                </div>
+                <div class="border-t pt-3 text-center">
+                    <button onclick="confirmarExclusaoDefinitiva()" class="text-xs text-red-400 hover:text-red-600 underline">Apagar registro do sistema (Erro de cadastro)</button>
                 </div>
             </div>
         </div>
@@ -263,6 +281,12 @@
             document.getElementById('box-' + tipo).classList.remove('hidden');
         }
 
+        window.filtrarProvisorios = () => {
+            nav('lista');
+            document.getElementById('filtro-cat').value = 'PROVISORIO';
+            aplicarFiltros();
+        }
+
         async function carregarDados() {
             try {
                 const snap = await getDocs(collection(db, 'animais'));
@@ -270,7 +294,20 @@
                 snap.forEach(d => animais.push(d.data()));
 
                 const limpar = (str) => str ? str.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
-                window.todosAnimais = animais.filter(a => { const st = limpar(a.status_produtivo); return !st.includes('VENDIDO') && !st.includes('MORTO') && !st.includes('ROUBO'); });
+                
+                // FILTRO CORRIGIDO: Remove todos os status de baixa (incluindo OUTRO)
+                window.todosAnimais = animais.filter(a => { 
+                    const st = limpar(a.status_produtivo); 
+                    return !st.includes('VENDIDO') && !st.includes('MORTO') && !st.includes('ROUBO') && !st.includes('OUTRO'); 
+                });
+
+                const provisorios = window.todosAnimais.filter(a => a.classificacao === 'PROVISORIO');
+                if(provisorios.length > 0) {
+                    document.getElementById('alerta-provisorios').classList.remove('hidden');
+                    document.getElementById('qtd-provisorios').innerText = provisorios.length;
+                } else {
+                    document.getElementById('alerta-provisorios').classList.add('hidden');
+                }
 
                 if (!document.getElementById('tela-dashboard').classList.contains('hidden')) {
                     const lactacao = window.todosAnimais.filter(a => limpar(a.status_produtivo).includes('LACTA'));
@@ -367,10 +404,10 @@
                 const ehBez = a.nascimento ? calcularMeses(a.nascimento) < 12 : limpar(a.categoria_manual).includes('BEZERRO');
                 if (fCat === 'BEZERRO' && !ehBez) return false;
                 if (fCat === 'ADULTO' && ehBez) return false;
+                if (fCat === 'PROVISORIO' && a.classificacao !== 'PROVISORIO') return false;
                 return true;
             });
 
-            // ATUALIZAÇÃO DO CONTADOR (NOVO)
             const total = lista.length;
             const machos = lista.filter(a => a.tipo === 'MACHO').length;
             const femeas = lista.filter(a => a.tipo === 'FEMEA').length;
@@ -381,7 +418,11 @@
                 const st = limpar(a.status_produtivo);
                 let badge = `<span class="text-[9px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">OUT</span>`;
                 
-                // Botão de ação (Play/Pause)
+                let idDisplay = a.id;
+                if(a.classificacao === 'PROVISORIO') {
+                    idDisplay = `<span class="bg-orange-100 text-orange-600 px-1.5 rounded border border-orange-200"><i class="fas fa-exclamation-triangle text-[10px]"></i> ${a.id}</span>`;
+                }
+
                 let btnAction = `<div class="w-8 h-8"></div>`; 
                 if(st.includes('LACTACAO')) {
                     badge = `<span class="text-[9px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">LACT</span>`;
@@ -394,7 +435,7 @@
                 let sexIcon = a.tipo === 'MACHO' ? '<i class="fas fa-mars text-blue-500"></i>' : '<i class="fas fa-venus text-pink-500"></i>';
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 transition border-b border-slate-50">
-                        <td class="px-4 py-3 font-bold text-slate-700">${a.id}</td>
+                        <td class="px-4 py-3 font-bold text-slate-700">${idDisplay}</td>
                         <td class="px-4 py-3 text-center">${sexIcon}</td>
                         <td class="px-4 py-3">${badge}</td>
                         <td class="px-4 py-3 text-xs text-gray-400 font-mono">${formatarDataBr(a.data_evento || a.nascimento)}</td>
@@ -493,7 +534,6 @@
             } catch (e) { console.error(e); alert("Erro ao apagar: " + e.message); }
         }
 
-        // --- FUNÇÕES DE STATUS (SECAGEM & RETORNO) ---
         window.abrirModalSecagem = (id) => { document.getElementById('lbl-id-vaca-sec').innerText=id; document.getElementById('input-id-secagem').value=id; document.getElementById('input-data-secagem').value=new Date().toISOString().split('T')[0]; document.getElementById('modal-secagem').classList.remove('hidden'); }
         window.confirmarSecagem = async () => { const id=document.getElementById('input-id-secagem').value; const data=document.getElementById('input-data-secagem').value; try{ await setDoc(doc(db,"animais",id),{status_produtivo:"SECA",data_evento:data,data_secagem:data},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"SECAGEM",data,obs:"Via App",created_at:new Date()}); document.getElementById('modal-secagem').classList.add('hidden'); carregarDados(); }catch(e){alert(e.message);} }
         
@@ -501,19 +541,141 @@
         window.confirmarRetorno = async () => { const id=document.getElementById('input-id-retorno').value; const data=document.getElementById('input-data-retorno').value; try{ await setDoc(doc(db,"animais",id),{status_produtivo:"LACTAÇÃO",data_evento:data},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"RE-ENTRADA LACTAÇÃO",data,obs:"Via Botão Play",created_at:new Date()}); document.getElementById('modal-retorno').classList.add('hidden'); carregarDados(); }catch(e){alert(e.message);} }
 
         window.abrirModalEditar = (id) => { document.getElementById('edit-id-antigo').value=id; document.getElementById('view-id-antigo').value=id; document.getElementById('edit-id-novo').value=''; document.getElementById('modal-editar').classList.remove('hidden'); }
-        window.confirmarEdicao = async () => { const oldId=document.getElementById('edit-id-antigo').value; const newId=document.getElementById('edit-id-novo').value.toUpperCase().trim(); if(!newId||newId===oldId)return alert("Inválido"); if(!confirm("Confirmar troca?"))return; try{ const docRef=doc(db,"animais",oldId); const snap=await getDoc(docRef); if(snap.exists()){ const d=snap.data(); d.id=newId; await setDoc(doc(db,"animais",newId),d); await addDoc(collection(db,"historico"),{animal_id:newId,evento:"TROCA BRINCO",data:new Date().toISOString().split('T')[0],obs:`Antigo: ${oldId}`,created_at:new Date()}); await deleteDoc(docRef); alert("Sucesso!"); document.getElementById('modal-editar').classList.add('hidden'); carregarDados(); } }catch(e){alert(e.message);} }
+        
+        window.confirmarEdicao = async () => {
+            const oldId = document.getElementById('edit-id-antigo').value;
+            const newId = document.getElementById('edit-id-novo').value.toUpperCase().trim();
+            if (!newId || newId === oldId) return alert("ID Inválido ou Igual.");
+
+            try {
+                const docRefNovo = doc(db, "animais", newId);
+                const snapNovo = await getDoc(docRefNovo);
+
+                if (snapNovo.exists()) {
+                    if (!confirm(`ATENÇÃO: O animal '${newId}' JÁ EXISTE.\nDeseja realizar a FUSÃO? (Apaga '${newId}' provisório e move o histórico de '${oldId}' para ele).`)) return;
+
+                    await deleteDoc(docRefNovo);
+                    
+                    const docRefAntigo = doc(db, "animais", oldId);
+                    const snapAntigo = await getDoc(docRefAntigo);
+                    
+                    if (snapAntigo.exists()) {
+                        const dadosAntigos = snapAntigo.data();
+                        dadosAntigos.id = newId; 
+                        delete dadosAntigos.classificacao; 
+
+                        await setDoc(doc(db, "animais", newId), dadosAntigos);
+                        await deleteDoc(docRefAntigo);
+                        await addDoc(collection(db, "historico"), { animal_id: newId, evento: "FUSÃO/TROCA", data: new Date().toISOString().split('T')[0], obs: `Era ${oldId}, assumiu ${newId}`, created_at: new Date() });
+                        
+                        alert(`Fusão realizada com sucesso!`);
+                    }
+                } 
+                else {
+                    if (!confirm(`Confirmar troca de brinco de '${oldId}' para '${newId}'?`)) return;
+                    const docRefAntigo = doc(db, "animais", oldId);
+                    const snapAntigo = await getDoc(docRefAntigo);
+                    if (snapAntigo.exists()) {
+                        const d = snapAntigo.data();
+                        d.id = newId;
+                        await setDoc(doc(db, "animais", newId), d);
+                        await addDoc(collection(db, "historico"), { animal_id: newId, evento: "TROCA BRINCO", data: new Date().toISOString().split('T')[0], obs: `Antigo: ${oldId}`, created_at: new Date() });
+                        await deleteDoc(docRefAntigo);
+                        alert("Troca de brinco realizada!");
+                    }
+                }
+                document.getElementById('modal-editar').classList.add('hidden');
+                carregarDados();
+            } catch (e) { console.error(e); alert("Erro: " + e.message); }
+        }
+
         window.abrirModalExcluir = (id) => { 
             const lbl = document.getElementById('lbl-id-excluir');
             if(lbl) lbl.innerText = id; 
             document.getElementById('input-id-excluir').value = id; 
             document.getElementById('modal-excluir').classList.remove('hidden'); 
         }
-        window.confirmarExclusao = async () => { const id=document.getElementById('input-id-excluir').value; const mot=document.getElementById('input-motivo-excluir').value; const data=document.getElementById('input-data-excluir').value; const obs=document.getElementById('input-obs-excluir').value; if(!confirm("Confirmar baixa?"))return; try{ await setDoc(doc(db,"animais",id),{status_produtivo:mot,data_saida:data,obs_saida:obs},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"BAIXA - "+mot,data,obs,created_at:new Date()}); document.getElementById('modal-excluir').classList.add('hidden'); carregarDados(); }catch(e){alert(e.message);} }
+
+        // --- FUNÇÃO "DAR BAIXA" (Venda/Morte) ---
+        window.confirmarExclusao = async () => { 
+            const id=document.getElementById('input-id-excluir').value; 
+            const mot=document.getElementById('input-motivo-excluir').value; 
+            const data=document.getElementById('input-data-excluir').value; 
+            const obs=document.getElementById('input-obs-excluir').value; 
+            
+            if(!confirm("Confirmar baixa (Saída do rebanho)?")) return; 
+            
+            try{ 
+                // Atualiza o status para "VENDIDO", "MORTO", "ROUBO" ou "OUTRO"
+                // O filtro carregarDados agora esconde todos esses status.
+                await setDoc(doc(db,"animais",id),{status_produtivo:mot,data_saida:data,obs_saida:obs},{merge:true}); 
+                await addDoc(collection(db,"historico"),{animal_id:id,evento:"BAIXA - "+mot,data,obs,created_at:new Date()}); 
+                
+                document.getElementById('modal-excluir').classList.add('hidden'); 
+                carregarDados(); 
+                alert("Baixa realizada com sucesso!");
+            } catch(e) { alert(e.message); } 
+        }
+
+        // --- FUNÇÃO "EXCLUIR REGISTRO" (Para erros de cadastro) ---
+        window.confirmarExclusaoDefinitiva = async () => {
+            const id = document.getElementById('input-id-excluir').value;
+            if(!confirm(`⚠️ ATENÇÃO ⚠️\n\nTem certeza que deseja APAGAR DEFINITIVAMENTE o animal ${id}?\n\nUse esta opção apenas para ERROS DE CADASTRO.\nPara vendas ou mortes, use o botão 'Baixar'.`)) return;
+            
+            try {
+                // Apaga o documento do animal
+                await deleteDoc(doc(db, "animais", id));
+                
+                // Opcional: Limpar histórico para não deixar lixo
+                const q = query(collection(db, "historico"), where("animal_id", "==", id));
+                const snap = await getDocs(q);
+                snap.forEach(d => deleteDoc(d.ref));
+                
+                document.getElementById('modal-excluir').classList.add('hidden');
+                alert("Registro apagado permanentemente!");
+                carregarDados();
+            } catch (e) {
+                alert("Erro ao apagar: " + e.message);
+            }
+        }
+
         window.abrirDossie = async (id) => { document.getElementById('modal-dossie').classList.remove('hidden'); document.getElementById('dossie-id').innerText=id; document.getElementById('dossie-timeline').innerHTML='<p class="text-xs text-gray-400 p-2">Carregando...</p>'; const docSnap=await getDoc(doc(db,"animais",id)); if(docSnap.exists()){ const d=docSnap.data(); document.getElementById('dossie-resumo').innerHTML=`${d.tipo} | Mãe: ${d.id_mae||'?'} | ${calcularIdade(d.nascimento)}`; } const q=query(collection(db,"historico"),where("animal_id","==",id)); const snap=await getDocs(q); let evts=[]; snap.forEach(d=>evts.push(d.data())); if(docSnap.exists()&&docSnap.data().nascimento)evts.push({evento:'NASCIMENTO',data:docSnap.data().nascimento,obs:'Registro'}); evts.sort((a,b)=>new Date(b.data)-new Date(a.data)); const tl=document.getElementById('dossie-timeline'); tl.innerHTML=''; evts.forEach(e=>{ let color='bg-gray-300'; if(e.evento.includes('PARTO')||e.evento.includes('NASCIMENTO'))color='bg-blue-400'; if(e.evento.includes('SECAGEM')||e.evento.includes('BAIXA'))color='bg-red-400'; tl.innerHTML+=`<div class="relative pl-6 pb-6 border-l border-gray-100 last:pb-0"><div class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${color} ring-2 ring-white"></div><p class="text-[10px] font-bold text-gray-400 uppercase">${formatarDataBr(e.data)}</p><p class="text-sm font-bold text-slate-700">${e.evento}</p><p class="text-xs text-gray-500 bg-white p-2 rounded border border-gray-100 mt-1 shadow-sm">${e.obs||''}</p></div>`; }); }
         window.fecharDossie = () => document.getElementById('modal-dossie').classList.add('hidden');
         window.salvarOcorrencia = async () => { const id=document.getElementById('dossie-id').innerText; const data=document.getElementById('dossie-nova-data').value||new Date().toISOString().split('T')[0]; const obs=document.getElementById('dossie-nova-obs').value; if(!obs)return; try{ await addDoc(collection(db,"historico"),{animal_id:id,evento:"OCORRÊNCIA",data,obs,created_at:new Date()}); document.getElementById('dossie-nova-obs').value=''; abrirDossie(id); }catch(e){alert(e.message);} }
         document.getElementById('formNascimento').addEventListener('submit', async (e) => { e.preventDefault(); const idBez=document.getElementById('cad-idBezerro').value.toUpperCase(); const idMae=document.getElementById('cad-idMae').value.toUpperCase(); const data=document.getElementById('cad-data').value; const sexo=document.getElementById('cad-sexo').value; try{ await setDoc(doc(db,"animais",idBez),{id:idBez,tipo:sexo,nascimento:data,id_mae:idMae,status:'Ativo'}); await setDoc(doc(db,"animais",idMae),{id:idMae,status_produtivo:'LACTAÇÃO',data_evento:data},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:idMae,evento:"PARTO",data,obs:`Pariu ${idBez}`,created_at:new Date()}); alert('Parto Registrado!'); document.getElementById('formNascimento').reset(); }catch(e){alert(e.message);} });
-        document.getElementById('formAdulto').addEventListener('submit', async (e) => { e.preventDefault(); const id=document.getElementById('adulto-id').value.toUpperCase().trim(); const data=document.getElementById('adulto-data').value; const sexo=document.getElementById('adulto-sexo').value; const status=document.getElementById('adulto-status').value; const obs=document.getElementById('adulto-obs').value; try{ await setDoc(doc(db,"animais",id),{id:id,tipo:sexo,status_produtivo:status,data_evento:data,status:'Ativo',categoria_manual:'ADULTO'},{merge:true}); await addDoc(collection(db,"historico"),{animal_id:id,evento:"CADASTRO/COMPRA",data:data,obs:obs||"Cadastro Avulso",created_at:new Date()}); alert('Cadastrado!'); document.getElementById('formAdulto').reset(); }catch(e){alert(e.message);} });
+        
+        document.getElementById('formAdulto').addEventListener('submit', async (e) => { 
+            e.preventDefault(); 
+            const id=document.getElementById('adulto-id').value.toUpperCase().trim(); 
+            const data=document.getElementById('adulto-data').value; 
+            const sexo=document.getElementById('adulto-sexo').value; 
+            const status=document.getElementById('adulto-status').value; 
+            const obs=document.getElementById('adulto-obs').value; 
+            const tipoReg=document.getElementById('adulto-tipo-registro').value; 
+            
+            try{ 
+                await setDoc(doc(db,"animais",id),{
+                    id:id,
+                    tipo:sexo,
+                    status_produtivo:status,
+                    data_evento:data,
+                    status:'Ativo',
+                    categoria_manual:'ADULTO',
+                    classificacao: tipoReg 
+                },{merge:true}); 
+
+                await addDoc(collection(db,"historico"),{
+                    animal_id:id,
+                    evento: tipoReg === 'PROVISORIO' ? "REGISTRO PROVISÓRIO" : "CADASTRO/COMPRA",
+                    data:data,
+                    obs:obs||"Cadastro Avulso",
+                    created_at:new Date()
+                }); 
+                
+                alert('Cadastrado!'); 
+                document.getElementById('formAdulto').reset(); 
+            }catch(e){alert(e.message);} 
+        });
 
         function calcularMeses(d) { return (new Date()-new Date(d))/2629746000; }
         function calcularIdade(d) { if(!d)return'-'; const m=Math.floor(calcularMeses(d)); return m<12?m+"m":Math.floor(m/12)+"a"; }
