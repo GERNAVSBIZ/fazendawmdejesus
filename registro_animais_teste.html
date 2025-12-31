@@ -5,7 +5,7 @@
     <link rel="apple-touch-icon" href="./registro/apple-touch-icon.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gado Pro Mobile v25 - Fotos</title>
+    <title>Gado Pro Mobile v26 - Diário</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -39,11 +39,12 @@
     <nav id="menu-desktop" class="bg-slate-900 text-white px-6 py-4 shadow-lg sticky top-0 z-50 justify-between items-center">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><i class="fas fa-cow text-lg"></i></div>
-            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v25.0</p></div>
+            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v26.0</p></div>
         </div>
         <div class="flex gap-2 text-sm font-medium">
             <button onclick="nav('dashboard')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-chart-line"></i> Painel</button>
             <button onclick="nav('lista')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-list"></i> Rebanho</button>
+            <button onclick="nav('diario')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-book"></i> Diário</button>
             <button onclick="nav('cadastro')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-plus"></i> Novo</button>
             <button onclick="nav('exportar')" class="px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 shadow transition flex items-center gap-2"><i class="fas fa-file-export"></i> Dados</button>
         </div>
@@ -51,6 +52,7 @@
 
     <div id="conteudo-principal" class="max-w-7xl mx-auto p-4 md:p-6 w-full relative">
         
+        <!-- TELA DASHBOARD -->
         <div id="tela-dashboard" class="space-y-6 fade-in">
             <div id="alerta-provisorios" class="hidden bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 rounded shadow-sm flex justify-between items-center">
                 <div>
@@ -108,6 +110,33 @@
             </div>
         </div>
 
+        <!-- TELA DIARIO (NOVA) -->
+        <div id="tela-diario" class="hidden max-w-2xl mx-auto fade-in">
+            <div class="bg-white rounded-2xl shadow-sm p-4 border border-gray-100 mb-6 sticky top-0 z-10">
+                <h3 class="font-bold text-slate-700 mb-3 text-sm flex items-center gap-2">
+                    <i class="fas fa-pen-fancy text-blue-500"></i> Nova Nota
+                </h3>
+                <div class="space-y-3">
+                    <input type="date" id="diario-data" class="w-full border p-3 rounded-xl bg-gray-50 text-sm font-bold text-slate-600">
+                    <textarea id="diario-desc" class="w-full border p-3 rounded-xl bg-gray-50 text-sm min-h-[80px] resize-none focus:bg-white focus:border-blue-500 transition" placeholder="Ex: Conferido gado no retiro, vendido 30 bezerros..."></textarea>
+                    <button onclick="salvarNotaDiario()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl text-sm hover:bg-slate-700 transition shadow-lg shadow-slate-200">
+                        <i class="fas fa-plus mr-1"></i> ADICIONAR AO DIÁRIO
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-gray-100">
+                    <h3 class="font-bold text-slate-700 text-sm"><i class="fas fa-history text-slate-400 mr-2"></i>Histórico Geral</h3>
+                </div>
+                <div id="lista-diario" class="divide-y divide-gray-100">
+                    <!-- Itens inseridos via JS -->
+                    <div class="p-8 text-center text-gray-400 text-xs">Carregando diário...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TELA LISTA -->
         <div id="tela-lista" class="hidden space-y-4 fade-in">
             <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                 <div class="flex justify-between items-center mb-3 px-1">
@@ -132,6 +161,7 @@
             </div>
         </div>
 
+        <!-- TELA EXPORTAR -->
         <div id="tela-exportar" class="hidden max-w-lg mx-auto fade-in">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6 text-center">
                 <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600"><i class="fas fa-file-csv text-2xl"></i></div>
@@ -167,6 +197,7 @@
             <p id="import-status" class="text-xs text-blue-500 font-bold mt-4 text-center h-4"></p>
         </div>
 
+        <!-- TELA CADASTRO -->
         <div id="tela-cadastro" class="hidden max-w-lg mx-auto fade-in mt-4 md:mt-10">
             <div class="flex gap-2 mb-4">
                 <button onclick="switchCadastro('nasc')" id="tab-nasc" class="tab-btn active flex-1 py-3 rounded-xl text-sm font-bold shadow-sm transition"><i class="fas fa-baby mr-1"></i> Nascimento</button>
@@ -207,6 +238,7 @@
             </div>
         </div>
 
+        <!-- MODAIS -->
         <div id="modal-secagem" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in"><h3 class="text-lg font-bold text-slate-800 mb-2">Encerrar Lactação</h3><p class="text-sm text-gray-500 mb-4">Vaca: <strong id="lbl-id-vaca-sec" class="text-blue-600"></strong></p><input type="hidden" id="input-id-secagem"><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data Secagem</label><input type="date" id="input-data-secagem" class="w-full border p-3 rounded-xl mb-4 text-base bg-slate-50"><div class="flex gap-3"><button onclick="document.getElementById('modal-secagem').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl text-sm font-bold">Cancelar</button><button onclick="confirmarSecagem()" class="w-1/2 py-3 bg-red-600 text-white rounded-xl text-sm font-bold">Confirmar</button></div></div></div>
         
         <div id="modal-retorno" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm fade-in"><h3 class="text-lg font-bold text-slate-800 mb-2">Voltar a Produzir</h3><p class="text-sm text-gray-500 mb-4">Vaca: <strong id="lbl-id-vaca-ret" class="text-green-600"></strong></p><input type="hidden" id="input-id-retorno"><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data Retorno/Parto</label><input type="date" id="input-data-retorno" class="w-full border p-3 rounded-xl mb-4 text-base bg-slate-50"><div class="flex gap-3"><button onclick="document.getElementById('modal-retorno').classList.add('hidden')" class="w-1/2 py-3 bg-gray-100 rounded-xl text-sm font-bold">Cancelar</button><button onclick="confirmarRetorno()" class="w-1/2 py-3 bg-green-600 text-white rounded-xl text-sm font-bold">Iniciar</button></div></div></div>
@@ -270,16 +302,18 @@
 
     </div>
 
-    <div id="menu-mobile" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-2 flex justify-between items-center z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-        <button onclick="nav('dashboard')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-dashboard"><i class="fas fa-chart-pie text-xl mb-1"></i><span class="text-[10px] font-bold">Painel</span></button>
-        <button onclick="nav('lista')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-lista"><i class="fas fa-list text-xl mb-1"></i><span class="text-[10px] font-bold">Rebanho</span></button>
-        <button onclick="nav('cadastro')" class="flex flex-col items-center -mt-8"><div class="w-14 h-14 bg-slate-900 rounded-full flex items-center justify-center text-white shadow-lg shadow-slate-400 border-4 border-gray-50 active:scale-95 transition"><i class="fas fa-plus text-xl"></i></div></button>
-        <button onclick="nav('exportar')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-exportar"><i class="fas fa-file-export text-xl mb-1"></i><span class="text-[10px] font-bold">Dados</span></button>
+    <!-- MENU MOBILE -->
+    <div id="menu-mobile" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 flex justify-between items-center z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+        <button onclick="nav('dashboard')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-dashboard"><i class="fas fa-chart-pie text-xl mb-1"></i><span class="text-[9px] font-bold">Painel</span></button>
+        <button onclick="nav('lista')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-lista"><i class="fas fa-list text-xl mb-1"></i><span class="text-[9px] font-bold">Rebanho</span></button>
+        <button onclick="nav('cadastro')" class="flex flex-col items-center -mt-6 mx-1"><div class="w-14 h-14 bg-slate-900 rounded-full flex items-center justify-center text-white shadow-lg shadow-slate-400 border-4 border-gray-50 active:scale-95 transition"><i class="fas fa-plus text-xl"></i></div></button>
+        <button onclick="nav('diario')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-diario"><i class="fas fa-book text-xl mb-1"></i><span class="text-[9px] font-bold">Diário</span></button>
+        <button onclick="nav('exportar')" class="flex flex-col items-center p-2 text-gray-400 hover:text-blue-600 transition nav-item-mob" id="mob-exportar"><i class="fas fa-file-export text-xl mb-1"></i><span class="text-[9px] font-bold">Dados</span></button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, doc, writeBatch, getDocs, setDoc, addDoc, query, where, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, writeBatch, getDocs, setDoc, addDoc, query, where, getDoc, deleteDoc, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // CREDENCIAIS
         const firebaseConfig = {
@@ -299,11 +333,12 @@
         let chartNasc = null;
 
         window.nav = (tela) => {
-            ['dashboard', 'cadastro', 'lista', 'exportar'].forEach(t => document.getElementById('tela-' + t).classList.add('hidden'));
+            ['dashboard', 'cadastro', 'lista', 'exportar', 'diario'].forEach(t => document.getElementById('tela-' + t).classList.add('hidden'));
             document.getElementById('tela-' + tela).classList.remove('hidden');
             document.querySelectorAll('.nav-item-mob').forEach(b => b.classList.remove('text-blue-600'));
             if(document.getElementById('mob-'+tela)) document.getElementById('mob-'+tela).classList.add('text-blue-600');
             if(tela === 'dashboard' || tela === 'lista') carregarDados();
+            if(tela === 'diario') carregarDiario();
         }
 
         window.switchCadastro = (tipo) => {
@@ -484,6 +519,89 @@
             document.getElementById('sem-resultados').classList.toggle('hidden', count > 0);
         }
 
+        // --- FUNÇÕES DO DIÁRIO ---
+        
+        window.carregarDiario = async () => {
+            document.getElementById('diario-data').value = new Date().toISOString().split('T')[0];
+            const divLista = document.getElementById('lista-diario');
+            
+            try {
+                // Busca ordenada por data (mais recente primeiro)
+                const q = query(
+                    collection(db, "diario_geral"), 
+                    orderBy("data", "desc"), 
+                    orderBy("created_at", "desc"), 
+                    limit(50)
+                );
+                const querySnapshot = await getDocs(q);
+                
+                divLista.innerHTML = '';
+                
+                if (querySnapshot.empty) {
+                    divLista.innerHTML = '<div class="p-8 text-center text-gray-400 text-xs">Nenhum registro no diário ainda.</div>';
+                    return;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const d = doc.data();
+                    const dataFormatada = formatarDataBr(d.data);
+                    
+                    divLista.innerHTML += `
+                        <div class="p-4 hover:bg-slate-50 transition flex gap-3 group">
+                            <div class="flex flex-col items-center min-w-[60px]">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase">${dataFormatada.split('/')[2]}</span>
+                                <span class="text-lg font-bold text-slate-700">${dataFormatada.split('/')[0]}/${dataFormatada.split('/')[1]}</span>
+                                <div class="h-full w-px bg-gray-200 mt-2"></div>
+                            </div>
+                            <div class="flex-1 pb-4">
+                                <p class="text-sm text-slate-700 whitespace-pre-wrap">${d.descricao}</p>
+                            </div>
+                            <button onclick="excluirNotaDiario('${doc.id}')" class="h-8 w-8 text-gray-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error("Erro ao carregar diário:", error);
+                divLista.innerHTML = '<div class="p-4 text-center text-red-400 text-xs">Erro ao carregar dados.</div>';
+            }
+        }
+
+        window.salvarNotaDiario = async () => {
+            const data = document.getElementById('diario-data').value;
+            const desc = document.getElementById('diario-desc').value;
+
+            if (!data || !desc) return alert("Preencha a data e a descrição.");
+
+            try {
+                await addDoc(collection(db, "diario_geral"), {
+                    data: data,
+                    descricao: desc,
+                    created_at: new Date()
+                });
+                
+                document.getElementById('diario-desc').value = ''; // Limpa campo
+                carregarDiario(); // Recarrega lista
+            } catch (e) {
+                alert("Erro ao salvar: " + e.message);
+            }
+        }
+
+        window.excluirNotaDiario = async (id) => {
+            if(!confirm("Deseja apagar esta nota?")) return;
+            try {
+                await deleteDoc(doc(db, "diario_geral", id));
+                carregarDiario();
+            } catch (e) {
+                alert("Erro ao excluir: " + e.message);
+            }
+        }
+
+
+        // --- FIM FUNÇÕES DIÁRIO ---
+
+
         window.exportarDados = async () => {
             if(!window.todosAnimais || window.todosAnimais.length === 0) { const snap = await getDocs(collection(db, 'animais')); window.todosAnimais = []; snap.forEach(d => window.todosAnimais.push(d.data())); }
             if(window.todosAnimais.length === 0) return alert("Nenhum dado.");
@@ -558,6 +676,11 @@
                 snapAnimais.forEach(documento => { deletePromises.push(deleteDoc(documento.ref)); });
                 const snapHist = await getDocs(collection(db, "historico"));
                 snapHist.forEach(documento => { deletePromises.push(deleteDoc(documento.ref)); });
+                
+                // Apaga também o diário
+                const snapDiario = await getDocs(collection(db, "diario_geral"));
+                snapDiario.forEach(documento => { deletePromises.push(deleteDoc(documento.ref)); });
+
                 await Promise.all(deletePromises);
                 window.todosAnimais = []; window.cronogramaGlobal = [];
                 document.getElementById('import-status').innerText = "";
