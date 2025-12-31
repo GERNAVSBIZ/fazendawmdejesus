@@ -5,7 +5,7 @@
     <link rel="apple-touch-icon" href="./registro/apple-touch-icon.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gado Pro Mobile v26 - Diário</title>
+    <title>Gado Pro Mobile v26.1 - Sanitário</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -39,7 +39,7 @@
     <nav id="menu-desktop" class="bg-slate-900 text-white px-6 py-4 shadow-lg sticky top-0 z-50 justify-between items-center">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><i class="fas fa-cow text-lg"></i></div>
-            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v26.0</p></div>
+            <div><h1 class="text-xl font-bold tracking-tight">GADO PRO</h1><p class="text-[10px] text-slate-400 font-medium">MOBILE v26.1</p></div>
         </div>
         <div class="flex gap-2 text-sm font-medium">
             <button onclick="nav('dashboard')" class="px-4 py-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-chart-line"></i> Painel</button>
@@ -110,15 +110,59 @@
             </div>
         </div>
 
-        <!-- TELA DIARIO (NOVA) -->
+        <!-- TELA DIARIO (ATUALIZADA) -->
         <div id="tela-diario" class="hidden max-w-2xl mx-auto fade-in">
+            
+            <!-- Painel de Acesso Rápido Sanitário -->
+            <div class="bg-blue-50 rounded-2xl shadow-sm p-4 border border-blue-100 mb-6">
+                <h3 class="font-bold text-blue-800 text-sm mb-3 flex items-center gap-2"><i class="fas fa-syringe"></i> Calendário Sanitário & Legal</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="preencherNota('Vacinação de Aftosa realizada em todo o rebanho.', 'VACINA')" class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition text-left group">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-6 h-6 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-xs"><i class="fas fa-syringe"></i></div>
+                            <span class="text-xs font-bold text-slate-600 group-hover:text-blue-600">Vacina Aftosa</span>
+                        </div>
+                        <p class="text-[10px] text-gray-400">Registrar Campanha</p>
+                    </button>
+                    <button onclick="preencherNota('Declaração de Rebanho atualizada junto à ADAPEC.', 'ADAPEC')" class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition text-left group">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs"><i class="fas fa-file-signature"></i></div>
+                            <span class="text-xs font-bold text-slate-600 group-hover:text-blue-600">ADAPEC</span>
+                        </div>
+                        <p class="text-[10px] text-gray-400">Registrar Declaração</p>
+                    </button>
+                    <button onclick="preencherNota('Vacinação contra Brucelose (Bezerras 3-8 meses).', 'VACINA')" class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition text-left group">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-6 h-6 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-xs"><i class="fas fa-shield-virus"></i></div>
+                            <span class="text-xs font-bold text-slate-600 group-hover:text-blue-600">Brucelose</span>
+                        </div>
+                        <p class="text-[10px] text-gray-400">Bezerras</p>
+                    </button>
+                    <button onclick="preencherNota('Vermifugação realizada.', 'MANEJO')" class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition text-left group">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-6 h-6 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center text-xs"><i class="fas fa-pills"></i></div>
+                            <span class="text-xs font-bold text-slate-600 group-hover:text-blue-600">Vermífugo</span>
+                        </div>
+                        <p class="text-[10px] text-gray-400">Manejo Geral</p>
+                    </button>
+                </div>
+            </div>
+
             <div class="bg-white rounded-2xl shadow-sm p-4 border border-gray-100 mb-6 sticky top-0 z-10">
                 <h3 class="font-bold text-slate-700 mb-3 text-sm flex items-center gap-2">
                     <i class="fas fa-pen-fancy text-blue-500"></i> Nova Nota
                 </h3>
                 <div class="space-y-3">
-                    <input type="date" id="diario-data" class="w-full border p-3 rounded-xl bg-gray-50 text-sm font-bold text-slate-600">
-                    <textarea id="diario-desc" class="w-full border p-3 rounded-xl bg-gray-50 text-sm min-h-[80px] resize-none focus:bg-white focus:border-blue-500 transition" placeholder="Ex: Conferido gado no retiro, vendido 30 bezerros..."></textarea>
+                    <div class="flex gap-2">
+                        <input type="date" id="diario-data" class="w-2/3 border p-3 rounded-xl bg-gray-50 text-sm font-bold text-slate-600">
+                        <select id="diario-categoria" class="w-1/3 border p-3 rounded-xl bg-gray-50 text-sm font-bold text-slate-600">
+                            <option value="GERAL">Geral</option>
+                            <option value="VACINA">Vacina</option>
+                            <option value="ADAPEC">Adapec</option>
+                            <option value="MANEJO">Manejo</option>
+                        </select>
+                    </div>
+                    <textarea id="diario-desc" class="w-full border p-3 rounded-xl bg-gray-50 text-sm min-h-[80px] resize-none focus:bg-white focus:border-blue-500 transition" placeholder="Descreva o evento..."></textarea>
                     <button onclick="salvarNotaDiario()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl text-sm hover:bg-slate-700 transition shadow-lg shadow-slate-200">
                         <i class="fas fa-plus mr-1"></i> ADICIONAR AO DIÁRIO
                     </button>
@@ -519,8 +563,14 @@
             document.getElementById('sem-resultados').classList.toggle('hidden', count > 0);
         }
 
-        // --- FUNÇÕES DO DIÁRIO ---
+        // --- FUNÇÕES DO DIÁRIO (ATUALIZADAS) ---
         
+        window.preencherNota = (texto, categoria) => {
+            document.getElementById('diario-desc').value = texto;
+            document.getElementById('diario-categoria').value = categoria;
+            document.getElementById('diario-desc').focus();
+        }
+
         window.carregarDiario = async () => {
             document.getElementById('diario-data').value = new Date().toISOString().split('T')[0];
             const divLista = document.getElementById('lista-diario');
@@ -546,19 +596,46 @@
                     const d = doc.data();
                     const dataFormatada = formatarDataBr(d.data);
                     
+                    // Ícones e cores baseados na categoria
+                    let icone = '<i class="fas fa-sticky-note"></i>';
+                    let corBg = 'bg-gray-100';
+                    let corTexto = 'text-gray-500';
+                    
+                    if(d.categoria === 'VACINA') { 
+                        icone = '<i class="fas fa-syringe"></i>'; 
+                        corBg = 'bg-red-100'; 
+                        corTexto = 'text-red-500'; 
+                    }
+                    else if(d.categoria === 'ADAPEC') { 
+                        icone = '<i class="fas fa-file-signature"></i>'; 
+                        corBg = 'bg-green-100'; 
+                        corTexto = 'text-green-600'; 
+                    }
+                    else if(d.categoria === 'MANEJO') { 
+                        icone = '<i class="fas fa-hand-holding-medical"></i>'; 
+                        corBg = 'bg-purple-100'; 
+                        corTexto = 'text-purple-500'; 
+                    }
+
                     divLista.innerHTML += `
-                        <div class="p-4 hover:bg-slate-50 transition flex gap-3 group">
+                        <div class="p-4 hover:bg-slate-50 transition flex gap-3 group items-start">
                             <div class="flex flex-col items-center min-w-[60px]">
                                 <span class="text-[10px] font-bold text-gray-400 uppercase">${dataFormatada.split('/')[2]}</span>
                                 <span class="text-lg font-bold text-slate-700">${dataFormatada.split('/')[0]}/${dataFormatada.split('/')[1]}</span>
-                                <div class="h-full w-px bg-gray-200 mt-2"></div>
+                                <div class="h-8 w-px bg-gray-200 mt-2 mb-2"></div>
+                                <div class="w-8 h-8 rounded-full ${corBg} ${corTexto} flex items-center justify-center text-xs shadow-sm border border-white">
+                                    ${icone}
+                                </div>
                             </div>
-                            <div class="flex-1 pb-4">
-                                <p class="text-sm text-slate-700 whitespace-pre-wrap">${d.descricao}</p>
+                            <div class="flex-1 pb-4 pt-1">
+                                <div class="flex justify-between items-start">
+                                    <span class="text-[10px] font-bold ${corTexto} bg-white border border-gray-100 px-2 py-0.5 rounded-full uppercase tracking-wider mb-1 inline-block shadow-sm">${d.categoria || 'GERAL'}</span>
+                                    <button onclick="excluirNotaDiario('${doc.id}')" class="h-6 w-6 text-gray-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                <p class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">${d.descricao}</p>
                             </div>
-                            <button onclick="excluirNotaDiario('${doc.id}')" class="h-8 w-8 text-gray-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100">
-                                <i class="fas fa-trash"></i>
-                            </button>
                         </div>
                     `;
                 });
@@ -571,6 +648,7 @@
         window.salvarNotaDiario = async () => {
             const data = document.getElementById('diario-data').value;
             const desc = document.getElementById('diario-desc').value;
+            const cat = document.getElementById('diario-categoria').value;
 
             if (!data || !desc) return alert("Preencha a data e a descrição.");
 
@@ -578,11 +656,12 @@
                 await addDoc(collection(db, "diario_geral"), {
                     data: data,
                     descricao: desc,
+                    categoria: cat,
                     created_at: new Date()
                 });
                 
-                document.getElementById('diario-desc').value = ''; // Limpa campo
-                carregarDiario(); // Recarrega lista
+                document.getElementById('diario-desc').value = ''; 
+                carregarDiario(); 
             } catch (e) {
                 alert("Erro ao salvar: " + e.message);
             }
