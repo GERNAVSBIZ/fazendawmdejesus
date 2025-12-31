@@ -576,11 +576,10 @@
             const divLista = document.getElementById('lista-diario');
             
             try {
-                // Busca ordenada por data (mais recente primeiro)
+                // Busca ordenada APENAS por data para evitar erro de índice composto
                 const q = query(
                     collection(db, "diario_geral"), 
                     orderBy("data", "desc"), 
-                    orderBy("created_at", "desc"), 
                     limit(50)
                 );
                 const querySnapshot = await getDocs(q);
