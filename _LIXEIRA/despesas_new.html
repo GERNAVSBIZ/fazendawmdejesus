@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> de Despesas da Fazenda</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .chart-container { position: relative; margin: auto; height: 400px; width: 100%; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #2d3748; }
+        ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #718096; }
+        #uploadModal.hidden { display: none; }
+        .table-filter-input {
+            width: 100%;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #4a5568;
+            background-color: #2d3748;
+            color: #e2e8f0;
+        }
+        .table-filter-input::placeholder {
+            color: #a0aec0;
+        }
+    </style>
+    <script src="firebase-config.js"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+
+    <!-- SHARED NAVBAR START -->
+    <nav class="bg-emerald-700 text-white shadow-md sticky top-0 z-50 print:hidden">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-14">
+                <a href="index.html" class="font-bold text-lg flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                    <span>WM de Jesus</span>
+                </a>
+                <div class="flex space-x-1 overflow-x-auto">
+                     <a href="index.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Início</a>
+                    <a href="leite_colaborativo.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Leite</a>
+                    <a href="despesas.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Despesas</a>
+                    <a href="financeiro.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Financeiro</a>
+                    <a href="registro_animais.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Rebanho</a>
+                     <a href="vacas_producao.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Produção</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <!-- SHARED NAVBAR END -->
+
+    
+    <!-- INÍCIO DO BLOCO SCRIPT -->
+    <script>
+        const firebaseConfig = window.globalFirebaseConfig;
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        
+        // Estado da Aplicação
+        let chartInstances = {};
+        let originalData = [];
+        let pendingExtrato = []; // Armazena itens pendentes do extrato
+        const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        
+        let editingDocId = null; 
+        let conciliatingDocId = null; // Armazena ID do extrato sendo conciliado
+
+        // PSEUDO-BACKEND PARA CATEGORIAS E SUBCATEGORIAS
+        const categoriasSubcategorias = {
+            "Pecuária": ["Alimentação", "Medicamentos", "Sanidade", "Reprodução"],
+            "Agricultura": ["Insumos", "Fertilizantes", "Sementes", "Mão de Obra"],
+            "Infraestrutura": ["Manutenção Predial", "Equipamentos", "Veículos", "Ferramentas"],
+            "Administrativo": ["Impostos", "Serviços", "Salários"],
+            "Outros": ["Diversos"]
+        };
+
+
+        function signIn() { auth.signInWithPopup(provider).catch(e => console.error("Auth Error:", e)); }
+        function signOut() { auth.signOut().catch(e => console.error("Sign Out Error:", e)); }
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                document.getElementById('user-name').textContent = user.displayName;
+                document.getElementById('user-img').src = user.photoURL;
+                loadAndProcessData();
+            } else {
+                document.getElementById('auth-container').classList.remove('hidden');
+                document.getElementById('dashboard').classList.add('hidden');
+            }
+        });
+
+        // =========================================================
+        // CARREGAMENTO PRINCIPAL DE DADOS (DESPESAS + EXTRATO) - (FUNÇÃO CORRIGIDA)
+        // =========================================================
+        async function loadAndProcessData() {
+            try {
+                // 1. Carregar Despesas (Já categorizadas)
+                const snapshot = await db.collection("despesas").get();
+                originalData = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return { docId: doc.id, ...data, Data: parseDate(data.Data), Total: formatToFloat(data.Total) }; 
+                }).sort((a, b) => b.Data - a.Data);
+
+                // 2. Carregar Extrato (Aguardando conciliação)
+                // MODIFICAÇÃO: Traz todos os documentos e filtra no Javascript
+                // Isso evita o erro de "Índice não encontrado" no Firestore.
+                const extratoSnapshot = await db.collection("extrato_bancario").get();
+                                                
+                pendingExtrato = extratoSnapshot.docs
+                    .map(doc => ({ docId: doc.id, ...doc.data() }))
+                    .filter(item => item.conciliado === false); // Filtro manual
+
+                // 3. Inicializar o Dashboard
+                initializeDashboard(originalData);
+                
+                // 4. Mostrar Itens Pendentes
+                displayConciliation(pendingExtrato, originalData);
+
+            } catch (error) {
+                console.error("Erro ao carregar dados do Firestore: ", error);
+                // Alert modificado para ser mais genérico, já que não era "permissão"
+                alert("Erro ao carregar dados. Verifique o console para mais detalhes.");
+            }
+        }
+
+        function parseDate(dateStr) {
+            if (!dateStr || typeof dateStr !== 'string') return new Date();
+            // Tenta formato dd/mm/aaaa
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                const [day, month, year] = parts;
+                return new Date(Number(year), Number(month) - 1, Number(day));
+            }
+            // Tenta formato do Firestore YYYY-MM-DD
+            if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                return new Date(dateStr + 'T00:00:00'); 
+            }
+            return new Date();
+        }
+        
+        function formatToFloat(currencyStr) {
+            if (typeof currencyStr !== 'string' && typeof currencyStr !== 'number') return 0;
+            if (typeof currencyStr === 'number') return currencyStr;
+            
+            return parseFloat(String(currencyStr)
+                .replace('R$', '')
+                .trim()
+                .replace(/\./g, '') 
+                .replace(',', '.')) 
+            || 0;
+        }
+
+
+        function initializeDashboard(data) {
+            populateFilters(data);
+            addEventListeners();
+            setupFormListeners(); 
+            filterAndRedraw();
+            createTwoYearComparisonChart(data);
+        }
+
+        function addEventListeners() {
+            // Filtros do Dashboard
+            document.getElementById('categoryFilter').addEventListener('change', filterAndRedraw);
+            document.getElementById('subcategoryFilter').addEventListener('change', filterAndRedraw);
+            document.getElementById('yearFilter').addEventListener('change', filterAndRedraw);
+            document.getElementById('monthFilter').addEventListener('change', filterAndRedraw);
+
+            // Botões do Cabeçalho
+            document.getElementById('upload-btn').addEventListener('click', () => document.getElementById('csv-upload-input').click());
+            document.getElementById('csv-upload-input').addEventListener('change', handleFileSelect);
+            document.getElementById('delete-data-btn').addEventListener('click', deleteAllExpenses);
+            
+            document.getElementById('extrato-upload-btn').addEventListener('click', () => document.getElementById('extrato-upload-input').click());
+            document.getElementById('extrato-upload-input').addEventListener('change', handleExtratoSelect);
+            
+            // Botão de Exportar
+            document.getElementById('export-csv-btn').addEventListener('click', () => exportCSV(originalData));
+
+            // Filtros da Tabela
+            document.getElementById('filterData').addEventListener('keyup', filterAndRedraw);
+            document.getElementById('filterCategoria').addEventListener('keyup', filterAndRedraw);
+            document.getElementById('filterSubCategoria').addEventListener('keyup', filterAndRedraw);
+            document.getElementById('filterDescricao').addEventListener('keyup', filterAndRedraw);
+            
+            // Botão de Cancelar Edição/Conciliação
+            document.getElementById('cancel-edit-btn').addEventListener('click', cancelEditing);
+        }
+
+        // =========================================================
+        // LÓGICA DE INSERÇÃO / EDIÇÃO DE DESPESAS
+        // =========================================================
+
+        function setupFormListeners() {
+            const categorySelect = document.getElementById('inputCategoria');
+            const form = document.getElementById('newExpenseForm');
+            const inputQtd = document.getElementById('inputQuantidade');
+            const inputPU = document.getElementById('inputPrecoUnitario');
+
+            Object.keys(categoriasSubcategorias).sort().forEach(cat => {
+                categorySelect.add(new Option(cat, cat));
+            });
+            categorySelect.addEventListener('change', updateSubcategories);
+            inputQtd.addEventListener('input', calculateTotal);
+            inputPU.addEventListener('input', calculateTotal);
+            
+            form.addEventListener('submit', handleFormSubmit);
+            
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('inputData').value = today;
+        }
+        
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            if (editingDocId) {
+                saveEditedExpense(editingDocId);
+            } else if (conciliatingDocId) {
+                saveConciliatedExpense(conciliatingDocId);
+            } else {
+                addNewExpense();
+            }
+        }
+
+        function updateSubcategories() {
+            const category = document.getElementById('inputCategoria').value;
+            const subcategorySelect = document.getElementById('inputSubCategoria');
+            const selectedSubcategory = subcategorySelect.value;
+            
+            subcategorySelect.innerHTML = '<option value="">Selecione</option>';
+            if (category && categoriasSubcategorias[category]) {
+                categoriasSubcategorias[category].sort().forEach(sub => {
+                    const option = new Option(sub, sub);
+                    if (sub === selectedSubcategory) option.selected = true; 
+                    subcategorySelect.add(option);
+                });
+            }
+        }
+
+        function calculateTotal() {
+            const qtd = parseFloat(document.getElementById('inputQuantidade').value) || 0;
+            const pu = parseFloat(document.getElementById('inputPrecoUnitario').value) || 0;
+            const total = (qtd * pu).toFixed(2);
+            document.getElementById('inputTotal').value = total;
+        }
+
+        function prepareExpenseData(dataOriginal) {
+            const [year, month, day] = dataOriginal.split('-');
+            const dataDisplay = `${day}/${month}/${year}`;
+            const totalValue = parseFloat(document.getElementById('inputTotal').value);
+            const puValue = parseFloat(document.getElementById('inputPrecoUnitario').value);
+
+            return {
+                "Data": dataDisplay,
+                "Categoria": document.getElementById('inputCategoria').value,
+                "Sub Categoria": document.getElementById('inputSubCategoria').value,
+                "Tipo": document.getElementById('inputTipo').value,
+                "Descrição": document.getElementById('inputDescricao').value,
+                "Quantidade": document.getElementById('inputQuantidade').value,
+                "Preço Unitário": puValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+                "Total": totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+                "Observações": document.getElementById('inputObservacoes').value,
+            };
+        }
+        
+        async function addNewExpense() {
+            document.body.style.cursor = 'wait';
+            const dataOriginal = document.getElementById('inputData').value;
+            const newExpense = {
+                ...prepareExpenseData(dataOriginal),
+                "Timestamp": firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                await db.collection("despesas").add(newExpense);
+                alert("Despesa adicionada com sucesso!");
+                cancelEditing(); 
+                loadAndProcessData(); 
+            } catch (error) {
+                console.error("Erro ao adicionar despesa: ", error);
+                alert("Erro ao salvar a despesa. Verifique o console.");
+            } finally {
+                document.body.style.cursor = 'default';
+            }
+        }
+        
+        async function saveEditedExpense(docId) {
+            document.body.style.cursor = 'wait';
+            const dataOriginal = document.getElementById('inputData').value;
+            const updatedExpense = prepareExpenseData(dataOriginal);
+
+            try {
+                await db.collection("despesas").doc(docId).update(updatedExpense);
+                alert("Despesa editada com sucesso!");
+                cancelEditing();
+                loadAndProcessData(); 
+            } catch (error) {
+                console.error("Erro ao editar despesa: ", error);
+                alert("Erro ao editar a despesa. Verifique o console.");
+            } finally {
+                document.body.style.cursor = 'default';
+            }
+        }
+        
+        async function saveConciliatedExpense(extratoId) {
+            document.body.style.cursor = 'wait';
+            const dataOriginal = document.getElementById('inputData').value;
+            
+            const newExpense = {
+                ...prepareExpenseData(dataOriginal),
+                "Timestamp": firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                const batch = db.batch();
+                
+                const despesaRef = db.collection("despesas").doc();
+                batch.set(despesaRef, newExpense);
+                
+                const extratoRef = db.collection("extrato_bancario").doc(extratoId);
+                batch.update(extratoRef, { conciliado: true });
+                
+                await batch.commit();
+                
+                alert("Despesa conciliada e salva!");
+                cancelEditing(); 
+                loadAndProcessData(); 
+            } catch (error) {
+                console.error("Erro ao conciliar despesa: ", error);
+                alert("Erro ao conciliar a despesa. Verifique o console.");
+            } finally {
+                document.body.style.cursor = 'default';
+            }
+        }
+
+        // =========================================================
+        // LÓGICA DE EXCLUSÃO (Despesa)
+        // =========================================================
+        
+        async function deleteExpense(docId) {
+            if (!confirm("Tem certeza que deseja EXCLUIR esta despesa? Esta ação é irreversível.")) {
+                return;
+            }
+            
+            document.body.style.cursor = 'wait';
+            try {
+                await db.collection("despesas").doc(docId).delete();
+                alert("Despesa excluída com sucesso!");
+                loadAndProcessData();
+            } catch (error) {
+                console.error("Erro ao excluir despesa: ", error);
+                alert("Erro ao excluir despesa. Verifique o console.");
+            } finally {
+                document.body.style.cursor = 'default';
+            }
+        }
+        
+        // =========================================================
+        // LÓGICA DE EDIÇÃO (Despesa)
+        // =========================================================
+
+        function editExpense(docId) {
+            const expense = originalData.find(d => d.docId === docId);
+            if (!expense) {
+                alert("Despesa não encontrada.");
+                return;
+            }
+            
+            cancelEditing(); 
+
+            editingDocId = docId;
+            document.getElementById('submit-btn-text').textContent = 'Salvar Edição';
+            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+
+            const dataStr = expense.Data.toISOString().split('T')[0];
+            document.getElementById('inputData').value = dataStr;
+            
+            document.getElementById('inputCategoria').value = expense.Categoria;
+            updateSubcategories(); 
+            document.getElementById('inputSubCategoria').value = expense['Sub Categoria'];
+            document.getElementById('inputTipo').value = expense.Tipo || '';
+            document.getElementById('inputDescricao').value = expense.Descrição || '';
+            document.getElementById('inputQuantidade').value = formatToFloat(expense.Quantidade);
+            
+            const total = expense.Total; // Já é float
+            const qtd = formatToFloat(expense.Quantidade);
+            const precoUnitario = (qtd > 0 && total > 0) ? (total / qtd) : formatToFloat(expense['Preço Unitário'] || 0);
+
+            document.getElementById('inputPrecoUnitario').value = precoUnitario.toFixed(2);
+            document.getElementById('inputTotal').value = total.toFixed(2);
+            document.getElementById('inputObservacoes').value = expense.Observações || '';
+
+            document.getElementById('newExpenseForm').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function cancelEditing() {
+            editingDocId = null;
+            conciliatingDocId = null; 
+            
+            document.getElementById('newExpenseForm').reset();
+            document.getElementById('submit-btn-text').textContent = 'Registrar Despesa';
+            document.getElementById('cancel-edit-btn').classList.add('hidden');
+            document.getElementById('inputQuantidade').value = '1';
+            calculateTotal(); 
+            
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('inputData').value = today;
+            
+            document.getElementById('inputCategoria').value = '';
+            document.getElementById('inputSubCategoria').innerHTML = '<option value="">Selecione</option>';
+        }
+
+        // =========================================================
+        // LÓGICA DE CONCILIAÇÃO (Carregar Extrato e Mostrar Pendentes)
+        // =========================================================
+
+        function handleExtratoSelect(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const parsedData = parseExtratoCSV(e.target.result);
+                if (parsedData.length > 0) {
+                    uploadExtratoToFirestore(parsedData);
+                } else {
+                    alert("Não foi possível processar o arquivo de extrato. Verifique o formato.");
+                }
+            };
+            reader.readAsText(file, 'ISO-8859-1'); 
+        }
+        
+        function parseExtratoCSV(text) {
+            const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+            let headerIndex = -1;
+            
+            for(let i=0; i<lines.length; i++){ 
+                if(lines[i].includes('"Valor"') && lines[i].includes('"N° documento"')){ 
+                    headerIndex = i; 
+                    break; 
+                } 
+            }
+            if(headerIndex === -1) { alert("Erro: Cabeçalho 'Valor' ou 'N° documento' não encontrado no arquivo CSV."); return []; }
+            
+            const headers = lines[headerIndex].split('","').map(h => h.replace(/"/g, '').trim());
+            const dataLines = lines.slice(headerIndex + 1);
+
+            return dataLines.map(line => {
+                const values = line.split('","').map(v => v.replace(/"/g, '').trim());
+                let obj = {};
+                headers.forEach((header, i) => { if (header) obj[header] = values[i] || ''; });
+                return obj;
+            }).filter(obj => obj.Data && obj.Valor); 
+        }
+
+        async function uploadExtratoToFirestore(data) {
+            document.body.style.cursor = 'wait';
+            const batch = db.batch();
+            const collectionRef = db.collection("extrato_bancario");
+            let count = 0;
+
+            data.forEach(item => {
+                if (item['Tipo Lançamento'] === "Saída" && item['N° documento']) {
+                    const docId = item['N° documento']; 
+                    const docRef = collectionRef.doc(docId);
+                    
+                    const dataToSet = {
+                        Data: item.Data,
+                        Lancamento: item.Lançamento,
+                        Detalhes: item.Detalhes,
+                        Valor: item.Valor, 
+                        conciliado: false 
+                    };
+                    
+                    batch.set(docRef, dataToSet, { merge: true }); 
+                    count++;
+                }
+            });
+
+            try {
+                await batch.commit();
+                alert(`${count} transações de saída foram carregadas/atualizadas com sucesso!`);
+                loadAndProcessData(); 
+            } catch (error) {
+                console.error("Erro ao enviar extrato: ", error);
+                alert("Erro ao salvar o extrato. Verifique o console.");
+            } finally {
+                document.body.style.cursor = 'default';
+            }
+        }
+        
+        function displayConciliation(pendingItems, allDespesas) {
+            const tableBody = document.getElementById('conciliationTableBody');
+            tableBody.innerHTML = '';
+            
+            const despesaMap = new Map();
+            allDespesas.forEach(d => {
+                const dataKey = d.Data.toLocaleDateString('pt-BR');
+                const valorKey = d.Total.toFixed(2); 
+                const key = `${dataKey}-${valorKey}`;
+                despesaMap.set(key, (despesaMap.get(key) || 0) + 1); 
+            });
+
+            const trulyPending = pendingItems.filter(item => {
+                const dataKey = item.Data; 
+                const valorKey = (formatToFloat(item.Valor) * -1).toFixed(2); 
+                const key = `${dataKey}-${valorKey}`;
+                
+                if (despesaMap.has(key)) {
+                    despesaMap.set(key, despesaMap.get(key) - 1);
+                    if (despesaMap.get(key) === 0) {
+                        despesaMap.delete(key);
+                    }
+                    return false; 
+                }
+                return true; 
+            });
+
+            if (trulyPending.length === 0) {
+                document.getElementById('conciliationContainer').classList.add('hidden');
+                return;
+            }
+            
+            document.getElementById('conciliationContainer').classList.remove('hidden');
+
+            trulyPending.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800';
+                
+                const valorFloat = formatToFloat(item.Valor) * -1; 
+                
+                tr.innerHTML = `
+                    <td class="py-3 px-4">${item.Data}</td>
+                    <td class="py-3 px-4">${item.Lancamento} - ${item.Detalhes}</td>
+                    <td class="py-3 px-4 text-right">${valorFloat.toLocaleString('pt-BR',{style:'currency','currency':'BRL'})}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="categorizeFromExtrato('${item.docId}')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-2 rounded">
+                            Categorizar
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+        
+        function categorizeFromExtrato(docId) {
+            const item = pendingExtrato.find(d => d.docId === docId);
+            if (!item) {
+                alert("Item do extrato não encontrado.");
+                return;
+            }
+            
+            cancelEditing(); 
+
+            conciliatingDocId = docId;
+            document.getElementById('submit-btn-text').textContent = 'Salvar Despesa Conciliada';
+            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+            
+            const parts = item.Data.split('/');
+            const dataStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            
+            const valor = (formatToFloat(item.Valor) * -1).toFixed(2);
+
+            document.getElementById('inputData').value = dataStr;
+            document.getElementById('inputDescricao').value = `${item.Lancamento} - ${item.Detalhes}`;
+            document.getElementById('inputQuantidade').value = 1;
+            document.getElementById('inputPrecoUnitario').value = valor;
+            document.getElementById('inputTotal').value = valor;
+            
+            document.getElementById('newExpenseForm').scrollIntoView({ behavior: 'smooth' });
+        }
+
+
+        // =========================================================
+        // FUNÇÕES EXISTENTES (CSV Despesas, Gráficos, etc.)
+        // =========================================================
+
+        async function deleteAllExpenses() {
+            if (!confirm("ATENÇÃO!\n\nVocê está prestes a apagar TODOS os dados de DESPESAS.\n\nEsta ação é IRREVERSÍVEL. Deseja continuar?")) {
+                return;
+            }
+            if (!confirm("CONFIRMAÇÃO FINAL:\n\nApagar todos os dados de DESPESAS?")) {
+                return;
+            }
+            
+            try {
+                document.body.style.cursor = 'wait';
+                const snapshot = await db.collection('despesas').get();
+                if (!snapshot.empty) {
+                    const batch = db.batch();
+                    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                }
+                alert("Todos os dados de despesas foram apagados com sucesso!");
+                loadAndProcessData();
+            } catch (error) {
+                console.error("Erro ao apagar despesas:", error);
+                alert("Ocorreu um erro ao apagar os dados. Verifique o console.");
+            } finally {
+                document.body.style.cursor = 'default';
+            }
+        }
+
+        function parseCSV(text) {
+            const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+            let headerIndex = -1;
+            for(let i=0; i<lines.length; i++){ if(lines[i].toLowerCase().includes('data')){ headerIndex = i; break; } }
+            if(headerIndex === -1) { alert("Erro: Cabeçalho 'Data' não encontrado no arquivo CSV."); return []; }
+            const headers = lines[headerIndex].split(';').map(h => h.trim());
+            const dataLines = lines.slice(headerIndex + 1);
+            return dataLines.map(line => {
+                const values = line.split(';');
+                let obj = {};
+                headers.forEach((header, i) => { if (header) obj[header] = values[i] || ''; });
+                return obj;
+            }).filter(obj => obj.Data);
+        }
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const parsedData = parseCSV(e.target.result);
+                if (parsedData.length > 0) showUploadModal(parsedData, file.name);
+            };
+            reader.readAsText(file, 'ISO-8859-1');
+        }
+
+        function showUploadModal(data, fileName) {
+            const modal = document.getElementById('uploadModal');
+            const content = document.getElementById('uploadModalContent');
+            content.innerHTML = `<h3 class="text-lg font-medium text-gray-900 dark:text-white">Confirmar Upload (Despesas)</h3><div class="mt-2"><p class="text-sm text-gray-500 dark:text-gray-400">Enviar <strong>${data.length}</strong> registros do arquivo <strong>${fileName}</strong>?</p></div>`;
+            const actions = document.getElementById('uploadModalActions');
+            actions.innerHTML = `<button type="button" id="confirm-upload-btn" class="inline-flex justify-center w-full rounded-md shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700">Confirmar</button><button type="button" id="cancel-upload-btn" class="mt-3 sm:mt-0 sm:ml-3 inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>`;
+            modal.classList.remove('hidden');
+            document.getElementById('confirm-upload-btn').onclick = () => uploadDataToFirestore(data);
+            document.getElementById('cancel-upload-btn').onclick = () => modal.classList.add('hidden');
+        }
+
+        async function uploadDataToFirestore(data) {
+            const modalContent = document.getElementById('uploadModalContent');
+            const actions = document.getElementById('uploadModalActions');
+            modalContent.innerHTML = `<p>Enviando ${data.length} registros...</p>`;
+            actions.innerHTML = '';
+            const batch = db.batch();
+            const collectionRef = db.collection("despesas");
+            data.forEach(item => { const docRef = collectionRef.doc(); batch.set(docRef, item); });
+            try {
+                await batch.commit();
+                modalContent.innerHTML = `<p class="text-green-500">Upload de Despesas concluído!</p>`;
+                setTimeout(() => { document.getElementById('uploadModal').classList.add('hidden'); loadAndProcessData(); }, 2000);
+            } catch (error) {
+                console.error("Erro ao enviar dados: ", error);
+                modalContent.innerHTML = `<p class="text-red-500">Erro no upload: ${error.message}</p>`;
+                actions.innerHTML = `<button type="button" onclick="document.getElementById('uploadModal').classList.add('hidden')" class="mt-3 w-full rounded-md border px-4 py-2 bg-white text-gray-700">Fechar</button>`;
+            }
+        }
+
+        function populateFilters(data){
+            const categories=[...new Set(data.map(item=>item.Categoria))].filter(Boolean).sort();
+            const subcategories=[...new Set(data.map(item=>item['Sub Categoria']))].filter(Boolean).sort();
+            const years=[...new Set(data.map(item=>item.Data.getFullYear()))].sort((a,b)=>b-a);
+            
+            const populateSelect=(elementId,options,isMonth=false)=>{const select=document.getElementById(elementId);select.innerHTML=`<option value="all">${isMonth ? 'Todos os Meses' : 'Todos'}</option>`;if(isMonth){options.forEach((opt,i)=>select.add(new Option(opt,i)))}else{options.forEach(opt=>select.add(new Option(opt,opt)))}};
+            
+            populateSelect('categoryFilter',categories);
+            populateSelect('subcategoryFilter',subcategories);
+            populateSelect('yearFilter',years);
+            populateSelect('monthFilter', meses, true);
+        }
+
+        function filterAndRedraw(){
+            const category=document.getElementById('categoryFilter').value;
+            const subcategory=document.getElementById('subcategoryFilter').value;
+            const year=document.getElementById('yearFilter').value;
+            const month=document.getElementById('monthFilter').value;
+
+            const filterData = document.getElementById('filterData').value.toLowerCase();
+            const filterCategoria = document.getElementById('filterCategoria').value.toLowerCase();
+            const filterSubCategoria = document.getElementById('filterSubCategoria').value.toLowerCase();
+            const filterDescricao = document.getElementById('filterDescricao').value.toLowerCase();
+
+            let filteredData=originalData;
+            
+            if(category!=='all')filteredData=filteredData.filter(d=>d.Categoria===category);
+            if(subcategory!=='all')filteredData=filteredData.filter(d=>d['Sub Categoria']===subcategory);
+            if(year!=='all')filteredData=filteredData.filter(d=>d.Data.getFullYear()==year);
+            if(month!=='all')filteredData=filteredData.filter(d=>d.Data.getMonth()==month);
+            
+            if (filterData) {
+                const monthYearMatch = filterData.match(/^(\d{1,2})\/(\d{4})$/);
+                if (monthYearMatch) {
+                    const month = parseInt(monthYearMatch[1], 10) - 1;
+                    const year = parseInt(monthYearMatch[2], 10);
+                    filteredData = filteredData.filter(d => d.Data.getMonth() === month && d.Data.getFullYear() === year);
+                } else {
+                    filteredData = filteredData.filter(d => d.Data.toLocaleDateString('pt-BR').includes(filterData));
+                }
+            }
+            if(filterCategoria)filteredData=filteredData.filter(d=>d.Categoria?.toLowerCase().includes(filterCategoria));
+            if(filterSubCategoria)filteredData=filteredData.filter(d=>d['Sub Categoria']?.toLowerCase().includes(filterSubCategoria));
+            if(filterDescricao)filteredData=filteredData.filter(d=>d.Descrição?.toLowerCase().includes(filterDescricao));
+            
+            displayData(filteredData);
+        }
+
+        function createTwoYearComparisonChart(data) {
+            const currentYear = new Date().getFullYear();
+            const previousYear = currentYear - 1;
+            
+            const totalsCurrentYear = Array(12).fill(0);
+            const totalsPreviousYear = Array(12).fill(0);
+
+            data.forEach(item => {
+                const itemYear = item.Data.getFullYear();
+                const itemMonth = item.Data.getMonth();
+                if (itemYear === currentYear) {
+                    totalsCurrentYear[itemMonth] += item.Total;
+                } else if (itemYear === previousYear) {
+                    totalsPreviousYear[itemMonth] += item.Total;
+                }
+            });
+
+            const ctx = document.getElementById('twoYearComparisonChart').getContext('2d');
+            if (chartInstances.twoYear) chartInstances.twoYear.destroy();
+            chartInstances.twoYear = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: meses,
+                    datasets: [
+                        { label: `Despesas ${previousYear}`, data: totalsPreviousYear, backgroundColor: '#60a5fa' },
+                        { label: `Despesas ${currentYear}`, data: totalsCurrentYear, backgroundColor: '#f97316' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: value => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) } } } }
+            });
+        }
+
+        function displayData(data){
+            const tableBody=document.getElementById('expensesTableBody');tableBody.innerHTML='';let totalGeral=0;
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4">Nenhum dado encontrado para os filtros selecionados.</td></tr>`;
+            } else {
+                data.forEach(row=>{
+                    const tr=document.createElement('tr');
+                    tr.className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800';
+                    tr.innerHTML=`
+                        <td class="py-3 px-4">${row.Data.toLocaleDateString('pt-BR')}</td>
+                        <td class="py-3 px-4">${row.Categoria||'N/A'}</td>
+                        <td class="py-3 px-4">${row['Sub Categoria']||'N/A'}</td>
+                        <td class="py-3 px-4">${row.Descrição||'N/A'}</td>
+                        <td class="py-3 px-4 text-right">${row.Total.toLocaleString('pt-BR',{style:'currency','currency':'BRL'})}</td>
+                        <td class="py-3 px-4 whitespace-nowrap text-right">
+                            <button onclick="editExpense('${row.docId}')" class="text-blue-500 hover:text-blue-700 text-sm font-medium mr-2">Editar</button>
+                            <button onclick="deleteExpense('${row.docId}')" class="text-red-500 hover:text-red-700 text-sm font-medium">Excluir</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(tr);
+                    totalGeral+=row.Total
+                });
+            }
+            document.getElementById('total-geral').textContent=totalGeral.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+            if (chartInstances.category) chartInstances.category.destroy();
+            if (chartInstances.monthly) chartInstances.monthly.destroy();
+            createCategoryChart(data);
+            createMonthlyChart(data);
+        }
+        function createCategoryChart(data){const ctx=document.getElementById('categoryChart').getContext('2d');const categoryTotals=data.reduce((acc,cur)=>{acc[cur.Categoria]=(acc[cur.Categoria]||0)+cur.Total;return acc},{});const sortedCategories=Object.entries(categoryTotals).sort((a,b)=>b[1]-a[1]);chartInstances.category=new Chart(ctx,{type:'doughnut',data:{labels:sortedCategories.map(c=>c[0]),datasets:[{label:'Despesas por Categoria',data:sortedCategories.map(c=>c[1]),backgroundColor:['#ef4444','#f97316','#eab308','#84cc16','#22c55e','#14b6a6','#06b6d4','#3b82f6','#8b5cf6','#d946ef'],borderColor:'#1f2937'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}}}})}
+        function createMonthlyChart(data){const ctx=document.getElementById('monthlyChart').getContext('2d');const monthlyTotals=Array(12).fill(0);const yearFilter=document.getElementById('yearFilter').value;let filteredData=data;if(yearFilter!=='all'){filteredData=data.filter(d=>d.Data.getFullYear()==yearFilter)}filteredData.forEach(row=>{const month=row.Data.getMonth();monthlyTotals[month]+=row.Total});const label=`Despesas Mensais (${yearFilter==='all'?'Todos os Anos':yearFilter})`;chartInstances.monthly=new Chart(ctx,{type:'bar',data:{labels:meses,datasets:[{label:label,data:monthlyTotals,backgroundColor:'rgba(59, 130, 246, 0.7)',borderColor:'#3b82f6'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}}}})}
+    
+        function convertToCSV(data) {
+            const fields = ["Data", "Categoria", "Sub Categoria", "Tipo", "Descrição", "Quantidade", "Preço Unitário", "Total", "Observações"];
+            
+            const csvData = data.map(item => ({
+                "Data": item.Data.toLocaleDateString('pt-BR'),
+                "Categoria": item.Categoria || "",
+                "Sub Categoria": item['Sub Categoria'] || "",
+                "Tipo": item.Tipo || "",
+                "Descrição": item.Descrição || "",
+                "Quantidade": item.Quantidade ? String(item.Quantidade).replace('.', ',') : '0', 
+                "Preço Unitário": item['Preço Unitário'] || "",
+                "Total": item.Total ? item.Total.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00', 
+                "Observações": item.Observações || ""
+            }));
+
+            let csv = fields.join(';') + '\r\n';
+            csvData.forEach(row => {
+                const line = fields.map(field => {
+                    let cell = row[field];
+                    if (typeof cell === 'string') {
+                        cell = cell.replace(/"/g, '""'); 
+                        if (cell.includes(';') || cell.includes('\n')) {
+                            cell = `"${cell}"`; 
+                        }
+                    }
+                    return cell;
+                }).join(';');
+                csv += line + '\r\n';
+            });
+            return csv;
+        }
+
+        function exportCSV(data) {
+            if (data.length === 0) {
+                alert("Não há dados de despesas para exportar.");
+                return;
+            }
+            const csv = convertToCSV(data);
+            const blob = new Blob([csv], { type: 'text/csv;charset=ISO-8859-1;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `despesas_fazenda_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+    <!-- FIM DO BLOCO SCRIPT -->
+
+    
+    <div id="auth-container" class="min-h-screen flex items-center justify-center">
+        <div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+            <h1 class="text-2xl font-bold mb-4">Análise de Despesas da Fazenda</h1>
+            <p class="mb-6">Por favor, faça login para continuar.</p>
+            <button onclick="signIn()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center mx-auto">
+                <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
+                Entrar com Google
+            </button>
+        </div>
+    </div>
+
+    <div id="dashboard" class="hidden">
+        <header class="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center sticky top-0 z-10">
+            <div class="flex items-center gap-4 flex-wrap">
+                <h1 class="text-xl font-bold">Análise de Despesas</h1>
+                
+                <input type="file" id="csv-upload-input" class="hidden" accept=".csv">
+                <input type="file" id="extrato-upload-input" class="hidden" accept=".csv">
+
+                <button id="upload-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                    Carregar CSV (Despesas)
+                </button>
+                
+                <button id="extrato-upload-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H7a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                   Carregar Extrato
+                </button>
+                
+                <button id="delete-data-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
+                   Zerar Despesas
+                </button>
+            </div>
+            <div class="flex items-center">
+                <span id="user-name" class="mr-4 hidden sm:block"></span>
+                <img id="user-img" class="w-10 h-10 rounded-full mr-4" alt="User Avatar">
+                <button onclick="signOut()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Sair</button>
+            </div>
+        </header>
+
+        <main class="p-6">
+            
+            <!-- 1. NOVA DESPESA (FORMULÁRIO) -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
+                <h2 class="text-lg font-semibold mb-4">Nova Despesa</h2>
+                
+                <form id="newExpenseForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div><label for="inputData" class="block text-sm font-medium">Data *</label><input type="date" id="inputData" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></div>
+                    <div><label for="inputCategoria" class="block text-sm font-medium">Categoria *</label><select id="inputCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"><option value="">Selecione</option></select></div>
+                    <div><label for="inputSubCategoria" class="block text-sm font-medium">Sub Categoria *</label><select id="inputSubCategoria" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"><option value="">Selecione</option></select></div>
+                    <div><label for="inputTipo" class="block text-sm font-medium">Tipo</label><input type="text" id="inputTipo" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm" placeholder="Ex: Boleto, Nota Fiscal"></div>
+                    
+                    <div class="md:col-span-4"><label for="inputDescricao" class="block text-sm font-medium">Descrição *</label><input type="text" id="inputDescricao" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm" placeholder="O que foi comprado/pago?"></div>
+
+                    <div><label for="inputQuantidade" class="block text-sm font-medium">Quantidade</label><input type="number" step="any" id="inputQuantidade" value="1" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></div>
+                    <div><label for="inputPrecoUnitario" class="block text-sm font-medium">Preço Unitário *</label><input type="number" step="any" id="inputPrecoUnitario" required class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></div>
+                    <div><label for="inputTotal" class="block text-sm font-medium">Total (R$) *</label><input type="number" step="any" id="inputTotal" required readonly class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 rounded-md shadow-sm"></div>
+                    
+                    <div class="md:col-span-4"><label for="inputObservacoes" class="block text-sm font-medium">Observações</label><textarea id="inputObservacoes" rows="2" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm" placeholder="Informações adicionais"></textarea></div>
+
+                    <div class="md:col-span-4 flex justify-between items-center mt-2">
+                        <div class="flex">
+                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L10 11.586l-2.293-2.293z"/><path fill-rule="evenodd" d="M12 2a1 1 0 011 1v1h4a1 1 0 010 2h-1.071l-.112 1.401A3 3 0 0113 14a3 3 0 01-2.95 2.895L9 16.908V17a1 1 0 11-2 0v-.092l-.05-.005A3.001 3.001 0 013 14a3 3 0 01-1.884-5.32l-.112-1.401H1a1 1 0 110-2h4V3a1 1 0 011-1h6zM7 14a1 1 0 102 0v-2H7v2z" clip-rule="evenodd"/></svg>
+                                <span id="submit-btn-text">Registrar Despesa</span>
+                            </button>
+                            <button type="button" id="cancel-edit-btn" class="hidden ml-3 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                Cancelar
+                            </button>
+                        </div>
+                        <button type="button" id="export-csv-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L10 11.586l1.293-1.293a1 1 0 111.414 1.414l-2 2a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1h4a1 1 0 010 2h-4v7a1 1 0 11-2 0V6H5a1 1 0 110-2h4V3a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                            Exportar Despesas
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 2. TABELA DE DESPESAS -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold">Tabela de Despesas Lançadas</h2>
+                    <div class="text-right">
+                        <span class="text-sm font-medium">Total Filtrado:</span>
+                        <span id="total-geral" class="text-xl font-bold text-green-500 ml-2"></span>
+                    </div>
+                </div>
+                <div class="overflow-x-auto max-h-96">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs uppercase bg-gray-50 dark:bg-gray-700 sticky top-0">
+                            <tr>
+                                <th scope="col" class="py-3 px-4 w-1/12">Data</th>
+                                <th scope="col" class="py-3 px-4 w-2/12">Categoria</th>
+                                <th scope="col" class="py-3 px-4 w-2/12">Sub Categoria</th>
+                                <th scope="col" class="py-3 px-4 w-4/12">Descrição</th>
+                                <th scope="col" class="py-3 px-4 w-2/12 text-right">Total</th>
+                                <th scope="col" class="py-3 px-4 w-1/12 text-right">Ações</th> 
+                            </tr>
+                            <tr class="bg-gray-100 dark:bg-gray-700">
+                                <th class="px-4 py-2"><input type="text" id="filterData" placeholder="dd/mm/aaaa ou mm/aaaa" class="table-filter-input"></th>
+                                <th class="px-4 py-2"><input type="text" id="filterCategoria" placeholder="Filtrar..." class="table-filter-input"></th>
+                                <th class="px-4 py-2"><input type="text" id="filterSubCategoria" placeholder="Filtrar..." class="table-filter-input"></th>
+                                <th class="px-4 py-2"><input type="text" id="filterDescricao" placeholder="Filtrar..." class="table-filter-input"></th>
+                                <th class="px-4 py-2"></th>
+                                <th class="px-4 py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="expensesTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 3. NOVA SEÇÃO DE CONCILIAÇÃO BANCÁRIA -->
+            <div id="conciliationContainer" class="hidden bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
+                <h2 class="text-lg font-semibold mb-4 text-orange-500">Conciliação Bancária (Lançamentos Pendentes)</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Abaixo estão as transações do seu extrato bancário que não foram encontradas nos seus lançamentos manuais (por data e valor).
+                    Clique em "Categorizar" para registrá-las.
+                </p>
+                <div class="overflow-x-auto max-h-96">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs uppercase bg-gray-50 dark:bg-gray-700 sticky top-0">
+                            <tr>
+                                <th scope="col" class="py-3 px-4 w-1/6">Data</th>
+                                <th scope="col" class="py-3 px-4 w-3/6">Descrição (Extrato)</th>
+                                <th scope="col" class="py-3 px-4 w-1/6 text-right">Valor</th>
+                                <th scope="col" class="py-3 px-4 w-1/6 text-center">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="conciliationTableBody">
+                            <!-- Linhas serão inseridas pelo JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+
+            <!-- 4. FILTROS DE DASHBOARD -->
+             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                 <div><label for="yearFilter" class="block text-sm font-medium">Ano:</label><select id="yearFilter" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></select></div>
+                 <div><label for="monthFilter" class="block text-sm font-medium">Mês:</label><select id="monthFilter" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></select></div>
+                 <div><label for="categoryFilter" class="block text-sm font-medium">Categoria:</label><select id="categoryFilter" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></select></div>
+                 <div><label for="subcategoryFilter" class="block text-sm font-medium">Sub Categoria:</label><select id="subcategoryFilter" class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm"></select></div>
+            </div>
+
+            <!-- 5. GRÁFICOS -->
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
+                <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-4 rounded-lg shadow"><h2 class="text-lg font-semibold mb-2 text-center">Despesas por Categoria</h2><div class="chart-container"><canvas id="categoryChart"></canvas></div></div>
+                <div class="lg:col-span-3 bg-white dark:bg-gray-800 p-4 rounded-lg shadow"><h2 class="text-lg font-semibold mb-2 text-center">Despesas Mensais</h2><div class="chart-container"><canvas id="monthlyChart"></canvas></div></div>
+            </div>
+            
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
+                <h2 class="text-lg font-semibold mb-4 text-center">Comparativo Anual (Mês a Mês)</h2>
+                <div class="mt-4 chart-container"><canvas id="twoYearComparisonChart"></canvas></div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Modal de Upload -->
+    <div id="uploadModal" class="hidden fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4"><div id="uploadModalContent"></div></div>
+                <div id="uploadModalActions" class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse"></div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

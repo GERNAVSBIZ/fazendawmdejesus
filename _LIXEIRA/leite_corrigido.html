@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisador de Produção Leiteira</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 400px;
+            width: 100%;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+    </style>
+    <script src="firebase-config.js"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+
+    <!-- SHARED NAVBAR START -->
+    <nav class="bg-emerald-700 text-white shadow-md sticky top-0 z-50 print:hidden">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-14">
+                <a href="index.html" class="font-bold text-lg flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                    <span>WM de Jesus</span>
+                </a>
+                <div class="flex space-x-1 overflow-x-auto">
+                     <a href="index.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Início</a>
+                    <a href="leite_colaborativo.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Leite</a>
+                    <a href="despesas.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Despesas</a>
+                    <a href="financeiro.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Financeiro</a>
+                    <a href="registro_animais.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Rebanho</a>
+                     <a href="vacas_producao.html" class="px-3 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap transition-colors">Produção</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <!-- SHARED NAVBAR END -->
+
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Dashboard de Análise Leiteira</h1>
+            <p id="header-subtitle" class="mt-2 text-lg text-gray-600 dark:text-gray-400">Faça login para acessar e gerenciar seus dados.</p>
+            <div id="userInfo" class="mt-4 text-sm text-gray-500 dark:text-gray-400"></div>
+        </header>
+
+        <!-- Login Screen -->
+        <div id="loginScreen" class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 border border-gray-200 dark:border-gray-700">
+            <h2 class="text-2xl font-bold text-center mb-6">Acessar Painel</h2>
+            <div id="loginError" class="hidden text-red-600 dark:text-red-400 text-center mb-4 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-800"></div>
+            <div class="space-y-4">
+                 <button id="googleSignInBtn" class="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                    <svg class="w-6 h-6" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
+                    Entrar com Google
+                </button>
+            </div>
+            <p class="text-xs text-center text-gray-500 mt-4">Seus dados serão salvos de forma privada e segura na nuvem.</p>
+        </div>
+
+        <main id="mainContent" class="hidden">
+            <!-- File Upload Section -->
+            <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-center w-full">
+                    <label for="csvFile" class="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 dark:hover:border-gray-500 dark:hover:bg-gray-600 transition-colors">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            <p class="mb-2 text-sm text-gray-500 dark:text-gray-400"><span class="font-semibold">Clique para carregar</span> ou arraste e solte</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Arquivo CSV</p>
+                        </div>
+                        <input id="csvFile" type="file" class="hidden" accept=".csv" />
+                    </label>
+                </div>
+                <div id="fileName" class="mt-4 text-center text-gray-500 dark:text-gray-400">Nenhum arquivo selecionado.</div>
+                <button id="analyzeBtn" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-all duration-300 transform hover:scale-105 disabled:bg-gray-400 disabled:dark:bg-gray-600 disabled:cursor-not-allowed disabled:transform-none" disabled>
+                    Atualizar Meus Dados
+                </button>
+            </div>
+
+            <!-- Status/Loader -->
+            <div id="status" class="text-center my-8 hidden">
+                <div id="loader" class="flex justify-center items-center">
+                    <svg class="animate-spin h-8 w-8 text-blue-600 dark:text-blue-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                <p id="statusText" class="mt-2">Conectando ao banco de dados...</p>
+            </div>
+
+            <!-- Report Container -->
+            <div id="reportContainer" class="hidden mt-10 space-y-8">
+                <!-- Report will be generated here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, writeBatch, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // DOM Elements
+        const csvFileInput = document.getElementById('csvFile');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const fileNameDisplay = document.getElementById('fileName');
+        const loader = document.getElementById('loader');
+        const statusText = document.getElementById('statusText');
+        const statusContainer = document.getElementById('status');
+        const reportContainer = document.getElementById('reportContainer');
+        const loginScreen = document.getElementById('loginScreen');
+        const mainContent = document.getElementById('mainContent');
+        const googleSignInBtn = document.getElementById('googleSignInBtn');
+        const userInfo = document.getElementById('userInfo');
+        const headerSubtitle = document.getElementById('header-subtitle');
+        const loginError = document.getElementById('loginError');
+        
+        let chartInstances = {};
+        let db, auth;
+        let productionCollectionRef;
+        let unsubscribeFromData;
+        let currentUser = null;
+        
+        // --- Firebase Initialization ---
+        const firebaseConfig = window.globalFirebaseConfig;
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch(e) {
+            console.error("Firebase initialization error:", e);
+            loginScreen.innerHTML = `<p class="text-red-500 text-center">Erro ao inicializar o Firebase. Verifique a configuração.</p>`;
+        }
+
+        // --- Auth State Management ---
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                // User is signed in
+                currentUser = user;
+                loginScreen.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                headerSubtitle.textContent = 'Carregue um arquivo CSV para atualizar seus dados pessoais.';
+                
+                userInfo.innerHTML = `
+                    <span class="font-semibold">Bem-vindo, ${user.displayName || user.email}!</span>
+                    <button id="logoutBtn" class="ml-4 bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">Sair</button>
+                `;
+                document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+                // Agora os dados são vinculados ao usuário específico
+                productionCollectionRef = collection(db, `users/${user.uid}/production_records`);
+                listenForProductionData();
+            } else {
+                // User is signed out
+                currentUser = null;
+                loginScreen.classList.remove('hidden');
+                mainContent.classList.add('hidden');
+                reportContainer.classList.add('hidden');
+                statusContainer.classList.add('hidden');
+                headerSubtitle.textContent = 'Faça login para acessar e gerenciar seus dados.';
+                userInfo.innerHTML = '';
+                if (unsubscribeFromData) unsubscribeFromData();
+            }
+        });
+
+        // --- Event Listeners ---
+        googleSignInBtn.addEventListener('click', async () => {
+            try {
+                console.log("Iniciando login com Google via popup...");
+                loginError.classList.add('hidden');
+                googleSignInBtn.disabled = true;
+                googleSignInBtn.textContent = 'Conectando...';
+                
+                const provider = new GoogleAuthProvider();
+                provider.addScope('email');
+                provider.addScope('profile');
+                
+                const result = await signInWithPopup(auth, provider);
+                console.log("Login realizado com sucesso:", result.user.email);
+                
+            } catch (error) {
+                console.error("Erro no login:", error);
+                let errorMessage = "Erro ao fazer login. Tente novamente.";
+                
+                if (error.code === 'auth/popup-closed-by-user') {
+                    errorMessage = "Login cancelado pelo usuário.";
+                } else if (error.code === 'auth/popup-blocked') {
+                    errorMessage = "Popup bloqueado pelo navegador. Permita popups para este site.";
+                } else if (error.code === 'auth/cancelled-popup-request') {
+                    errorMessage = "Solicitação de login cancelada.";
+                }
+                
+                loginError.textContent = errorMessage;
+                loginError.classList.remove('hidden');
+            } finally {
+                googleSignInBtn.disabled = false;
+                googleSignInBtn.innerHTML = `
+                    <svg class="w-6 h-6" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
+                    Entrar com Google
+                `;
+            }
+        });
+
+        csvFileInput.addEventListener('change', () => {
+            if (csvFileInput.files.length > 0) {
+                const file = csvFileInput.files[0];
+                fileNameDisplay.textContent = `Arquivo: ${file.name}`;
+                analyzeBtn.disabled = false;
+            } else {
+                fileNameDisplay.textContent = 'Nenhum arquivo selecionado.';
+                analyzeBtn.disabled = true;
+            }
+        });
+
+        analyzeBtn.addEventListener('click', handleFileUploadAndSave);
+
+        // --- Core Functions ---
+        
+        function listenForProductionData() {
+            statusContainer.classList.remove('hidden');
+            loader.classList.remove('hidden');
+            statusText.textContent = "Buscando seus dados salvos...";
+            
+            if (unsubscribeFromData) unsubscribeFromData();
+
+            unsubscribeFromData = onSnapshot(productionCollectionRef, (snapshot) => {
+                const data = [];
+                snapshot.forEach(doc => {
+                    data.push({ ...doc.data(), Data: doc.data().Data.toDate() });
+                });
+
+                if (data.length > 0) {
+                    const sortedData = data.sort((a, b) => a.Data - b.Data);
+                    generateReport(sortedData);
+                    statusContainer.classList.add('hidden');
+                } else {
+                    statusText.textContent = "Nenhum dado encontrado. Carregue um arquivo CSV para começar.";
+                    loader.classList.add('hidden');
+                    reportContainer.classList.add('hidden');
+                }
+            }, (error) => {
+                console.error("Error listening to data:", error);
+                statusText.textContent = "Erro ao buscar dados do banco de dados.";
+                loader.classList.add('hidden');
+            });
+        }
+
+        async function handleFileUploadAndSave() {
+            const file = csvFileInput.files[0];
+            if (!file || !currentUser) return;
+
+            statusContainer.classList.remove('hidden');
+            loader.classList.remove('hidden');
+            statusText.textContent = "Processando e salvando seus dados...";
+            reportContainer.classList.add('hidden');
+            
+            try {
+                const fileContent = await file.text();
+                const parsedData = parseCSV(fileContent);
+
+                if (parsedData.length > 0) {
+                    const batch = writeBatch(db);
+                    
+                    // Remove dados existentes do usuário
+                    const existingDocsSnapshot = await getDocs(productionCollectionRef);
+                    existingDocsSnapshot.forEach(doc => batch.delete(doc.ref));
+                    
+                    // Adiciona novos dados
+                    parsedData.forEach(row => {
+                        const docId = row.Data.toISOString().split('T')[0];
+                        const docRef = doc(productionCollectionRef, docId);
+                        batch.set(docRef, row);
+                    });
+
+                    await batch.commit();
+                    console.log("Dados salvos com sucesso para o usuário:", currentUser.uid);
+                    generateReport(parsedData);
+                    statusContainer.classList.add('hidden');
+
+                } else {
+                     const errorP = document.createElement('p');
+                     errorP.textContent = "Não foi possível processar o arquivo. Verifique o formato.";
+                     errorP.className = 'text-red-500 text-center mt-2';
+                     analyzeBtn.parentElement.appendChild(errorP);
+                     setTimeout(() => errorP.remove(), 5000);
+                     statusText.textContent = "Falha ao processar o arquivo.";
+                     loader.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error("Erro ao salvar os dados:", error);
+                statusText.textContent = "Erro ao salvar os dados na nuvem.";
+                loader.classList.add('hidden');
+            } 
+        }
+
+        function parseCSV(content) {
+            const lines = content.split(/\r\n|\n/).slice(2);
+            const data = [];
+            
+            if (lines.length < 2) return [];
+
+            const headerLine = lines[0];
+            if (!headerLine) return [];
+            
+            const headers = [
+                'Data', 'Manha', 'Tarde', 'Joza', 'Preco_Venda',
+                'Total_Venda', 'Total_Laticinio', 'Observacoes', 'Unnamed'
+            ];
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line.trim()) continue;
+
+                const values = line.split(';');
+                let row = {};
+
+                if (!values[0] || values[0].split('/').length !== 3) continue;
+
+                headers.forEach((header, index) => {
+                    if (header === 'Data') {
+                        const [day, month, year] = values[index].split('/');
+                        row[header] = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                    } else if (['Manha', 'Tarde', 'Joza', 'Preco_Venda', 'Total_Venda', 'Total_Laticinio'].includes(header)) {
+                        row[header] = parseFloat(values[index]?.replace(',', '.')) || 0;
+                    } else {
+                        row[header] = values[index] || '';
+                    }
+                });
+
+                row.Producao_Total = row.Manha + row.Tarde;
+                row.Mes = row.Data.getMonth() + 1;
+                row.Ano = row.Data.getFullYear();
+
+                data.push(row);
+            }
+
+            return data;
+        }
+
+        function generateReport(data) {
+            reportContainer.innerHTML = '';
+            reportContainer.classList.remove('hidden');
+
+            // Destroy existing charts
+            Object.values(chartInstances).forEach(chart => chart.destroy());
+            chartInstances = {};
+
+            const totalProduction = data.reduce((sum, row) => sum + row.Producao_Total, 0);
+            const totalRevenue = data.reduce((sum, row) => sum + row.Total_Venda, 0);
+            const averageDaily = totalProduction / data.length;
+            const averagePrice = totalRevenue / totalProduction;
+
+            const reportHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Produção Total</h3>
+                        <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">${totalProduction.toFixed(1)}L</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Receita Total</h3>
+                        <p class="text-3xl font-bold text-green-600 dark:text-green-400">R$ ${totalRevenue.toFixed(2)}</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Média Diária</h3>
+                        <p class="text-3xl font-bold text-purple-600 dark:text-purple-400">${averageDaily.toFixed(1)}L</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Preço Médio</h3>
+                        <p class="text-3xl font-bold text-orange-600 dark:text-orange-400">R$ ${averagePrice.toFixed(2)}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Produção ao Longo do Tempo</h3>
+                        <div class="chart-container">
+                            <canvas id="productionChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Produção Média Mensal</h3>
+                        <div class="chart-container">
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Comparação Anual</h3>
+                        <div class="chart-container">
+                            <canvas id="comparisonChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Produção vs Receita</h3>
+                        <div class="chart-container">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Proporção Manhã vs Tarde</h3>
+                        <div class="chart-container">
+                            <canvas id="proportionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            reportContainer.innerHTML = reportHTML;
+
+            // Create charts
+            createProductionChart(data);
+            createMonthlyChart(data);
+            createComparisonChart(data);
+            createRevenueChart(data);
+            createProportionChart(data);
+        }
+
+        function createProductionChart(data) {
+            const ctx = document.getElementById('productionChart').getContext('2d');
+            const labels = data.map(d => d.Data.toLocaleDateString('pt-BR'));
+            
+            chartInstances.production = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Produção Total (Litros)',
+                        data: data.map(d => d.Producao_Total),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.1,
+                        pointRadius: 2
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function createMonthlyChart(data) {
+            const monthlyData = {};
+            data.forEach(row => {
+                const monthKey = `${row.Ano}-${row.Mes.toString().padStart(2, '0')}`;
+                if (!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = { total: 0, count: 0 };
+                }
+                monthlyData[monthKey].total += row.Producao_Total;
+                monthlyData[monthKey].count++;
+            });
+
+            const sortedMonths = Object.keys(monthlyData).sort();
+            const averages = sortedMonths.map(month => monthlyData[month].total / monthlyData[month].count);
+            const monthNames = sortedMonths.map(month => {
+                const [year, monthNum] = month.split('-');
+                const monthName = new Date(year, monthNum - 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+                return monthName;
+            });
+
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            
+            chartInstances.monthly = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthNames,
+                    datasets: [{
+                        label: 'Produção Média Diária',
+                        data: averages,
+                        backgroundColor: '#10b981'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function createComparisonChart(data) {
+            const yearlyData = {};
+            data.forEach(row => {
+                if (!yearlyData[row.Ano]) {
+                    yearlyData[row.Ano] = Array(12).fill(0).map(() => ({ total: 0, count: 0 }));
+                }
+                const monthIndex = row.Mes - 1;
+                yearlyData[row.Ano][monthIndex].total += row.Producao_Total;
+                yearlyData[row.Ano][monthIndex].count++;
+            });
+            
+            const datasets = Object.keys(yearlyData).map(year => {
+                const averages = yearlyData[year].map(m => m.count > 0 ? m.total / m.count : 0);
+                return {
+                    label: `Ano ${year}`,
+                    data: averages,
+                };
+            });
+
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            
+            chartInstances.comparison = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: monthNames, datasets: datasets },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function createRevenueChart(data) {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            const labels = data.map(d => d.Data.toLocaleDateString('pt-BR'));
+            
+            chartInstances.revenue = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Produção Total (Litros)',
+                        data: data.map(d => d.Producao_Total),
+                        borderColor: '#3b82f6',
+                        yAxisID: 'y',
+                        pointRadius: 0
+                    }, {
+                        label: 'Receita (R$)',
+                        data: data.map(d => d.Total_Venda),
+                        borderColor: '#f97316',
+                        yAxisID: 'y1',
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Litros' } },
+                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'R$' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        function createProportionChart(data) {
+            const totalManha = data.reduce((sum, row) => sum + row.Manha, 0);
+            const totalTarde = data.reduce((sum, row) => sum + row.Tarde, 0);
+            
+            const ctx = document.getElementById('proportionChart').getContext('2d');
+            
+            chartInstances.proportion = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Manhã', 'Tarde'],
+                    datasets: [{
+                        data: [totalManha, totalTarde],
+                        backgroundColor: ['#60a5fa', '#fb923c']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    </script>
+</body>
+</html>
+

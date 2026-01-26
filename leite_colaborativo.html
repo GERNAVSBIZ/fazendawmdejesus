@@ -53,20 +53,59 @@
             background: #718096;
         }
     </style>
+    <script src="firebase-config.js"></script>
 </head>
 
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+<body class="bg-stone-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+
+    <!-- NEW RESPONSIVE NAVBAR -->
+    <nav class="bg-emerald-800 text-white shadow-md sticky top-0 z-50 print:hidden border-b border-emerald-900">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-14">
+                <!-- LOGO/HOME LINK -->
+                <a href="index.html" class="font-bold text-lg flex items-center gap-2 hover:opacity-80 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    <span>WM de Jesus</span>
+                </a>
+
+                <!-- DESKTOP MENU (Hidden on Mobile) -->
+                <div class="hidden md:flex space-x-1">
+                    <a href="leite_colaborativo.html"
+                        class="px-3 py-2 rounded hover:bg-emerald-600 transition">Leite</a>
+                    <a href="despesas.html" class="px-3 py-2 rounded hover:bg-emerald-600 transition">Despesas</a>
+                    <a href="financeiro.html" class="px-3 py-2 rounded hover:bg-emerald-600 transition">Financeiro</a>
+                    <a href="registro_animais.html"
+                        class="px-3 py-2 rounded hover:bg-emerald-600 transition">Rebanho</a>
+                </div>
+
+                <!-- HAMBURGER BUTTON (Visible on Mobile) -->
+                <button id="mobile-menu-btn" class="md:hidden p-2 rounded hover:bg-emerald-600 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16m-7 6h7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- MOBILE MENU DROPDOWN (Hidden by default) -->
+        <div id="mobile-menu" class="hidden md:hidden bg-emerald-800 border-t border-emerald-600">
+            <a href="leite_colaborativo.html"
+                class="block px-4 py-3 hover:bg-emerald-700 border-b border-emerald-700">Leite</a>
+            <a href="despesas.html"
+                class="block px-4 py-3 hover:bg-emerald-700 border-b border-emerald-700">Despesas</a>
+            <a href="financeiro.html"
+                class="block px-4 py-3 hover:bg-emerald-700 border-b border-emerald-700">Financeiro</a>
+            <a href="registro_animais.html" class="block px-4 py-3 hover:bg-emerald-700">Rebanho</a>
+        </div>
+    </nav>
+
 
     <div class="relative container mx-auto p-4 md:p-8">
-        <a href="https://gernavsbiz.github.io/fazendawmdejesus/"
-            class="absolute top-4 right-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 z-10 text-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span class="hidden sm:inline">Home</span>
-        </a>
+
 
         <header class="text-center mb-8 pt-12 md:pt-0">
             <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Controle de Leite</h1>
@@ -352,15 +391,7 @@
         import { getFirestore, collection, onSnapshot, writeBatch, getDocs, doc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // --- Configuração ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
-            authDomain: "fazendawm-83f34.firebaseapp.com",
-            projectId: "fazendawm-83f34",
-            storageBucket: "fazendawm-83f34.firebasestorage.app",
-            messagingSenderId: "40894938435",
-            appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
-            measurementId: "G-QQVTP0CQ4H"
-        };
+        const firebaseConfig = window.globalFirebaseConfig;
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -894,6 +925,16 @@
             }).showToast();
         }
 
+    </script>
+    <script>
+        // Toggle Mobile Menu
+        const btn = document.getElementById('mobile-menu-btn');
+        const menu = document.getElementById('mobile-menu');
+        if (btn && menu) {
+            btn.addEventListener('click', () => {
+                menu.classList.toggle('hidden');
+            });
+        }
     </script>
 </body>
 

@@ -1,77 +1,156 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fazenda WM - Gestão Completa</title>
-    
+
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/628/628283.png">
-    
+
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/628/628283.png">
-    
+
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Fazenda WM">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
         @layer utilities {
-            .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+            .pb-safe {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
         }
-        input, select, textarea { font-size: 16px !important; }
-        
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        input,
+        select,
+        textarea {
+            font-size: 16px !important;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
         /* Barra de progresso para o balanço */
-        .progress-bar { transition: width 1s ease-in-out; }
-        
+        .progress-bar {
+            transition: width 1s ease-in-out;
+        }
+
         /* Loading spinner simples */
-        .spinner { border: 3px solid rgba(0,0,0,0.1); border-radius: 50%; border-top: 3px solid #10b981; width: 24px; height: 24px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spinner {
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 3px solid #10b981;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
+    <script src="firebase-config.js"></script>
 </head>
-<body class="bg-gray-50 text-gray-900 select-none">
+
+<body class="bg-stone-50 text-gray-900 select-none">
+
+    <!-- NEW RESPONSIVE NAVBAR -->
+    <nav class="bg-emerald-800 text-white shadow-md sticky top-0 z-50 print:hidden border-b border-emerald-900">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-14">
+                <!-- LOGO/HOME LINK -->
+                <a href="index.html" class="font-bold text-lg flex items-center gap-2 hover:opacity-80 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    <span>WM de Jesus</span>
+                </a>
+
+                <!-- DESKTOP MENU (Hidden on Mobile) -->
+                <div class="hidden md:flex space-x-1">
+                    <a href="leite_colaborativo.html"
+                        class="px-3 py-2 rounded hover:bg-emerald-600 transition">Leite</a>
+                    <a href="despesas.html" class="px-3 py-2 rounded hover:bg-emerald-600 transition">Despesas</a>
+                    <a href="financeiro.html" class="px-3 py-2 rounded hover:bg-emerald-600 transition">Financeiro</a>
+                    <a href="registro_animais.html"
+                        class="px-3 py-2 rounded hover:bg-emerald-600 transition">Rebanho</a>
+                </div>
+
+                <!-- HAMBURGER BUTTON (Visible on Mobile) -->
+                <button id="mobile-menu-btn" class="md:hidden p-2 rounded hover:bg-emerald-600 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16m-7 6h7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- MOBILE MENU DROPDOWN (Hidden by default) -->
+        <div id="mobile-menu" class="hidden md:hidden bg-emerald-800 border-t border-emerald-600">
+            <a href="leite_colaborativo.html"
+                class="block px-4 py-3 hover:bg-emerald-700 border-b border-emerald-700">Leite</a>
+            <a href="despesas.html"
+                class="block px-4 py-3 hover:bg-emerald-700 border-b border-emerald-700">Despesas</a>
+            <a href="financeiro.html"
+                class="block px-4 py-3 hover:bg-emerald-700 border-b border-emerald-700">Financeiro</a>
+            <a href="registro_animais.html" class="block px-4 py-3 hover:bg-emerald-700">Rebanho</a>
+        </div>
+    </nav>
+
     <div id="root"></div>
 
     <script type="text/babel" data-type="module" data-presets="react">
         import React, { useState, useEffect, useMemo, useRef } from 'https://esm.sh/react@18.2.0';
         import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
-        import { 
-            PlusCircle, Upload, Home, List, Trash2, Edit2, Save, X, Check, 
+        import {
+            PlusCircle, Upload, Home, List, Trash2, Edit2, Save, X, Check,
             DollarSign, FileText, Calendar, Search, ArrowUpCircle, ArrowDownCircle,
             LogOut, User, Lock, Sprout, TrendingUp, TrendingDown, PieChart, Info,
             Filter, Settings, Tag, Zap, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, Ban,
             Scale, CheckCircle2, XCircle, Database, ChevronDown, ChevronUp, Eye, Bug, Loader2
         } from 'https://esm.sh/lucide-react@0.292.0';
-        
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { 
-            getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut 
+        import {
+            getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { 
-            getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, 
-            query, orderBy, serverTimestamp, setDoc, where, getDocs 
+        import {
+            getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc,
+            query, orderBy, serverTimestamp, setDoc, where, getDocs
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // --- CONFIGURAÇÃO (PROJETO UNIFICADO) ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyB-B9s9lH62xvt9TKCMwvUbtQFPlwWIU7c",
-            authDomain: "fazendawm-83f34.firebaseapp.com",
-            projectId: "fazendawm-83f34",
-            storageBucket: "fazendawm-83f34.firebasestorage.app",
-            messagingSenderId: "40894938435",
-            appId: "1:40894938435:web:1d8bdaf8f7869ecf7183f6",
-            measurementId: "G-QQVTP0CQ4H"
-        };
+        const firebaseConfig = window.globalFirebaseConfig;
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appNamespace = 'fazenda-wm-integrada'; 
+        const appNamespace = 'fazenda-wm-integrada';
 
         // --- Componente de Proteção de Erro (Error Boundary) ---
         class ErrorBoundary extends React.Component {
@@ -94,7 +173,7 @@
                         </div>
                     );
                 }
-                return this.props.children; 
+                return this.props.children;
             }
         }
 
@@ -114,18 +193,18 @@
             try {
                 // Procura padrão dd/mm na descrição (ex: 05/10)
                 const dateMatch = description.match(/(\d{2})\/(\d{2})/);
-                
+
                 if (dateMatch) {
                     const extractedDay = parseInt(dateMatch[1]);
                     const extractedMonth = parseInt(dateMatch[2]);
-                    
+
                     const postingDate = new Date(postingDateIso);
                     let year = postingDate.getFullYear();
                     const postingMonth = postingDate.getMonth() + 1; // 0-11 to 1-12
 
                     if (extractedMonth === 12 && postingMonth === 1) {
                         year = year - 1;
-                    } 
+                    }
 
                     const pad = (n) => n.toString().padStart(2, '0');
                     return `${year}-${pad(extractedMonth)}-${pad(extractedDay)}`;
@@ -133,7 +212,7 @@
             } catch (e) {
                 console.warn("Erro ao extrair data da descrição", e);
             }
-            return postingDateIso; 
+            return postingDateIso;
         };
 
         // --- Default Config ---
@@ -201,7 +280,7 @@
             const changeMonth = (offset) => { const d = new Date(viewDate); d.setMonth(d.getMonth() + offset); setViewDate(d); };
             const currentMonth = viewDate.getMonth();
             const currentYear = viewDate.getFullYear();
-            
+
             // Monthly totals
             const monthRev = revenues.filter(r => { const d = new Date(r.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).reduce((acc, curr) => acc + Number(curr.amount), 0);
             const monthExp = expenses.filter(r => { const d = new Date(r.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).reduce((acc, curr) => acc + Number(curr.amount), 0);
@@ -211,28 +290,28 @@
             const totalRev = revenues.reduce((acc, curr) => acc + Number(curr.amount), 0);
             const totalExp = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
             const totalBalance = totalRev - totalExp;
-            
+
             const totalVolume = totalRev + totalExp;
             const revPercent = totalVolume > 0 ? (totalRev / totalVolume) * 100 : 50;
             const monthName = viewDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
             const monthLabelFormatted = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
-            if (totalVolume === 0) return <div className="h-full flex flex-col items-center justify-center p-8 text-center text-gray-500"><Upload size={48} className="text-emerald-600 mb-4"/><p>Importe um extrato para começar.</p><button onClick={() => signOut(auth)} className="mt-4 text-emerald-600 font-bold underline">Sair</button></div>;
+            if (totalVolume === 0) return <div className="h-full flex flex-col items-center justify-center p-8 text-center text-gray-500"><Upload size={48} className="text-emerald-600 mb-4" /><p>Importe um extrato para começar.</p><button onClick={() => signOut(auth)} className="mt-4 text-emerald-600 font-bold underline">Sair</button></div>;
 
             return (
                 <div className="space-y-6 pb-24 fade-in">
                     <header className="bg-gray-900 text-white p-6 rounded-b-3xl shadow-lg relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-32 bg-emerald-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -translate-y-1/2 translate-x-1/2"></div>
-                        
+
                         <div className="flex justify-between items-start mb-4 relative z-10">
                             <div><h1 className="text-2xl font-bold">Balanço Geral</h1><p className="text-sm text-gray-400">Resumo Financeiro</p></div>
-                            <button onClick={() => signOut(auth)} className="bg-white/10 p-2 rounded-lg hover:bg-white/20"><LogOut size={18}/></button>
+                            <button onClick={() => signOut(auth)} className="bg-white/10 p-2 rounded-lg hover:bg-white/20"><LogOut size={18} /></button>
                         </div>
 
                         <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 relative z-10">
                             <span className="text-gray-400 text-xs uppercase tracking-wider">Saldo Acumulado</span>
                             <div className={`text-4xl font-bold mt-1 ${totalBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(totalBalance)}</div>
-                            
+
                             <div className="mt-4 flex gap-4 pt-4 border-t border-white/10">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-1 text-emerald-400 text-xs mb-1"><ArrowUpCircle size={12} /> Receitas</div>
@@ -248,21 +327,21 @@
                     </header>
 
                     <div className="px-6">
-                        <h3 className="text-gray-600 font-bold mb-3 flex items-center gap-2"><PieChart size={18}/> Proporção</h3>
+                        <h3 className="text-gray-600 font-bold mb-3 flex items-center gap-2"><PieChart size={18} /> Proporção</h3>
                         <div className="h-4 bg-gray-200 rounded-full overflow-hidden flex">
-                            <div className="h-full bg-emerald-500 progress-bar" style={{width: `${revPercent}%`}}></div>
-                            <div className="h-full bg-red-500 progress-bar" style={{width: `${100 - revPercent}%`}}></div>
+                            <div className="h-full bg-emerald-500 progress-bar" style={{ width: `${revPercent}%` }}></div>
+                            <div className="h-full bg-red-500 progress-bar" style={{ width: `${100 - revPercent}%` }}></div>
                         </div>
                     </div>
 
                     <div className="px-6">
                         <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-gray-600 font-bold flex items-center gap-2"><Calendar size={18}/> Este Mês</h3>
+                            <h3 className="text-gray-600 font-bold flex items-center gap-2"><Calendar size={18} /> Este Mês</h3>
                         </div>
                         <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-4">
-                            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-600"><ChevronLeft size={20}/></button>
+                            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-600"><ChevronLeft size={20} /></button>
                             <span className="font-bold text-gray-800 text-sm uppercase tracking-wide">{monthLabelFormatted}</span>
-                            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-600"><ChevronRight size={20}/></button>
+                            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-600"><ChevronRight size={20} /></button>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
@@ -301,11 +380,11 @@
             // Helper ROBUSTO para ler valores
             const getManualValue = (item) => {
                 try {
-                    let val = item.Valor !== undefined ? item.Valor : 
-                              item.valor !== undefined ? item.valor : 
-                              item.amount !== undefined ? item.amount : 
-                              item.Total !== undefined ? item.Total : 0;
-                    
+                    let val = item.Valor !== undefined ? item.Valor :
+                        item.valor !== undefined ? item.valor :
+                            item.amount !== undefined ? item.amount :
+                                item.Total !== undefined ? item.Total : 0;
+
                     if (typeof val === 'number') return val;
                     if (typeof val === 'string') {
                         let clean = val.trim().replace(/^R\$\s?/, '').replace(/[^\d.,-]/g, '');
@@ -319,10 +398,10 @@
 
             const analyze = (newSys, oldSys) => {
                 const cm = viewDate.getMonth(), cy = viewDate.getFullYear();
-                
+
                 // Filtra dados do novo sistema (CSV)
                 const bankItems = newSys.filter(i => { const d = new Date(i.date); return d.getMonth() === cm && d.getFullYear() === cy; });
-                
+
                 // Filtra dados do sistema antigo (Manual)
                 const manualItems = oldSys.filter(i => {
                     let d;
@@ -334,7 +413,7 @@
                             if (dv.includes('/')) { const p = dv.split('/'); d = new Date(`${p[2]}-${p[1]}-${p[0]}`); }
                             else d = new Date(dv);
                         }
-                    } catch(e) { return false; }
+                    } catch (e) { return false; }
                     if (!d || isNaN(d.getTime())) return false;
                     i._normalizedDate = d;
                     return d.getMonth() === cm && d.getFullYear() === cy;
@@ -346,8 +425,8 @@
                 const allDates = new Set();
                 const getDateStr = (d) => d.toISOString().split('T')[0];
 
-                bankItems.forEach(i => { const ds = getDateStr(new Date(i.date)); allDates.add(ds); if(!dailyData[ds]) dailyData[ds] = { b:[], m:[] }; dailyData[ds].b.push(i); });
-                manualItems.forEach(i => { const ds = getDateStr(i._normalizedDate); allDates.add(ds); if(!dailyData[ds]) dailyData[ds] = { b:[], m:[] }; dailyData[ds].m.push(i); });
+                bankItems.forEach(i => { const ds = getDateStr(new Date(i.date)); allDates.add(ds); if (!dailyData[ds]) dailyData[ds] = { b: [], m: [] }; dailyData[ds].b.push(i); });
+                manualItems.forEach(i => { const ds = getDateStr(i._normalizedDate); allDates.add(ds); if (!dailyData[ds]) dailyData[ds] = { b: [], m: [] }; dailyData[ds].m.push(i); });
 
                 const dailyReports = Array.from(allDates).sort().map(d => {
                     const dd = dailyData[d];
@@ -356,24 +435,24 @@
                     return { date: d, bTotal, mTotal, diff: bTotal - mTotal, bItems: dd.b, mItems: dd.m, isMatch: Math.abs(bTotal - mTotal) < 0.05 };
                 });
 
-                const monthly = dailyReports.reduce((acc, d) => ({ b: acc.b + d.bTotal, m: acc.m + d.mTotal, d: acc.d + d.diff }), { b:0, m:0, d:0 });
+                const monthly = dailyReports.reduce((acc, d) => ({ b: acc.b + d.bTotal, m: acc.m + d.mTotal, d: acc.d + d.diff }), { b: 0, m: 0, d: 0 });
                 setAnalysis({ monthly, daily: dailyReports, manualCount: manualItems.length });
             };
 
             return (
                 <div className="flex flex-col h-full bg-gray-50 fade-in">
                     <div className="bg-purple-800 p-4 text-white sticky top-0 z-20 flex justify-between items-center shadow-lg">
-                        <h1 className="font-bold flex items-center gap-2"><Scale size={20}/> Conciliação</h1>
+                        <h1 className="font-bold flex items-center gap-2"><Scale size={20} /> Conciliação</h1>
                         <div className="flex items-center gap-2 bg-purple-900/50 p-1 rounded-lg">
-                            <button onClick={() => changeMonth(-1)}><ChevronLeft size={20}/></button>
+                            <button onClick={() => changeMonth(-1)}><ChevronLeft size={20} /></button>
                             <span className="text-xs font-bold w-24 text-center capitalize">{monthLabelFormatted}</span>
-                            <button onClick={() => changeMonth(1)}><ChevronRight size={20}/></button>
+                            <button onClick={() => changeMonth(1)}><ChevronRight size={20} /></button>
                         </div>
                     </div>
 
                     {!analysis ? (
                         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-400">
-                            <Database size={32} className="mb-2 text-purple-300"/>
+                            <Database size={32} className="mb-2 text-purple-300" />
                             <p className="text-sm">Sem dados bancários neste mês.</p>
                             <button onClick={() => setDebugMode(!debugMode)} className="mt-8 text-xs text-purple-300 underline">Debug</button>
                             {debugMode && <div className="mt-2 text-[10px] bg-gray-200 p-2 rounded text-left w-full h-32 overflow-auto text-gray-800">{JSON.stringify(oldSystemExpenses[0]) || 'Sem dados antigos'}</div>}
@@ -400,24 +479,24 @@
                                                     <div className="bg-white border font-bold px-2 py-1 rounded text-xs">{day.date.split('-')[2]}</div>
                                                     <div><div className="text-[10px] text-gray-500 uppercase">Diferença</div><div className="text-red-600 font-bold">{formatCurrency(day.diff)}</div></div>
                                                 </div>
-                                                <ChevronDown size={16} className={`text-gray-400 transition ${isExp ? 'rotate-180' : ''}`}/>
+                                                <ChevronDown size={16} className={`text-gray-400 transition ${isExp ? 'rotate-180' : ''}`} />
                                             </div>
                                             {isExp && (
                                                 <div className="p-3 bg-white text-xs border-t border-gray-100 grid grid-cols-2 gap-2">
                                                     <div>
                                                         <h4 className="font-bold text-gray-500 mb-1">Banco</h4>
-                                                        {day.bItems.map((i,k) => <div key={k} className="flex justify-between border-b border-gray-50 py-1"><span className="truncate w-12">{i.description}</span><b>{formatCurrency(i.amount)}</b></div>)}
+                                                        {day.bItems.map((i, k) => <div key={k} className="flex justify-between border-b border-gray-50 py-1"><span className="truncate w-12">{i.description}</span><b>{formatCurrency(i.amount)}</b></div>)}
                                                     </div>
                                                     <div className="border-l pl-2">
                                                         <h4 className="font-bold text-gray-500 mb-1">Manual</h4>
-                                                        {day.mItems.map((i,k) => <div key={k} className="flex justify-between border-b border-gray-50 py-1"><span className="truncate w-12">{i.Descricao || i.descricao || 'Item'}</span><b>{formatCurrency(getManualValue(i))}</b></div>)}
+                                                        {day.mItems.map((i, k) => <div key={k} className="flex justify-between border-b border-gray-50 py-1"><span className="truncate w-12">{i.Descricao || i.descricao || 'Item'}</span><b>{formatCurrency(getManualValue(i))}</b></div>)}
                                                     </div>
                                                 </div>
                                             )}
                                         </div>
                                     );
                                 })}
-                                {analysis.daily.every(d => d.isMatch) && <div className="text-center text-gray-400 py-8"><CheckCircle2 size={40} className="mx-auto text-emerald-300 mb-2"/><p>Tudo conciliado!</p></div>}
+                                {analysis.daily.every(d => d.isMatch) && <div className="text-center text-gray-400 py-8"><CheckCircle2 size={40} className="mx-auto text-emerald-300 mb-2" /><p>Tudo conciliado!</p></div>}
                             </div>
                         </div>
                     )}
@@ -430,7 +509,7 @@
             const [view, setView] = useState('categories');
             const [newItem, setNewItem] = useState('');
             const [newRule, setNewRule] = useState({ keyword: '', category: '', type: 'revenue' });
-            
+
             // Novos estados para a aba "Dados"
             const [deleteType, setDeleteType] = useState('revenue');
             const [deletePeriod, setDeletePeriod] = useState('');
@@ -445,7 +524,7 @@
                 setNewItem('');
             };
             const removeCategory = (type, cat) => {
-                if(!confirm(`Remover categoria "${cat}"?`)) return;
+                if (!confirm(`Remover categoria "${cat}"?`)) return;
                 const field = type === 'revenue' ? 'revenueCats' : 'expenseCats';
                 onUpdateConfig({ ...config, [field]: config[field].filter(c => c !== cat) });
             };
@@ -471,7 +550,7 @@
                     const userId = auth.currentUser.uid;
                     const colRef = collection(db, 'artifacts', appNamespace, 'users', userId, collName);
                     let q = query(colRef);
-                    
+
                     if (deletePeriod) {
                         // Formato input month é YYYY-MM
                         // Filtrar >= YYYY-MM-01 e <= YYYY-MM-31
@@ -479,7 +558,7 @@
                     }
 
                     const snapshot = await getDocs(q);
-                    
+
                     if (snapshot.empty) {
                         alert('Nenhum dado encontrado para excluir com esses critérios.');
                     } else {
@@ -497,8 +576,8 @@
 
             return (
                 <div className="pb-24 fade-in bg-gray-50 min-h-full">
-                     <header className="bg-gray-800 text-white p-6 rounded-b-3xl shadow-lg mb-6">
-                        <h1 className="text-2xl font-bold flex items-center gap-2"><Settings size={24}/> Ajustes</h1>
+                    <header className="bg-gray-800 text-white p-6 rounded-b-3xl shadow-lg mb-6">
+                        <h1 className="text-2xl font-bold flex items-center gap-2"><Settings size={24} /> Ajustes</h1>
                         <div className="flex mt-6 bg-gray-700/50 p-1 rounded-xl">
                             <button onClick={() => setView('categories')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === 'categories' ? 'bg-emerald-500 text-white shadow' : 'text-gray-300'}`}>Categorias</button>
                             <button onClick={() => setView('rules')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === 'rules' ? 'bg-emerald-500 text-white shadow' : 'text-gray-300'}`}>Automação</button>
@@ -511,12 +590,12 @@
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
                                 <h3 className="font-bold text-emerald-700 mb-3 flex items-center gap-2">Receitas</h3>
                                 <div className="flex gap-2 mb-3"><input className="flex-1 border rounded px-2 text-sm" value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="Nova..." /><button onClick={() => addCategory('revenue')} className="bg-emerald-600 text-white px-3 rounded font-bold">+</button></div>
-                                <div className="flex flex-wrap gap-2">{config.revenueCats.map(c => <span key={c} className="bg-emerald-50 text-emerald-800 text-xs px-2 py-1 rounded border border-emerald-100 flex gap-1 items-center">{c}<button onClick={() => removeCategory('revenue', c)}><X size={10}/></button></span>)}</div>
+                                <div className="flex flex-wrap gap-2">{config.revenueCats.map(c => <span key={c} className="bg-emerald-50 text-emerald-800 text-xs px-2 py-1 rounded border border-emerald-100 flex gap-1 items-center">{c}<button onClick={() => removeCategory('revenue', c)}><X size={10} /></button></span>)}</div>
                             </div>
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
                                 <h3 className="font-bold text-red-700 mb-3 flex items-center gap-2">Despesas</h3>
                                 <div className="flex gap-2 mb-3"><input className="flex-1 border rounded px-2 text-sm" value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="Nova..." /><button onClick={() => addCategory('expense')} className="bg-red-600 text-white px-3 rounded font-bold">+</button></div>
-                                <div className="flex flex-wrap gap-2">{config.expenseCats.map(c => <span key={c} className="bg-red-50 text-red-800 text-xs px-2 py-1 rounded border border-red-100 flex gap-1 items-center">{c}<button onClick={() => removeCategory('expense', c)}><X size={10}/></button></span>)}</div>
+                                <div className="flex flex-wrap gap-2">{config.expenseCats.map(c => <span key={c} className="bg-red-50 text-red-800 text-xs px-2 py-1 rounded border border-red-100 flex gap-1 items-center">{c}<button onClick={() => removeCategory('expense', c)}><X size={10} /></button></span>)}</div>
                             </div>
                         </div>
                     )}
@@ -525,10 +604,10 @@
                         <div className="px-4">
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
                                 <div className="space-y-3 mb-6 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                    <div className="flex gap-2"><select className="bg-white border rounded text-xs w-20" value={newRule.type} onChange={e => setNewRule({...newRule, type: e.target.value, category: ''})}><option value="revenue">Receita</option><option value="expense">Despesa</option></select><input className="flex-1 border rounded px-2 text-xs" placeholder="Palavra Chave" value={newRule.keyword} onChange={e => setNewRule({...newRule, keyword: e.target.value})} /></div>
-                                    <div className="flex gap-2"><select className="flex-1 bg-white border rounded text-xs" value={newRule.category} onChange={e => setNewRule({...newRule, category: e.target.value})}><option value="">Categoria...</option><option value="IGNORAR" className="text-red-600 font-bold">⛔ IGNORAR</option>{(newRule.type === 'revenue' ? config.revenueCats : config.expenseCats).map(c => <option key={c} value={c}>{c}</option>)}</select><button onClick={addRule} className="bg-gray-800 text-white px-3 rounded text-xs font-bold">Add</button></div>
+                                    <div className="flex gap-2"><select className="bg-white border rounded text-xs w-20" value={newRule.type} onChange={e => setNewRule({ ...newRule, type: e.target.value, category: '' })}><option value="revenue">Receita</option><option value="expense">Despesa</option></select><input className="flex-1 border rounded px-2 text-xs" placeholder="Palavra Chave" value={newRule.keyword} onChange={e => setNewRule({ ...newRule, keyword: e.target.value })} /></div>
+                                    <div className="flex gap-2"><select className="flex-1 bg-white border rounded text-xs" value={newRule.category} onChange={e => setNewRule({ ...newRule, category: e.target.value })}><option value="">Categoria...</option><option value="IGNORAR" className="text-red-600 font-bold">⛔ IGNORAR</option>{(newRule.type === 'revenue' ? config.revenueCats : config.expenseCats).map(c => <option key={c} value={c}>{c}</option>)}</select><button onClick={addRule} className="bg-gray-800 text-white px-3 rounded text-xs font-bold">Add</button></div>
                                 </div>
-                                <div className="space-y-2">{config.rules.map((r, i) => <div key={i} className="flex justify-between items-center p-2 border rounded bg-gray-50 text-xs"><span><b>"{r.keyword}"</b> &rarr; {r.category}</span><button onClick={() => removeRule(i)} className="text-red-500"><Trash2 size={14}/></button></div>)}</div>
+                                <div className="space-y-2">{config.rules.map((r, i) => <div key={i} className="flex justify-between items-center p-2 border rounded bg-gray-50 text-xs"><span><b>"{r.keyword}"</b> &rarr; {r.category}</span><button onClick={() => removeRule(i)} className="text-red-500"><Trash2 size={14} /></button></div>)}</div>
                             </div>
                         </div>
                     )}
@@ -536,9 +615,9 @@
                     {view === 'data' && (
                         <div className="px-4">
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-red-100">
-                                <h3 className="font-bold text-red-700 mb-3 flex items-center gap-2"><AlertTriangle size={18}/> Limpeza de Dados</h3>
+                                <h3 className="font-bold text-red-700 mb-3 flex items-center gap-2"><AlertTriangle size={18} /> Limpeza de Dados</h3>
                                 <p className="text-xs text-gray-500 mb-6">Use esta área para apagar registros em massa. Cuidado: esta ação é irreversível.</p>
-                                
+
                                 <div className="space-y-4">
                                     <div>
                                         <label className="text-[10px] font-bold text-gray-400 uppercase">O que apagar?</label>
@@ -559,12 +638,12 @@
                                         </p>
                                     </div>
 
-                                    <button 
-                                        onClick={handleBulkDelete} 
+                                    <button
+                                        onClick={handleBulkDelete}
                                         disabled={isDeleting}
                                         className="w-full bg-red-600 active:bg-red-700 text-white font-bold py-3 rounded-xl shadow-lg mt-2 flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
                                     >
-                                        {isDeleting ? 'Processando...' : <><Trash2 size={18}/> Confirmar Exclusão</>}
+                                        {isDeleting ? 'Processando...' : <><Trash2 size={18} /> Confirmar Exclusão</>}
                                     </button>
                                 </div>
                             </div>
@@ -580,7 +659,7 @@
             const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], description: '', amount: '', category: '' });
             const [searchTerm, setSearchTerm] = useState('');
             const [editItem, setEditItem] = useState(null);
-            
+
             // --- NOVO: Ref e Estado para Upload Mobile ---
             const fileInputRef = useRef(null);
             const [isReading, setIsReading] = useState(false);
@@ -592,23 +671,23 @@
 
             const handleSubmit = async (e) => { e.preventDefault(); await onAdd({ ...formData, amount: parseFloat(formData.amount), type, category: formData.category || 'Outros' }); setFormData({ date: new Date().toISOString().split('T')[0], description: '', amount: '', category: '' }); setView('list'); };
             const [csvItems, setCsvItems] = useState([]);
-            
+
             const handleFile = (file) => {
                 if (!file) return;
                 setIsReading(true);
-                
+
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     try {
-                        const lines = e.target.result.split('\n'); 
+                        const lines = e.target.result.split('\n');
                         const parsed = [];
-                        
+
                         lines.forEach((line, idx) => {
                             if (!line.trim()) return;
-                            
+
                             // Regex smart split (ignora vírgulas dentro de aspas)
                             const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
-                            
+
                             if (cols.length < 2) return;
 
                             let dateIso = '';
@@ -623,13 +702,13 @@
 
                             if (isMobileFormat) {
                                 if (cols[0] === 'Data' || cols[4] === 'Valor') return; // Ignora Header
-                                
+
                                 // Converter valor BR (1.000,00 -> 1000.00)
                                 let vStr = cols[4].replace(/\./g, '').replace(',', '.');
                                 val = parseFloat(vStr);
-                                
+
                                 descOriginal = cols[1] + (cols[2] ? ' ' + cols[2] : '');
-                                
+
                                 // Parse Data DD/MM/YYYY
                                 const dParts = cols[0].split('/');
                                 if (dParts.length === 3) dateIso = `${dParts[2]}-${dParts[1]}-${dParts[0]}`;
@@ -638,15 +717,15 @@
                                 // Formato Genérico / Desktop (tenta pegar último campo como valor)
                                 let vRaw = cols[cols.length - 1];
                                 if (!vRaw || isNaN(parseFloat(vRaw))) vRaw = cols[cols.length - 2]; // Tenta penultimo
-                                
+
                                 // Tenta limpar formato BR caso exista
                                 let vStr = vRaw.replace('R$', '').trim();
                                 if (vStr.includes(',') && !vStr.includes('.')) vStr = vStr.replace(',', '.'); // 100,00 -> 100.00
                                 else if (vStr.includes('.') && vStr.includes(',')) vStr = vStr.replace(/\./g, '').replace(',', '.'); // 1.000,00 -> 1000.00
-                                
+
                                 val = parseFloat(vStr);
                                 descOriginal = cols[2] || cols[1] || 'Sem descrição';
-                                
+
                                 const dParts = cols[0].split('/');
                                 if (dParts.length === 3) dateIso = `${dParts[2]}-${dParts[1]}-${dParts[0]}`;
                                 else dateIso = new Date().toISOString().split('T')[0];
@@ -654,23 +733,23 @@
 
                             // Validação final do valor
                             const isValid = isRevenue ? (val > 0) : (val < 0);
-                            
+
                             if (!isNaN(val) && isValid && dateIso) {
                                 const descUpper = descOriginal.toUpperCase();
-                                
+
                                 // Filtros de ignorar (Saldo, Investimentos)
                                 if (isRevenue && (
-                                    descUpper.includes('CDB') || 
-                                    descUpper.includes('RESGATE') || 
+                                    descUpper.includes('CDB') ||
+                                    descUpper.includes('RESGATE') ||
                                     descUpper.includes('INVESTIMENTO') ||
                                     descUpper.includes('APLICAÇÃO') ||
                                     descUpper.includes('SALDO')
                                 )) return;
-                                
+
                                 let autoCategory = 'Importado';
                                 const matchedRule = config.rules.find(r => r.type === type && descUpper.includes(r.keyword));
                                 if (matchedRule) { if (matchedRule.category === 'IGNORAR') return; autoCategory = matchedRule.category; }
-                                
+
                                 // Extração inteligente de data da descrição (ex: Pix 05/10)
                                 dateIso = extractRealDateFromDescription(dateIso, descOriginal);
 
@@ -678,13 +757,13 @@
                                 const isDuplicate = data.some(existing => {
                                     const sameDate = existing.date === dateIso;
                                     const sameAmount = Math.abs(existing.amount) === Math.abs(val);
-                                    
+
                                     if (!sameDate || !sameAmount) return false;
 
                                     // Normaliza textos para comparar (remove espaços e poe minusculo)
                                     const d1 = existing.description.toLowerCase().replace(/\s+/g, '');
                                     const d2 = descOriginal.toLowerCase().replace(/\s+/g, '');
-                                    
+
                                     // Verifica se um contem o outro (Ex: "Pix Enviado" vs "Pix Enviado 14:00")
                                     return d1.includes(d2) || d2.includes(d1);
                                 });
@@ -692,7 +771,7 @@
                                 parsed.push({ id: Date.now() + idx, date: dateIso, description: descOriginal, amount: Math.abs(val), category: autoCategory, selected: !isDuplicate, isDuplicate });
                             }
                         });
-                        
+
                         if (parsed.length === 0) alert("Nenhum item válido encontrado. Verifique se o arquivo é um extrato válido ou se já foi importado.");
                         setCsvItems(parsed);
                     } catch (err) {
@@ -708,11 +787,11 @@
 
             if (view === 'add') return (
                 <div className="p-4 pb-24 fade-in">
-                    <div className="flex items-center gap-2 mb-6"><button onClick={() => setView('list')} className="p-2 bg-gray-100 rounded-full"><X size={20}/></button><h2 className="text-2xl font-bold text-gray-800">Nova {isRevenue ? 'Receita' : 'Despesa'}</h2></div>
+                    <div className="flex items-center gap-2 mb-6"><button onClick={() => setView('list')} className="p-2 bg-gray-100 rounded-full"><X size={20} /></button><h2 className="text-2xl font-bold text-gray-800">Nova {isRevenue ? 'Receita' : 'Despesa'}</h2></div>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div><label className="text-xs font-bold text-gray-500 uppercase">Descrição</label><input required className="w-full p-3 border rounded-xl" placeholder="Ex: Ração" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
-                        <div className="flex gap-3"><div className="w-1/2"><label className="text-xs font-bold text-gray-500 uppercase">Valor</label><input type="number" step="0.01" required className="w-full p-3 border rounded-xl" placeholder="0,00" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} /></div><div className="w-1/2"><label className="text-xs font-bold text-gray-500 uppercase">Data</label><input type="date" required className="w-full p-3 border rounded-xl" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} /></div></div>
-                        <div><label className="text-xs font-bold text-gray-500 uppercase">Categoria</label><select className="w-full p-3 border rounded-xl bg-white" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}><option value="">Selecione...</option>{categories.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                        <div><label className="text-xs font-bold text-gray-500 uppercase">Descrição</label><input required className="w-full p-3 border rounded-xl" placeholder="Ex: Ração" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} /></div>
+                        <div className="flex gap-3"><div className="w-1/2"><label className="text-xs font-bold text-gray-500 uppercase">Valor</label><input type="number" step="0.01" required className="w-full p-3 border rounded-xl" placeholder="0,00" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} /></div><div className="w-1/2"><label className="text-xs font-bold text-gray-500 uppercase">Data</label><input type="date" required className="w-full p-3 border rounded-xl" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} /></div></div>
+                        <div><label className="text-xs font-bold text-gray-500 uppercase">Categoria</label><select className="w-full p-3 border rounded-xl bg-white" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}><option value="">Selecione...</option>{categories.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
                         <button type="submit" className={`w-full py-4 rounded-xl text-white font-bold shadow-lg mt-4 bg-${themeColor}-600`}>Salvar</button>
                     </form>
                 </div>
@@ -723,8 +802,8 @@
                     <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Importar CSV</h2><button onClick={() => { setView('list'); setCsvItems([]); }} className="text-gray-500">Cancelar</button></div>
                     {csvItems.length === 0 ? (
                         /* CORREÇÃO MOBILE: Div clicável que aciona o input escondido via ref */
-                        <div 
-                            onClick={() => fileInputRef.current && fileInputRef.current.click()} 
+                        <div
+                            onClick={() => fileInputRef.current && fileInputRef.current.click()}
                             className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors active:bg-gray-200"
                         >
                             {isReading ? (
@@ -734,18 +813,18 @@
                                 </>
                             ) : (
                                 <>
-                                    <Upload size={48} className="text-gray-400 mb-2"/>
+                                    <Upload size={48} className="text-gray-400 mb-2" />
                                     <p className="text-gray-500 text-sm mb-4">Toque para selecionar</p>
                                     <span className="text-[10px] bg-gray-200 px-2 py-1 rounded text-gray-500">Suporta CSV/Excel</span>
                                 </>
                             )}
-                            <input 
+                            <input
                                 ref={fileInputRef}
-                                type="file" 
-                                accept=".csv,text/csv,text/plain,application/vnd.ms-excel,text/comma-separated-values" 
+                                type="file"
+                                accept=".csv,text/csv,text/plain,application/vnd.ms-excel,text/comma-separated-values"
                                 className="hidden"
                                 style={{ display: 'none' }} // Forçar ocultação
-                                onChange={e => handleFile(e.target.files[0])} 
+                                onChange={e => handleFile(e.target.files[0])}
                             />
                         </div>
                     ) : (
@@ -753,7 +832,7 @@
                             <div className="flex-1 overflow-y-auto space-y-2 mb-4">{csvItems.map((item, idx) => (
                                 <div key={idx} className={`p-3 border rounded-lg flex gap-3 ${item.selected ? `border-${themeColor}-500 bg-${themeColor}-50` : 'border-gray-200 opacity-50'}`}><input type="checkbox" checked={item.selected} onChange={() => { const n = [...csvItems]; n[idx].selected = !n[idx].selected; setCsvItems(n); }} /><div className="flex-1"><div className="flex justify-between font-bold text-sm"><span>{item.description}</span><span>{formatCurrency(item.amount)}</span></div><div className="flex justify-between items-center mt-1"><span className="text-xs text-gray-500">{formatDate(item.date)}</span>{item.isDuplicate && <span className="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><AlertCircle size={10} /> Duplicado</span>}<span className={`text-[10px] px-2 py-0.5 rounded-full ${item.category !== 'Importado' ? 'bg-blue-100 text-blue-700 font-bold' : 'bg-gray-100 text-gray-500'}`}>{item.category}</span></div></div></div>
                             ))}</div>
-                            <button onClick={async () => { const toImport = csvItems.filter(i => i.selected).map(({id, selected, isDuplicate, ...rest}) => ({...rest, type, source: 'import'})); await onImport(toImport); setView('list'); setCsvItems([]); }} disabled={csvItems.filter(i => i.selected).length === 0} className={`w-full py-3 rounded-xl text-white font-bold shadow bg-${themeColor}-600 disabled:opacity-50`}>Confirmar ({csvItems.filter(i => i.selected).length})</button>
+                            <button onClick={async () => { const toImport = csvItems.filter(i => i.selected).map(({ id, selected, isDuplicate, ...rest }) => ({ ...rest, type, source: 'import' })); await onImport(toImport); setView('list'); setCsvItems([]); }} disabled={csvItems.filter(i => i.selected).length === 0} className={`w-full py-3 rounded-xl text-white font-bold shadow bg-${themeColor}-600 disabled:opacity-50`}>Confirmar ({csvItems.filter(i => i.selected).length})</button>
                         </>
                     )}
                 </div>
@@ -762,16 +841,16 @@
             return (
                 <div className="flex flex-col h-full bg-gray-50 fade-in">
                     <header className={`bg-${themeColor}-600 text-white p-6 pb-8 rounded-b-3xl shadow-lg sticky top-0 z-10`}>
-                        <div className="flex justify-between items-center mb-4"><h1 className="text-2xl font-bold">{isRevenue ? 'Receitas' : 'Despesas'}</h1><div className="flex gap-2"><button onClick={() => setView('import')} className="bg-white/20 p-2 rounded-lg hover:bg-white/30" title="Importar"><Upload size={20}/></button><button onClick={() => setView('add')} className="bg-white text-gray-900 px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-sm active:scale-95 transition"><PlusCircle size={18}/> Novo</button></div></div>
+                        <div className="flex justify-between items-center mb-4"><h1 className="text-2xl font-bold">{isRevenue ? 'Receitas' : 'Despesas'}</h1><div className="flex gap-2"><button onClick={() => setView('import')} className="bg-white/20 p-2 rounded-lg hover:bg-white/30" title="Importar"><Upload size={20} /></button><button onClick={() => setView('add')} className="bg-white text-gray-900 px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-sm active:scale-95 transition"><PlusCircle size={18} /> Novo</button></div></div>
                         <div className="relative"><Search className={`absolute left-3 top-3 text-${themeColor}-200`} size={18} /><input type="text" placeholder="Buscar..." className={`w-full pl-10 pr-4 py-2.5 bg-${themeColor}-700 rounded-xl text-white placeholder-${themeColor}-300 focus:outline-none focus:ring-2 focus:ring-white/50`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
                     </header>
                     <div className="flex-1 overflow-y-auto p-4 pb-24 space-y-3">
                         {filteredData.length === 0 ? <div className="text-center py-10 text-gray-400"><p className="mb-2">Nenhum registro.</p><button onClick={() => setView('import')} className={`text-sm text-${themeColor}-600 font-bold underline`}>Importar</button></div> : filteredData.map(item => (
                             <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
                                 {editItem === item.id ? (
-                                    <div className="flex-1 flex gap-2"><input className="border rounded px-2 py-1 w-full" value={item.description} onChange={(e) => onUpdate(item.id, { description: e.target.value })} /><input type="number" className="border rounded px-2 py-1 w-24" value={item.amount} onChange={(e) => onUpdate(item.id, { amount: parseFloat(e.target.value) })} /><button onClick={() => setEditItem(null)} className="p-2 bg-green-100 text-green-700 rounded"><Check size={16}/></button></div>
+                                    <div className="flex-1 flex gap-2"><input className="border rounded px-2 py-1 w-full" value={item.description} onChange={(e) => onUpdate(item.id, { description: e.target.value })} /><input type="number" className="border rounded px-2 py-1 w-24" value={item.amount} onChange={(e) => onUpdate(item.id, { amount: parseFloat(e.target.value) })} /><button onClick={() => setEditItem(null)} className="p-2 bg-green-100 text-green-700 rounded"><Check size={16} /></button></div>
                                 ) : (
-                                    <><div className="flex-1"><h3 className="font-bold text-gray-800">{item.description}</h3><div className="flex items-center gap-2 text-xs text-gray-500 mt-1"><span className="bg-gray-100 px-2 py-0.5 rounded">{formatDate(item.date)}</span><span>{item.category}</span></div></div><div className="text-right"><div className={`font-bold text-lg text-${themeColor}-600`}>{formatCurrency(item.amount)}</div><div className="flex justify-end gap-3 mt-1"><button onClick={() => setEditItem(item.id)} className="text-gray-400 hover:text-blue-500"><Edit2 size={14}/></button><button onClick={() => onDelete(item.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={14}/></button></div></div></>
+                                    <><div className="flex-1"><h3 className="font-bold text-gray-800">{item.description}</h3><div className="flex items-center gap-2 text-xs text-gray-500 mt-1"><span className="bg-gray-100 px-2 py-0.5 rounded">{formatDate(item.date)}</span><span>{item.category}</span></div></div><div className="text-right"><div className={`font-bold text-lg text-${themeColor}-600`}>{formatCurrency(item.amount)}</div><div className="flex justify-end gap-3 mt-1"><button onClick={() => setEditItem(item.id)} className="text-gray-400 hover:text-blue-500"><Edit2 size={14} /></button><button onClick={() => onDelete(item.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button></div></div></>
                                 )}
                             </div>
                         ))}
@@ -794,13 +873,13 @@
                     setUser(u);
                     if (u) {
                         const qRev = query(collection(db, 'artifacts', appNamespace, 'users', u.uid, 'farm_revenues'), orderBy('date', 'desc'));
-                        onSnapshot(qRev, (snap) => setRevenues(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+                        onSnapshot(qRev, (snap) => setRevenues(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
                         const qExp = query(collection(db, 'artifacts', appNamespace, 'users', u.uid, 'farm_expenses'), orderBy('date', 'desc'));
-                        onSnapshot(qExp, (snap) => setExpenses(snap.docs.map(d => ({id: d.id, ...d.data()}))));
-                        
+                        onSnapshot(qExp, (snap) => setExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+
                         // Busca dados antigos com fallback robusto
                         const qOld = query(collection(db, 'despesas'));
-                        onSnapshot(qOld, (snap) => setOldExpenses(snap.docs.map(d => ({id: d.id, ...d.data()}))), (err) => console.log("Erro old db", err));
+                        onSnapshot(qOld, (snap) => setOldExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() }))), (err) => console.log("Erro old db", err));
 
                         onSnapshot(doc(db, 'artifacts', appNamespace, 'users', u.uid, 'config', 'main'), (snap) => {
                             if (snap.exists()) setConfig(snap.data());
@@ -819,7 +898,7 @@
                 await addDoc(collection(db, 'artifacts', appNamespace, 'users', user.uid, coll), { ...data, createdAt: serverTimestamp() });
             };
             const addBulk = async (items) => { const batch = items.map(item => addDoc(collection(db, 'artifacts', appNamespace, 'users', user.uid, item.type === 'revenue' ? 'farm_revenues' : 'farm_expenses'), { ...item, createdAt: serverTimestamp() })); await Promise.all(batch); };
-            const deleteTransaction = async (id, type) => { if(!confirm('Tem certeza?')) return; await deleteDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, type === 'revenue' ? 'farm_revenues' : 'farm_expenses', id)); };
+            const deleteTransaction = async (id, type) => { if (!confirm('Tem certeza?')) return; await deleteDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, type === 'revenue' ? 'farm_revenues' : 'farm_expenses', id)); };
             const updateTransaction = async (id, data, type) => { await updateDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, type === 'revenue' ? 'farm_revenues' : 'farm_expenses', id), data); };
             const updateConfig = async (newConfig) => { setConfig(newConfig); await setDoc(doc(db, 'artifacts', appNamespace, 'users', user.uid, 'config', 'main'), newConfig); };
 
@@ -868,5 +947,16 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+    <script>
+        // Toggle Mobile Menu
+        const btn = document.getElementById('mobile-menu-btn');
+        const menu = document.getElementById('mobile-menu');
+        if (btn && menu) {
+            btn.addEventListener('click', () => {
+                menu.classList.toggle('hidden');
+            });
+        }
+    </script>
 </body>
+
 </html>
