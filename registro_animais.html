@@ -436,6 +436,12 @@
                             <option value="ADULTO">Adultos</option>
                             <option value="PROVISORIO">⚠ Provisórios</option>
                         </select></div>
+                    <div><select id="filtro-foto" onchange="aplicarFiltros()"
+                            class="w-full py-2 px-2 border border-gray-200 rounded text-sm bg-slate-50 text-slate-600 focus:border-blue-500 outline-none">
+                            <option value="ALL">Fotos: Todos</option>
+                            <option value="COM_FOTO">Com Foto</option>
+                            <option value="SEM_FOTO">Sem Foto</option>
+                        </select></div>
                 </div>
             </div>
             <div class="bg-white rounded shadow-sm border border-slate-100 overflow-hidden">
@@ -978,6 +984,7 @@
             const fSexo = document.getElementById('filtro-sexo').value;
             const fStatus = document.getElementById('filtro-status').value;
             const fCat = document.getElementById('filtro-cat').value;
+            const fFoto = document.getElementById('filtro-foto').value;
             const limpar = (str) => str ? str.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
 
             const tbody = document.getElementById('tbody-lista'); tbody.innerHTML = ''; let count = 0;
@@ -989,10 +996,15 @@
                 if (fStatus === 'LACTACAO' && !st.includes('LACTACAO')) return false;
                 if (fStatus === 'SECA' && !st.includes('SECA')) return false;
                 if (fStatus === 'OUTROS' && (st.includes('LACTACAO') || st.includes('SECA'))) return false;
+
                 const ehBez = a.nascimento ? calcularMeses(a.nascimento) < 12 : limpar(a.categoria_manual).includes('BEZERRO');
                 if (fCat === 'BEZERRO' && !ehBez) return false;
                 if (fCat === 'ADULTO' && ehBez) return false;
                 if (fCat === 'PROVISORIO' && a.classificacao !== 'PROVISORIO') return false;
+
+                if (fFoto === 'COM_FOTO' && !a.foto_url) return false;
+                if (fFoto === 'SEM_FOTO' && a.foto_url) return false;
+
                 return true;
             });
 
@@ -1020,7 +1032,14 @@
                     btnAction = `<button onclick="abrirModalRetorno('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-green-600 bg-green-50 hover:bg-green-100 transition border border-green-100 shadow-sm" title="Iniciar Lactação"><i class="fas fa-play text-xs"></i></button>`;
                 }
 
+                // Photo Icon Logic
+                let photoIcon = '';
+                if (a.foto_url) {
+                    photoIcon = `<a href="${a.foto_url}" target="_blank" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100" title="Ver Foto"><i class="fas fa-camera text-xs"></i></a>`;
+                }
+
                 let sexIcon = a.tipo === 'MACHO' ? '<i class="fas fa-mars text-blue-500"></i>' : '<i class="fas fa-venus text-pink-500"></i>';
+
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 transition border-b border-slate-50">
                         <td class="px-4 py-3 font-bold text-slate-700">${idDisplay}</td>
@@ -1031,6 +1050,7 @@
                             <div class="flex justify-center gap-2">
                                 ${btnAction}
                                 <button onclick="abrirDossie('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition shadow-sm border border-blue-100"><i class="fas fa-clipboard-list text-xs"></i></button>
+                                ${photoIcon}
                                 <button onclick="abrirModalEditar('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 bg-white hover:text-slate-800 hover:bg-gray-100 transition shadow-sm border border-gray-100"><i class="fas fa-pen text-xs"></i></button>
                                 <button onclick="abrirModalExcluir('${a.id}')" class="w-8 h-8 rounded-full flex items-center justify-center text-red-400 bg-white hover:text-red-600 hover:bg-red-50 transition shadow-sm border border-gray-100"><i class="fas fa-trash text-xs"></i></button>
                             </div>
